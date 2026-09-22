@@ -40,6 +40,29 @@ Building Tier 1 of the 22-artifact priority order (build spec, Section 8): Metri
 
 DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Next.js or Streamlit (undecided — see build spec Section 7) · Claude API for the readout's narrative generation
 
+## Available skills and agents
+
+**Skills** (`.claude/skills/` — reference knowledge, loaded when relevant):
+- `generate-gtm-data` — Phase 1 generator rules (edge cases, grounding, causal wiring)
+- `validate-gtm-data` — the QA plan's test suite, execution order
+- `sync-portfolio-docs` — checklist for propagating a change across all four docs + deck
+- `dbt-conventions` — layering, naming, materialization, testing for this project's dbt models
+- `analytics-engineering-conventions` — light-touch conventions for Phase 4+ (extend as each artifact is built)
+- `external-repo-conventions` — commit message and changelog rules; read before every commit
+- `import-downloads` — routes a downloaded batch of project files into place; invoke explicitly via `/import-downloads`, never autonomously
+
+**Agents** (`.claude/agents/` — isolated subagents for delegable tasks):
+- `dbt-model-writer` — writes dbt models + schema.yml
+- `dbt-test-runner` — writes/runs dbt tests, diagnoses failures against the QA plan
+- `dbt-docs-writer` — maintains dbt's inline documentation, sourced from the metric tree
+- `semantic-layer-builder` — generates/updates the MCP metric registry from the tree file
+- `semantic-layer-validator` — checks registry correctness, guardrails, and NL-routing quality
+- `repo-audit` — one-time/milestone scan of commit history and docs for process-revealing language before sharing the repo publicly; diagnostic only, run manually, not part of routine work
+
+## Repo hygiene
+
+This repo is a shareable portfolio piece. Every commit follows `external-repo-conventions` — no reference to the design conversation, feedback, or back-and-forth that produced a change, in any commit message or diff. The one exception: the standard `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` trailer stays on every commit Claude authors or co-authors — that's tooling attribution, not conversation narration. All revision history goes in `CHANGELOG.md`, not in commit messages and not as residue in the docs themselves. Run the `repo-audit` agent before the repo is ever made public or shared.
+
 ## Style
 
 - Table and field names: `snake_case`, matching exactly what's named in the build spec and QA plan — don't invent an alternate name for something already specified
