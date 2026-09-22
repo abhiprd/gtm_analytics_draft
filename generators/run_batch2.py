@@ -25,6 +25,7 @@ from .opportunities import (
     generate_expansion_opportunities,
     generate_renewal_opportunities,
     finalize_opportunities,
+    reassign_orphaned_ownership,
 )
 from .usage import generate_usage
 from .billing import build_subscriptions, build_billing_monthly
@@ -62,6 +63,13 @@ def main():
     opportunities_df, stage_history_df = finalize_opportunities(
         nb_opp + exp_opp + ren_opp, nb_stage + exp_stage + ren_stage
     )
+    # Own rng stream, not the shared sequential `rng` above -- this pass is
+    # logically unrelated to usage/billing generation below, and reusing
+    # the same stream would shift every downstream draw for an unrelated
+    # reason, forcing a full re-validation of already-correct usage/billing
+    # output. reassign_seed is arbitrary but fixed, so this stays reproducible.
+    reassign_rng = np.random.default_rng(BATCH2_SEED + 500)
+    opportunities_df = reassign_orphaned_ownership(reassign_rng, opportunities_df, users, rep_status_history)
 
     usage_monthly_df, chain_events_df = generate_usage(rng, accounts, segment_history, contract_plan)
 

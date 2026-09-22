@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: int_account_segment_spans
+    description: >
+      Time-in-segment: one row per account per segment-effective-date span,
+      with computed segment_end_date and days_in_segment.
+    columns:
+      - name: account_id
+        tests: [not_null]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: trigger_reason
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['initial_firmographic', 'initial_default', 'usage_threshold', 'firmographic_rescore']
+
+  - name: int_opportunity_stage_spans
+    description: >
+      Time-in-stage: one row per opportunity per stage-entered-date span,
+      with computed stage_end_date and days_in_stage.
+    columns:
+      - name: opportunity_id
+        tests: [not_null]
+
+  - name: int_rep_capacity_periods
+    description: >
+      One row per rep per capacity-period (quota/status change point),
+      forward-filled quota_amount and status.
+    columns:
+      - name: rep_id
+        tests: [not_null]
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'departed']
+
+  - name: int_revenue_movements
+    description: >
+      Shared revenue-bridge engine: one row per account per month per
+      movement_type (starting/new_logo_mrr/expansion/contraction/churn/
+      migration_in/migration_out). Feeds mart_growth_bridge,
+      mart_durability, and mart_segment_migration.
+    columns:
+      - name: account_id
+        tests: [not_null]
+      - name: movement_segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: movement_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['starting', 'new_logo_mrr', 'expansion', 'contraction', 'churn', 'migration_in', 'migration_out']
+      - name: movement_amount
+        tests:
+          - not_null

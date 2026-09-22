@@ -1,0 +1,86 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Grain: one row per calendar day."
+    columns:
+      - name: date_day
+        tests: [not_null, unique]
+
+  - name: dim_accounts
+    description: "Grain: one row per account_id (current state)."
+    columns:
+      - name: account_id
+        tests: [not_null, unique]
+      - name: company_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_market_universe')
+                field: company_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: channel
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['self_serve', 'inbound_marketing', 'outbound_sdr']
+      - name: customer_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Churned']
+
+  - name: dim_reps
+    description: "Grain: one row per rep_id per capacity-period (quota/status change point)."
+    columns:
+      - name: rep_id
+        tests: [not_null]
+      - name: segment
+        description: >
+          Rep's segment focus -- SMB is self-serve/system-owned with no
+          human reps, so only Commercial/Enterprise are valid here.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+      - name: rep_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ISR', 'AE', 'SE', 'AM-Commercial', 'AM-Enterprise']
+      - name: rep_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'departed']
+    # Composite-key uniqueness for (rep_id, period_start_date) isn't a
+    # single-column generic test -- dbt_utils isn't installed for this
+    # project (kept dependency-free per the sources.yml design note), so
+    # it's covered instead by the singular test
+    # tests/assert_dim_reps_period_uniqueness.sql.
+
+  - name: dim_market_universe
+    description: "Grain: one row per company_id (prospect + customer universe)."
+    columns:
+      - name: company_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+              config:
+                where: "account_id is not null"
+      - name: customer_segment
+        description: "Null for non-customer companies -- populated via join to dim_accounts."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+              config:
+                where: "customer_segment is not null"

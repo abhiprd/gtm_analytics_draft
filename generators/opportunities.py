@@ -101,6 +101,14 @@ def _generate_stage_history(rng, opportunity_id, stages, created_date, close_dat
     if regress and len(stages) >= 2:
         sqo_idx = stages.index("SQO") if "SQO" in stages else 1
         regress_date = dates[sqo_idx] + pd.Timedelta(days=int(rng.integers(3, 14)))
+        # Clamp strictly before close_date -- an unclamped regression date
+        # can land past close_date (dates[sqo_idx] is already close to it
+        # for a short cycle), which then sorts *after* the final
+        # Closed Won/Lost row below and breaks the "stage history is
+        # chronologically ordered per opportunity, final row = close_date"
+        # invariant (QA plan Test A).
+        regress_date = min(regress_date, pd.Timestamp(close_date) - pd.Timedelta(days=1))
+        regress_date = max(regress_date, dates[sqo_idx])
         rows.append({
             "opportunity_id": opportunity_id,
             "stage": stages[max(sqo_idx - 1, 0)],
@@ -304,6 +312,42 @@ def generate_renewal_opportunities(rng, accounts, renewal_events, users, rep_sta
         ))
 
     return opp_rows, stage_rows
+
+
+def reassign_orphaned_ownership(rng: np.random.Generator, opp_df: pd.DataFrame, users: pd.DataFrame,
+                                 rep_status_history: pd.DataFrame) -> pd.DataFrame:
+    """Post-generation reassignment pass: an opportunity assigned to a rep
+    who departs before the opportunity's close_date gets reassigned to a
+    newly-eligible rep of the same rep_type, as of the departure date --
+    the "explicit account reassignment... no orphaned ownership" invariant
+    (build spec Section 5 / QA plan Test A), applied to in-flight deals the
+    same way am_activity.py applies it to ongoing AM ownership. _eligible_
+    reps's own assignment-time check only guarantees a rep hadn't departed
+    yet *when the deal was created*; a deal that stays open past its rep's
+    later departure needs this separate pass, since nothing re-picks a rep
+    for already-open deals otherwise. Only rep_id changes -- amount, stage
+    history, and dates all reflect what actually happened while the
+    original rep owned the deal.
+    """
+    departed_by = _departed_by(rep_status_history)
+    opp_df = opp_df.copy()
+    close_ts = pd.to_datetime(opp_df["close_date"])
+    depart_ts = opp_df["rep_id"].map(departed_by)
+    needs_reassignment = depart_ts.notna() & (close_ts >= depart_ts)
+
+    for idx in opp_df.index[needs_reassignment]:
+        row = opp_df.loc[idx]
+        rep_type = (
+            REP_TYPE_BY_SEGMENT_NEW_BUSINESS[row["segment"]] if row["opportunity_type"] == "new_business"
+            else AM_REP_TYPE_BY_SEGMENT[row["segment"]]
+        )
+        eligible = _eligible_reps(users, departed_by, rep_type, depart_ts[idx])
+        eligible = eligible[eligible["rep_id"] != row["rep_id"]]
+        if eligible.empty:
+            continue  # no eligible replacement at this date -- leave as-is rather than fabricate one
+        opp_df.loc[idx, "rep_id"] = _pick_rep(rng, eligible, depart_ts[idx], bias_toward_ramped=True)
+
+    return opp_df
 
 
 def finalize_opportunities(all_opp_rows, all_stage_rows):

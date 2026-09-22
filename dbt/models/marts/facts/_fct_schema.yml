@@ -1,0 +1,260 @@
+version: 2
+
+models:
+  - name: fact_opportunities
+    description: "Grain: one row per opportunity_id."
+    columns:
+      - name: opportunity_id
+        tests: [not_null, unique]
+      - name: account_id
+        description: >
+          Nullable: 1,191 Lost new-business opportunities (Commercial/ISR
+          and Enterprise/AE) never had an account created -- an account
+          only gets created on conversion. Won opportunities always have an
+          account_id (see tests/assert_won_opportunities_have_account.sql).
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+              config:
+                where: "account_id is not null"
+      - name: rep_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_users')
+                field: rep_id
+              config:
+                where: "rep_id is not null"
+      - name: company_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_market_universe')
+                field: company_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: opportunity_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['new_business', 'renewal', 'expansion']
+      - name: owner_role
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ISR', 'AE', 'AM', 'system']
+      - name: loss_reason
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['competitive', 'no_decision', 'price', 'other']
+              config:
+                where: "loss_reason is not null"
+
+  - name: fact_opportunity_stage_history
+    description: "Grain: one row per opportunity_id per stage-entered_date."
+    columns:
+      - name: opportunity_stage_history_id
+        tests: [not_null, unique]
+      - name: opportunity_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fact_opportunities')
+                field: opportunity_id
+      - name: stage
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SAL', 'SQO', 'POC', 'Proposal/Negotiation', 'Negotiation', 'Open', 'Closed Won', 'Closed Lost']
+
+  - name: fact_account_segment_history
+    description: "Grain: one row per account_id per segment-effective_date."
+    columns:
+      - name: account_segment_history_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: trigger_reason
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['initial_firmographic', 'initial_default', 'usage_threshold', 'firmographic_rescore']
+
+  - name: fact_usage_monthly
+    description: "Grain: one row per account_id per month."
+    columns:
+      - name: usage_monthly_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
+  - name: fact_committed_vs_utilized_monthly
+    description: "Grain: one row per account_id per month."
+    columns:
+      - name: committed_vs_utilized_monthly_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
+  - name: fact_revenue_monthly
+    description: "Grain: one row per account_id per month."
+    columns:
+      - name: revenue_monthly_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      # mrr >= 0 is covered by the singular test
+      # tests/assert_no_negative_revenue.sql (QA-plan invariant).
+
+  - name: fact_workflow_chain_events
+    description: "Grain: one row per account_id per month."
+    columns:
+      - name: workflow_chain_event_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+
+  - name: fact_subscriptions
+    description: "Grain: one row per subscription_id."
+    columns:
+      - name: subscription_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: contract_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['metered_month_to_month', 'annual', 'multi_year']
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'churned', 'contracted', 'expanded', 'renewed']
+
+  - name: fact_support_tickets
+    description: "Grain: one row per ticket_id."
+    columns:
+      - name: ticket_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: severity
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['low', 'medium', 'high', 'critical']
+
+  - name: fact_am_activity
+    description: "Grain: one row per activity_id."
+    columns:
+      - name: activity_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: rep_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_users')
+                field: rep_id
+      - name: segment
+        description: "SMB is no-touch (no AM) -- never appears here."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+      - name: activity_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['QBR', 'check_in']
+
+  - name: fact_marketing_spend
+    description: "Grain: one row per channel per month."
+    columns:
+      - name: marketing_spend_id
+        tests: [not_null, unique]
+      - name: channel
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['inbound_marketing', 'outbound_sdr', 'self_serve']

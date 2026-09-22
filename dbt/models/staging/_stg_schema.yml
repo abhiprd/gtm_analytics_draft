@@ -1,0 +1,194 @@
+version: 2
+
+models:
+  - name: stg_accounts
+    description: One row per account, current segment + firmographics.
+    columns:
+      - name: account_id
+        tests: [not_null, unique]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
+  - name: stg_account_segment_history
+    description: One row per account per segment-effective-date.
+    columns:
+      - name: account_id
+        tests: [not_null]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: trigger_reason
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['initial_firmographic', 'initial_default', 'usage_threshold', 'firmographic_rescore']
+
+  - name: stg_users
+    description: One row per rep, static attributes.
+    columns:
+      - name: rep_id
+        tests: [not_null, unique]
+      - name: segment
+        description: >
+          Rep's segment focus -- SMB is self-serve/system-owned with no
+          human reps, so only Commercial/Enterprise are valid here (not the
+          full 3-value account segment domain).
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+
+  - name: stg_quota_history
+    description: One row per rep per quota-effective-date.
+    columns:
+      - name: rep_id
+        tests: [not_null]
+
+  - name: stg_rep_status_history
+    description: One row per rep per status-effective-date.
+    columns:
+      - name: rep_id
+        tests: [not_null]
+
+  - name: stg_market_universe
+    description: One row per prospect/customer company.
+    columns:
+      - name: company_id
+        tests: [not_null, unique]
+
+  - name: stg_opportunities
+    description: One row per opportunity.
+    columns:
+      - name: opportunity_id
+        tests: [not_null, unique]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: opportunity_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['new_business', 'renewal', 'expansion']
+      - name: owner_role
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ISR', 'AE', 'AM', 'system']
+      - name: loss_reason
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['competitive', 'no_decision', 'price', 'other']
+              config:
+                where: "loss_reason is not null"
+
+  - name: stg_opportunity_stage_history
+    description: One row per opportunity per stage-entered-date.
+    columns:
+      - name: opportunity_id
+        tests: [not_null]
+
+  - name: stg_usage_monthly
+    description: One row per account per month, Actions consumed.
+    columns:
+      - name: account_id
+        tests: [not_null]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
+  - name: stg_workflow_chain_events
+    description: One row per account per month, upstream/downstream Actions.
+    columns:
+      - name: account_id
+        tests: [not_null]
+
+  - name: stg_subscriptions
+    description: One row per subscription (an account can have several over its lifetime).
+    columns:
+      - name: subscription_id
+        tests: [not_null, unique]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: contract_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['metered_month_to_month', 'annual', 'multi_year']
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'churned', 'contracted', 'expanded', 'renewed']
+
+  - name: stg_mrr_by_account_month
+    description: One row per account per month, recognized MRR.
+    columns:
+      - name: account_id
+        tests: [not_null]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
+  - name: stg_committed_vs_utilized_monthly
+    description: One row per account per month, committed vs. utilized Actions.
+    columns:
+      - name: account_id
+        tests: [not_null]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
+  - name: stg_support_tickets
+    description: One row per support ticket.
+    columns:
+      - name: ticket_id
+        tests: [not_null, unique]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: severity
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['low', 'medium', 'high', 'critical']
+
+  - name: stg_am_activity
+    description: One row per AM touchpoint (QBR / check_in).
+    columns:
+      - name: activity_id
+        tests: [not_null, unique]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: activity_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['QBR', 'check_in']
+
+  - name: stg_marketing_spend_by_channel_month
+    description: One row per channel per month, marketing spend.
+    columns:
+      - name: channel
+        tests: [not_null]
