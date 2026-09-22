@@ -4,26 +4,26 @@
 
 This is a portfolio artifact demonstrating a GTM analytics diagnostic framework: a rigorous "metric tree" (every parent metric is the actual mathematical result of its children, not just a related grouping) applied to a consumption-based B2B SaaS company, plus a sample weekly executive readout built on top of it. Audience is professional (think: something a VP/CRO of GTM analytics would actually present or receive) — polished and credible, not playful.
 
-A first pass of this deck was built with a hand-coded script (pptxgenjs), which produces a working `.pptx` but relies on manual coordinate placement rather than true layout — it's structurally prone to the kind of spacing/overlap issues a proper design tool avoids by construction. That's why this is being handed off. The content below is final and shouldn't need re-reporting; the ask is a better-designed, better-laid-out version of the same material.
+This is a content and design spec for the deck: what it has to communicate, the layout requirements that keep the tree's hierarchy legible at a glance, and the full content (metric tree plus a sample weekly readout) the slides are built from. The content below is final; the deck is built via a proper layout/design tool rather than manual coordinate placement, so spacing and overlap are handled by the tool rather than needing per-slide tuning.
 
 ## What this deck has to communicate
 
 1. **A metric tree**, not a metrics dashboard. Revenue health is decomposed into three pillars — Growth, Efficiency, Durability — each broken into top-level (Layer 1) metrics, each of those broken into Layer 2 drivers, and some Layer 2 nodes further broken into Layer 3 root-cause leaves. The entire point of the artifact is that a reader can always tell what layer they're looking at and how it connects upward to its parent. If the hierarchy isn't legible at a glance on every slide, the deck has failed its brief regardless of how polished it looks.
 2. **A sample weekly readout** built on that exact tree — proof the tree is usable in an operating cadence, not just a diagram. It needs its front matter (reporting period, audience) and full executive summary included, not summarized down for slide space.
 
-## Design requirements and lessons from the first pass
+## Design requirements
 
 - **Every pillar needs a parallel "map" moment**: a place where all of that pillar's Layer-1 nodes appear side by side, each shown as a complete unit — name, owner, formula, and its direct children. Efficiency and Durability naturally worked this way (3 nodes each, shallow enough to fit one slide); Growth has 4 Layer-1 nodes and much deeper sub-structure, and it's tempting to skip straight into its sub-branches without ever showing the Layer-1 map. Don't skip it — Growth needs the exact same "here's what this level means" treatment before diving deeper, or it reads as structurally inconsistent with the other two pillars.
 - **Level badges/labels must be unambiguous everywhere.** A reader should never have to guess whether a card is a Layer 1, 2, or 3 node. Whatever visual system marks this (badge, indent depth, breadcrumb, color) needs to be consistent across every slide, including the readout slides.
 - **Don't force uniform depth.** Some branches genuinely only go two layers deep (e.g., Consumption Payback's two children are leaves, full stop) while others go three (e.g., Win Rate has leaf-level detail beneath it). Don't pad a shallow branch with invented content to make it "match" a deeper one, and don't flatten a deep branch to match a shallow one.
-- **Avoid uneven card fill.** Cards with 2 bullets and cards with 5 bullets sitting at the same fixed height produce awkward, unbalanced whitespace. Size to content, or handle variable content length gracefully (this is something a real design tool should do natively rather than needing manual per-card height tuning).
+- **Avoid uneven card fill.** Cards with 2 bullets and cards with 5 bullets sitting at the same fixed height produce awkward, unbalanced whitespace. Size to content, or handle variable content length gracefully.
 - **No accent stripes, edge bars, or color bars as a design motif.** If pillars need color-coding, use it in the title text or a small identifier (dot, badge) — not a stripe down the edge of a card or slide.
 - **Overlays vs. formula terms need to stay visually distinct.** In the New Logo branch specifically, two nodes (marketing–sales handoff quality, brand & awareness) are diagnostic overlays that sit alongside the three actual multiplicative factors (pipeline generated, win rate, avg commitment) — they should never look like a 4th and 5th factor in the equation. Both are explicitly labeled as non-additive in the content below; that distinction needs to survive visually, not just in a caption.
 - **Readout drill-downs vary week to week; the Layer 1 scorecard does not.** The weekly readout has two structurally different things happening: a fixed set of 11 Layer-1 metric cards that appear identically every week (value, vs. plan, status), and a variable set of drill-downs that only appear for whichever Layer-1 metrics actually deviated that week. Don't let the design imply the drill-downs are also a fixed, exhaustive set.
 
-## Suggested color/style starting point (adjust freely — better design judgment here is the whole point of this handoff)
+## Color and style starting point
 
-First pass used a navy/teal/terracotta palette (navy = Growth, teal = Efficiency, terracotta = Durability), safe-list serif headers (Cambria) over sans body (Calibri), white cards on a light neutral background. Keep, discard, or improve as fits — nothing here is load-bearing except the content and the hierarchy legibility requirement above.
+Palette: navy/teal/terracotta (navy = Growth, teal = Efficiency, terracotta = Durability), safe-list serif headers (Cambria) over sans body (Calibri), white cards on a light neutral background. Not load-bearing — the content and the hierarchy legibility requirement above take priority over exact palette choices.
 
 ---
 

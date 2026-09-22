@@ -7,12 +7,12 @@ description: Use whenever a change is made to the metric tree, company model, sc
 
 ## When this applies
 
-Any of: a metric's formula, owner, or layer position changes · a segment/company-model rule changes · a new field or table is added to the schema · an artifact is added, removed, or rescoped · a terminology change (this has happened once already — tier → segment).
+Any of: a metric's formula, owner, or layer position changes · a segment/company-model rule changes · a new field or table is added to the schema · an artifact is added, removed, or rescoped · a terminology change (this has happened before — tier → segment for the company model; tier/segment → wave for the build-priority groups, since both prior terms were already claimed by the segment invariant).
 
 ## Checklist — go through all five, not just the one you're thinking of
 
 1. **`docs/acme-corp-gtm-metric-tree.md`** — the metric definition itself, if that's what changed
-2. **`docs/acme-corp-gtm-portfolio-build-spec.md`** — company model / schema / artifact list / Phase 1–5 sections. Also check Section 8's artifact count and build-priority tiers if an artifact was added, removed, or rescoped.
+2. **`docs/acme-corp-gtm-portfolio-build-spec.md`** — company model / schema / artifact list / Phase 1–5 sections. Also check Section 8's artifact count and build-priority waves if an artifact was added, removed, or rescoped.
 3. **`docs/acme-corp-claude-design-brief.md`** — duplicates tree and readout content as verbatim text for handoff purposes; it does not just reference the other files, so it goes stale silently if skipped
 4. **`docs/acme-corp-phase1-data-qa-plan.md`** — check whether the change adds a new invariant, edge case, or test case
 5. **The slide deck** (edit the generator script → rebuild → validate → render → visually QA before overwriting the `.pptx`) — if the change touches anything the deck displays: metric names, formulas, segment counts, card counts

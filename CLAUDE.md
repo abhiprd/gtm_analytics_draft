@@ -23,7 +23,7 @@ Acme Corp GTM Analytics Portfolio — a fictional company's simulated GTM analyt
 
 ## Current phase
 
-Building Tier 1 of the 22-artifact priority order (build spec, Section 8): Metric tree → Account health score → Segment migration → Variance-diagnostic engine → Weekly executive readout. Raw data generation and dbt marts don't exist yet — that's the actual starting point. Do not begin Tier 2+ artifacts before Tier 1's core loop runs end to end against real generated data.
+Building Wave 1 of the 22-artifact priority order (build spec, Section 8): Metric tree → Account health score → Segment migration → Variance-diagnostic engine → Weekly executive readout. Raw data generation and dbt marts don't exist yet — that's the actual starting point. Do not begin Wave 2+ artifacts before Wave 1's core loop runs end to end against real generated data.
 
 ## Repo structure
 

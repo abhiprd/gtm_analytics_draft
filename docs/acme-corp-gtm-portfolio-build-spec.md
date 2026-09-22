@@ -2,7 +2,7 @@
 
 **Purpose:** Portfolio project demonstrating GTM analytics + data engineering + AI-context-layer design, built against a fictional company ("Acme Corp") with a three-segment, touch-differentiated GTM motion and a genuinely consumption-based revenue model (usage metered on "Actions" executed). Built for implementation in Claude Code, phase by phase.
 
-**Companion artifact:** `acme-corp-gtm-metric-tree.md` is now the single source of truth for all metric definitions (Growth/Efficiency/Durability, 3 layers deep). This spec no longer duplicates metric content — it defines the company, the motion, and the technical build that the tree gets computed from.
+**Companion artifact:** `acme-corp-gtm-metric-tree.md` is the single source of truth for all metric definitions (Growth/Efficiency/Durability, 3 layers deep). This spec defines the company, the motion, and the technical build that the tree gets computed from.
 
 ---
 
@@ -133,7 +133,7 @@ The metric registry is generated directly from `acme-corp-gtm-metric-tree.md`'s 
 
 ### Phase 4 — Variance-Diagnostic Engine
 
-This replaces the earlier "five analyses" framing — the actual deliverable is the engine that powers the weekly readout's drill-downs, not a fixed report set:
+The deliverable is the engine that powers the weekly readout's drill-downs, not a fixed report set:
 
 - For any Layer-1 metric, compute variance from plan
 - Where variance exceeds a defined threshold (e.g. ±8%), identify which Layer-2 child is the actual outlier among its siblings (not just repeat the Layer-1 miss)
@@ -158,9 +158,9 @@ Proven-out structure (see the sample readout in `acme-corp-claude-design-brief.m
 
 Phases 1–3 are the technical backbone and the actual differentiator — go deep here. Phase 4's variance-diagnostic logic (the drill-down selection rule) is the piece that makes Phase 5 honest rather than decorative; don't under-scope it. Phase 5: a clean digest view + forecast view + segment-efficiency view + one working chat demo is enough; resist building a full BI platform.
 
-## 7. Resolved vs. Still Open
+## 7. Design Decisions and Open Questions
 
-**Resolved this pass:** entry logic is firmographic-driven and channel-independent; migration `trigger_reason` has 4 values, not 2; AM (not ISR/AE) owns retention/expansion; `opportunity_type`/`owner_role`/`loss_reason` are real fields; account health score inputs are genuine time series; marketing's footprint is distributed across New Logo/Activation/Expansion with population-distinct metrics, not duplicated.
+**Established:** entry logic is firmographic-driven and channel-independent; migration `trigger_reason` has 4 values, not 2; AM (not ISR/AE) owns retention/expansion; `opportunity_type`/`owner_role`/`loss_reason` are real fields; account health score inputs are genuine time series; marketing's footprint is distributed across New Logo/Activation/Expansion with population-distinct metrics, not duplicated.
 
 **Still open:**
 - Dashboard framework: Next.js vs. Streamlit
@@ -201,15 +201,15 @@ Both #21's whitespace piece and #22 run off a single new data source (see Phase 
 
 **Explicitly absorbed, not standalone:** quota setting (→ Capacity Planning, #3); LTV:CAC and marginal-CAC economics (→ enhancement to the Efficiency pillar's existing Magic Number / Consumption Payback nodes, not a new artifact); customer journey / time-to-value (→ already covered by the Growth pillar's Activation branch and the Growth→Durability arc — a new artifact only if the ask becomes feature-level adoption sequencing specifically).
 
-**Build priority order.** Not an arbitrary ranking — grouped into segments by genuine dependency, since several artifacts within a segment can be built in parallel and pretending otherwise would be dishonest. Segment 0 is Phase 1 + Phase 2 themselves — nothing below exists as a *built* thing until then.
+**Build priority order.** Not an arbitrary ranking — grouped into waves by genuine dependency, since several artifacts within a wave can be built in parallel and pretending otherwise would be dishonest. Wave 0 is Phase 1 + Phase 2 themselves — nothing below exists as a *built* thing until then.
 
-- **Segment 1 (core measurement loop, really one build effort):** Metric tree → Account health score → Segment/segmentation migration → Variance-diagnostic engine → Weekly executive readout. The readout is the forcing function that proves the first four work against real generated data.
-- **Segment 2 (the rest of the weekly operating cadence):** Forecast, Capacity planning, Marketing attribution & channel mix.
-- **Segment 3 (infrastructure before more gets built on ungoverned data):** Data quality / metric governance, Semantic layer / AI context layer.
-- **Segment 4 (deal/rep depth, builds on Segment 1–2, not required for the core loop):** Deal-level diagnostics, Rep productivity & coaching diagnostics, Automated playbook triggers (needs Segment 1's thresholds validated against real data first).
-- **Segment 5 (strategic/market-facing, runs off `market_universe`, not part of weekly cadence):** Territory / coverage & routing, TAM/ICP, Pricing/packaging analytics.
-- **Segment 6 (advanced methods needing Segment 2's baseline and the tree's equations fully live):** MMM/incrementality, Scenario planning, Retention/expansion cohort analytics.
-- **Segment 7 (last by necessity — not computable meaningfully until real history accumulates):** Lead-scoring model validation & drift detection, Testing/experimentation platform, Proxy-metric health / analytics investment prioritization.
+- **Wave 1 (core measurement loop, really one build effort):** Metric tree → Account health score → Segment migration → Variance-diagnostic engine → Weekly executive readout. The readout is the forcing function that proves the first four work against real generated data.
+- **Wave 2 (the rest of the weekly operating cadence):** Forecast, Capacity planning, Marketing attribution & channel mix.
+- **Wave 3 (infrastructure before more gets built on ungoverned data):** Data quality / metric governance, Semantic layer / AI context layer.
+- **Wave 4 (deal/rep depth, builds on Wave 1–2, not required for the core loop):** Deal-level diagnostics, Rep productivity & coaching diagnostics, Automated playbook triggers (needs Wave 1's thresholds validated against real data first).
+- **Wave 5 (strategic/market-facing, runs off `market_universe`, not part of weekly cadence):** Territory / coverage & routing, TAM/ICP, Pricing/packaging analytics.
+- **Wave 6 (advanced methods needing Wave 2's baseline and the tree's equations fully live):** MMM/incrementality, Scenario planning, Retention/expansion cohort analytics.
+- **Wave 7 (last by necessity — not computable meaningfully until real history accumulates):** Lead-scoring model validation & drift detection, Testing/experimentation platform, Proxy-metric health / analytics investment prioritization.
 
 ---
 

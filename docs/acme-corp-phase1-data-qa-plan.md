@@ -4,7 +4,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 
 ---
 
-## Design decisions resolved here (previously undefined)
+## Design decisions
 
 - **No segment downgrade path.** An account that fails to activate churns out entirely at first contract end rather than demoting to a lower segment. Migration stays one-directional.
 - **Mid-month migrations take effect the 1st of the following month.** No proration.
@@ -111,4 +111,4 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - At least some accounts show the sustained-near-zero-usage-before-renewal pattern
 - At least some deals show stage regression
 - At least some reps depart mid-simulation with a clean reassignment, zero ownership gap
-- High-automation, low-login, high-Actions accounts exist and are **not** predominantly mis-flagged as at-risk — this directly validates the health-score reweighting fix above
+- High-automation, low-login, high-Actions accounts exist and are **not** predominantly mis-flagged as at-risk — this directly validates the health-score reweighting logic above
