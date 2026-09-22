@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Enforces external-repo-conventions (.claude/skills/external-repo-conventions/
+# SKILL.md): Conventional Commits format, and no red-flag process-revealing
+# language in commit messages. Activated per clone via
+# `git config core.hooksPath .githooks` (see CLAUDE.md's Repo hygiene
+# section) -- it does not run unless that's been set.
+#
+# This mechanically checks the two things a script actually can: message
+# format, and a literal term list. It cannot reliably catch personal names
+# or conversational pronouns -- that half of the skill's self-check still
+# needs a human (or Claude) read before committing.
+set -euo pipefail
+
+commit_msg_file="$1"
+subject_line="$(head -1 "$commit_msg_file")"
+
+# --- Conventional Commits format ---
+allowed_types="feat|fix|docs|refactor|test|data|chore"
+if ! echo "$subject_line" | grep -qE "^(${allowed_types})(\([a-zA-Z0-9_.-]+\))?: .+"; then
+  echo "commit-msg hook: subject line does not match Conventional Commits format." >&2
+  echo "  Expected: type(scope): summary, with type in {feat, fix, docs, refactor, test, data, chore}" >&2
+  echo "  Got: ${subject_line}" >&2
+  exit 1
+fi
+
+# --- Red-flag terms (external-repo-conventions' own self-check list) ---
+# The Co-Authored-By trailer is the skill's one explicit exception (tool
+# attribution, not conversation narration) -- strip it before scanning so
+# its own text is never checked against the red-flag list below.
+scan_body="$(grep -v '^Co-Authored-By:' "$commit_msg_file" || true)"
+
+red_flags=(
+  '\buser\b' '\basked\b' '\brequested\b' '\bdiscussion\b' '\bfeedback\b'
+  '\bdecided\b' 'per your' 'as you said' '\bpreviously\b' 'used to'
+)
+for pattern in "${red_flags[@]}"; do
+  if echo "$scan_body" | grep -qiE "$pattern"; then
+    echo "commit-msg hook: commit message contains a red-flag term (pattern: ${pattern})" >&2
+    echo "  external-repo-conventions bans process/conversation-revealing language in commits." >&2
+    echo "  Rewrite to describe the resulting system, not how or why the decision was made." >&2
+    exit 1
+  fi
+done
+
+exit 0

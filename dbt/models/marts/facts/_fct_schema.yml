@@ -258,3 +258,21 @@ models:
           - accepted_values:
               arguments:
                 values: ['inbound_marketing', 'outbound_sdr', 'self_serve']
+
+  - name: fact_model_performance_history
+    description: >
+      Grain: one row per (model_name, as_of_date, metric_name). Append-only
+      Phase 4 model-eval log -- see docs/acme-corp-analytics-methods.md and
+      the drift-monitor agent, which both call this "mart_model_performance_
+      history" informally; it's fct_-named here per dbt-conventions since
+      it's a log, not a cross-cutting business mart. Zero rows until the
+      first Phase 4 artifact is built and backtested.
+    columns:
+      - name: model_performance_id
+        tests: [not_null, unique]
+      - name: model_name
+        tests: [not_null]
+      - name: as_of_date
+        tests: [not_null]
+      - name: metric_name
+        tests: [not_null]

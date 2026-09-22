@@ -10,6 +10,8 @@ Acme Corp GTM Analytics Portfolio — a fictional company's simulated GTM analyt
 
 **Read `docs/acme-corp-phase1-data-qa-plan.md` before writing or modifying any data generator.** It contains resolved design decisions, edge cases, grounding requirements, and the test suite the generated data must pass.
 
+**Read `docs/acme-corp-analytics-methods.md` before building or evaluating any Phase 4 artifact.** It is the source of truth for each model's methodology, validation target, and drift threshold — the Phase 4 equivalent of the metric tree. Entries are filled in as each artifact is built, not written ahead of the work; an entry marked TBD is expected, not a gap to silently fill in yourself.
+
 ## Non-negotiable invariants
 
 - Terminology is **segment**, not "tier" — SMB / Commercial / Enterprise. Never reintroduce "tier." "Segment" refers only to these three; industry and region are named as themselves, never called "segment."
@@ -23,11 +25,11 @@ Acme Corp GTM Analytics Portfolio — a fictional company's simulated GTM analyt
 
 ## Current phase
 
-Building Wave 1 of the 22-artifact priority order (build spec, Section 8): Metric tree → Account health score → Segment migration → Variance-diagnostic engine → Weekly executive readout. Raw data generation and dbt marts don't exist yet — that's the actual starting point. Do not begin Wave 2+ artifacts before Wave 1's core loop runs end to end against real generated data.
+Building Wave 1 of the 22-artifact priority order (build spec, Section 8): Metric tree → Account health score → Segment migration → Variance-diagnostic engine → Weekly executive readout. Phase 1 (raw data generation) and Phase 2 (dbt marts) are built and passing — the metric tree's Layer-1 pillars are queryable now. Account health score is next. Do not begin Wave 2+ artifacts before Wave 1's core loop runs end to end against real generated data.
 
 ## Repo structure
 
-- `docs/` — the four reference markdown files (do not edit one without checking cross-references in the others — see the `sync-portfolio-docs` skill)
+- `docs/` — the reference markdown files (do not edit one without checking cross-references in the others — see the `sync-portfolio-docs` skill)
 - `generators/` — Python Phase 1 raw data generators, one module per source system
 - `data/raw/` — generator output (CSV/Parquet)
 - `dbt/` — Phase 2 dbt-duckdb project
@@ -45,7 +47,7 @@ DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Next.js o
 **Skills** (`.claude/skills/` — reference knowledge, loaded when relevant):
 - `generate-gtm-data` — Phase 1 generator rules (edge cases, grounding, causal wiring)
 - `validate-gtm-data` — the QA plan's test suite, execution order
-- `sync-portfolio-docs` — checklist for propagating a change across all four docs + deck
+- `sync-portfolio-docs` — checklist for propagating a change across all reference docs + deck
 - `dbt-conventions` — layering, naming, materialization, testing for this project's dbt models
 - `analytics-engineering-conventions` — light-touch conventions for Phase 4+ (extend as each artifact is built)
 - `external-repo-conventions` — commit message and changelog rules; read before every commit
@@ -57,11 +59,16 @@ DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Next.js o
 - `dbt-docs-writer` — maintains dbt's inline documentation, sourced from the metric tree
 - `semantic-layer-builder` — generates/updates the MCP metric registry from the tree file
 - `semantic-layer-validator` — checks registry correctness, guardrails, and NL-routing quality
+- `analytics-model-builder` — builds any Phase 4 artifact (account health score, variance-diagnostic engine, forecast components, capacity planning, etc.) per the methods doc and analytics-engineering-conventions
+- `analytics-model-validator` — one-time build-time check that a freshly built Phase 4 artifact meets its stated target; distinct from `drift-monitor`'s recurring production monitoring
 - `repo-audit` — one-time/milestone scan of commit history and docs for process-revealing language before sharing the repo publicly; diagnostic only, run manually, not part of routine work
+- `drift-monitor` — recurring production monitoring for model calibration drift and proxy-metric decoupling, checked against `docs/acme-corp-analytics-methods.md`'s stated thresholds; distinct from one-time build-time validation
 
 ## Repo hygiene
 
 This repo is a shareable portfolio piece. Every commit follows `external-repo-conventions` — no reference to the design conversation, feedback, or back-and-forth that produced a change, in any commit message or diff. The one exception: the standard `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` trailer stays on every commit Claude authors or co-authors — that's tooling attribution, not conversation narration. All revision history goes in `CHANGELOG.md`, not in commit messages and not as residue in the docs themselves. Run the `repo-audit` agent before the repo is ever made public or shared.
+
+**On a fresh clone, run `git config core.hooksPath .githooks` once.** This activates the tracked commit-msg hook that mechanically rejects any commit violating Conventional Commits format or containing `external-repo-conventions`' red-flag terms. It doesn't self-activate — that config line is per-clone, not part of the repo's tracked state.
 
 ## Style
 
