@@ -18,6 +18,15 @@ vars:
   # Absolute-relative path to the Phase 1 raw CSV directory. Overridable via
   # `dbt run --vars '{raw_data_path: /abs/path}'` for CI or other checkouts.
   raw_data_path: "../data/raw"
+  # Phase 4 model-eval log, appended to by analytics/model_performance.py --
+  # not Phase 1 generator output, so it's not under raw_data_path. Kept as a
+  # version-controlled CSV (like the Phase 1 raw data) rather than a row
+  # written straight into the DuckDB file, since data/acme_gtm.duckdb is
+  # gitignored and gets rebuilt from scratch -- a table populated only via
+  # direct DuckDB inserts would lose its whole history on the next clean
+  # `dbt build`. See analytics-engineering-conventions's "where model-
+  # performance history lives" entry.
+  model_performance_path: "../data/model_performance_history.csv"
   # Fixed "as of" date used for any open-ended interval math (e.g. days in
   # current segment, is account still active). The raw data horizon ends
   # 2025-12-31; using wall-clock today() would fabricate months of elapsed

@@ -37,3 +37,15 @@ sources:
       - name: support_tickets
       - name: am_activity
       - name: marketing_spend_by_channel_month
+
+  - name: analytics
+    description: >
+      Phase 4 analytics-artifact output. Currently just the model-performance
+      log (data/model_performance_history.csv), appended to by
+      analytics/model_performance.py after every backtest/build-time check --
+      version-controlled like Phase 1 raw data, not written straight into
+      the (gitignored, rebuild-from-scratch) DuckDB file.
+    tables:
+      - name: model_performance_history
+        meta:
+          external_location: "{{ var('model_performance_path') }}"

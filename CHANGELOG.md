@@ -5,6 +5,10 @@ All notable changes to this project are documented here. Format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- Commit-msg githook enforcing Conventional Commits format and the repo's process-language restrictions, activated via `git config core.hooksPath .githooks`
+- `fact_model_performance_history`: append-only log of Phase 4 model-eval checkpoints, backed by a version-controlled CSV and a Python logging helper (`analytics/model_performance.py`)
+- `docs/acme-corp-analytics-methods.md`: methodology, validation target, and drift threshold reference for every Phase 4 artifact
+- `analytics-model-builder`, `analytics-model-validator`, and `drift-monitor` agents for building, validating, and monitoring Phase 4 artifacts
 - Initial repository scaffold: company model, GTM motion mechanics, metric tree, and Phase 1 data QA plan
 - Three-segment GTM model (SMB, Commercial, Enterprise) with firmographic entry scoring and usage-based migration
 - Consumption-based revenue model with a three-pillar diagnostic metric tree (Growth, Efficiency, Durability)
