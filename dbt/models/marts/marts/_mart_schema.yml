@@ -1,0 +1,93 @@
+version: 2
+
+# None of these marts have a single surrogate-key column (dbt_utils isn't
+# installed for this project, per the sources.yml design note), so each
+# mart's composite grain -- stated in its own model header comment -- is
+# covered instead by tests/assert_mart_grain_uniqueness.sql, the same
+# pattern dim_schema.yml uses for dim_reps.
+
+models:
+  - name: mart_growth_bridge
+    description: >
+      Growth pillar: Starting + New logo − Contraction − Churn + Expansion
+      (± segment migration, nets to zero), plus Activation (TTFA). Grain:
+      one row per segment per month.
+    columns:
+      - name: segment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: month
+        tests: [not_null]
+
+  - name: mart_durability
+    description: >
+      Durability pillar: NRR / GRR / Logo retention. Grain: one row per
+      segment per month.
+    columns:
+      - name: segment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: month
+        tests: [not_null]
+
+  - name: mart_segment_migration
+    description: >
+      One row per migration event (excludes the initial segment-history row
+      per account). trigger_reason is always usage_threshold or
+      firmographic_rescore here.
+    columns:
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: from_segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial']
+      - name: to_segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+      - name: trigger_reason
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['usage_threshold', 'firmographic_rescore']
+
+  - name: mart_efficiency
+    description: >
+      Efficiency pillar: Magic Number / Consumption Payback /
+      Onboarding-CS Efficiency / AM Efficiency. Grain: one row per segment
+      per month. magic_number_sm_cost, magic_number, am_cost, and
+      am_efficiency are NULL for every row -- see model header comment for
+      the raw-data gap (no rep-cost/comp data).
+    columns:
+      - name: segment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: month
+        tests: [not_null]
+
+  - name: mart_tam_whitespace
+    description: >
+      Grain: one row per region x industry x employee_count_band.
+      Penetration and whitespace, run off dim_market_universe.
+    columns:
+      - name: region
+        tests: [not_null]
+      - name: total_companies
+        tests: [not_null]

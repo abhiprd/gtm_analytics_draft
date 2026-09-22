@@ -222,3 +222,61 @@ SEASONALITY_BY_MONTH = {
 # ~118-125% Enterprise target without requiring unrealistically frequent
 # renewal-driven expansion.
 COMMITTED_VOLUME_FACTOR = 0.65
+
+# --- Support tickets (batch 3) ---------------------------------------------
+# Ticket rate baseline (tickets/account/month), by segment -- own resolved
+# decision. Enterprise's more complex integrations produce more tickets in
+# absolute terms despite white-glove AM coverage; SMB's self-serve model
+# means tickets are its only support channel, so its baseline sits above what
+# product complexity alone would suggest.
+TICKET_RATE_BASELINE = {"SMB": 0.12, "Commercial": 0.18, "Enterprise": 0.35}
+# Onboarding-period multiplier -- QA plan: onboarding-period tickets are
+# normal, not a risk signal. Applied for ACTIVATION_RAMP_MONTHS[segment]
+# months after signup.
+TICKET_ONBOARDING_MULTIPLIER = 2.5
+# Pre-churn multiplier/severity shift -- applied only in a data-derived
+# "fading" window (see support_tickets.py's _declining_accounts), the same
+# DECLINE_MONTHS_BEFORE_CHURN concept usage.py uses for the usage-decline
+# pattern, so ticket volume/severity move with the same real trajectory
+# rather than an independent signal keyed off a hidden churn flag.
+TICKET_PRECHURN_MULTIPLIER = 2.2
+SEVERITY_MIX_BASELINE = {"low": 0.55, "medium": 0.30, "high": 0.12, "critical": 0.03}
+SEVERITY_MIX_PRECHURN = {"low": 0.25, "medium": 0.35, "high": 0.28, "critical": 0.12}
+RESOLUTION_HOURS_RANGE = {"low": (1, 24), "medium": (4, 72), "high": (12, 120), "critical": (1, 48)}
+CSAT_RESPONSE_RATE = 0.45  # fraction of resolved tickets that get a CSAT score -- realistic survey response rate, own decision
+CSAT_MEAN_BY_SEVERITY = {"low": 4.5, "medium": 4.0, "high": 3.2, "critical": 2.6}  # 1-5 scale, own decision
+
+# --- AM activity (batch 3) --------------------------------------------------
+# Touchpoint cadence (contacts/account/month) -- build spec Section 5: QBR
+# cadence for Enterprise, check-in cadence for Commercial. No AM for SMB
+# (self-serve, build spec Section 1) -- this table doesn't cover SMB at all.
+# Grounded against typical high-touch (~quarterly QBR + monthly check-ins)
+# vs. mid-touch (~bi-monthly check-ins) AM motions -- own resolved decision.
+AM_TOUCH_RATE_BASELINE = {"Commercial": 0.6, "Enterprise": 1.3}
+AM_TOUCH_PRECHURN_MULTIPLIER = 1.6  # AM escalates outreach as an account shows decline -- own decision
+SENTIMENT_MEAN_BASELINE = 3.8  # 1-5 scale, healthy-account baseline -- own decision
+SENTIMENT_MEAN_PRECHURN = 2.3
+SENTIMENT_SIGMA = 0.6
+
+# --- Marketing spend (batch 3) ----------------------------------------------
+# Blended target CAC per channel ($/new account) -- back-solved loosely
+# against the QA plan's Consumption Payback benchmark (CAC / utilized-Action
+# margin ~= payback months), since neither doc states CAC in dollars
+# directly. self_serve is product-led with near-zero paid acquisition cost;
+# outbound_sdr's channel spend here covers tooling/data enrichment only, NOT
+# rep headcount cost -- no rep-cost source exists yet, so outbound_sdr's true
+# CAC (and Magic Number / AM Efficiency generally) stay genuinely incomplete
+# after this batch. Flagged here rather than silently assumed away.
+TARGET_CAC_BY_CHANNEL = {"inbound_marketing": 1_400, "outbound_sdr": 600, "self_serve": 60}
+MARKETING_SPEND_NOISE_SIGMA = 0.15  # month-to-month noise around the target-CAC-implied spend -- own decision
+
+# Injected incident #2 of the QA plan's required 3-5 (grounding requirement
+# 3; batch 2's config comment deferred this exact incident here for lack of
+# marketing-spend data at the time): a channel's CAC creeping up --
+# inbound_marketing spend rises without a matching rise in new-account
+# volume (volume is already fixed by batch 1's signups, not regenerated
+# here), so realized CAC visibly climbs in this window, detectable via a
+# straightforward spend/volume variance check.
+CAC_CREEP_INCIDENT_CHANNEL = "inbound_marketing"
+CAC_CREEP_INCIDENT_WINDOW = (date(2024, 9, 1), date(2024, 11, 30))
+CAC_CREEP_INCIDENT_SPEND_MULTIPLIER = 1.8

@@ -1,0 +1,7 @@
+acme_gtm:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../data/acme_gtm.duckdb"
+      threads: 4

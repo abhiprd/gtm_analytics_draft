@@ -1,0 +1,52 @@
+name: 'acme_gtm'
+version: '1.0.0'
+config-version: 2
+
+profile: 'acme_gtm'
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  # Absolute-relative path to the Phase 1 raw CSV directory. Overridable via
+  # `dbt run --vars '{raw_data_path: /abs/path}'` for CI or other checkouts.
+  raw_data_path: "../data/raw"
+  # Fixed "as of" date used for any open-ended interval math (e.g. days in
+  # current segment, is account still active). The raw data horizon ends
+  # 2025-12-31; using wall-clock today() would fabricate months of elapsed
+  # time the generator never simulated.
+  analysis_as_of_date: "2025-12-31"
+
+models:
+  acme_gtm:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      dimensions:
+        +materialized: table
+        +schema: marts
+      facts:
+        +materialized: table
+        +schema: marts
+        fact_workflow_chain_events:
+          +materialized: incremental
+          +unique_key: workflow_chain_event_id
+          +incremental_strategy: delete+insert
+      marts:
+        +materialized: table
+        +schema: marts
+
+# fct_workflow_chain_events is the one large, append-only event-grain fact
+# in this batch (142,943 rows and growing with every new month of usage) --
+# incremental per the dbt-conventions skill's materialization rule.
