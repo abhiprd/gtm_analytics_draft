@@ -24,6 +24,26 @@ This is intentionally light. Don't over-build conventions for artifacts that don
 
 `fact_model_performance_history` (model_name, as_of_date, metric_name, metric_value) is the destination for every build-time validation and drift-monitor backtest checkpoint. It's backed by `data/model_performance_history.csv` — version-controlled like Phase 1 raw data, not written straight into `data/acme_gtm.duckdb`, which is gitignored and gets rebuilt from scratch (a table populated only via direct DuckDB inserts would lose its whole history on the next clean `dbt build`). Append to it via `analytics/model_performance.py`'s `log_performance()` — never write the CSV by hand and never insert into the DuckDB table directly.
 
+## Statistical validation package — every predictive model, by artifact type
+
+Every Phase 4 model captures a validation package appropriate to its type at build time, not just a single headline metric. `analytics-model-builder` produces it; `analytics-model-validator` independently recomputes the parts that are correctness claims (not merely descriptive) and confirms they match. Which elements apply depends on the artifact's shape:
+
+**Classification models** (account health score today; lead/segmentation scoring later):
+- Full fitted-coefficient (or feature-importance) table — every model input, not a grouped/aggregated subset. State explicitly whether coefficients are in raw-unit or standardized/encoded scale (a `StandardScaler` step means they are not directly "one unit of X" interpretable without unscaling).
+- AUC on held-out data (already required).
+- Confusion matrix — precision/recall/F1 — computed at the model's actual production operating threshold(s), never an arbitrary 0.5 cutoff. If the model uses quantile-based tiers (as the health score does), derive the confusion-matrix threshold the same way production does: a quantile cut over the scored population's probabilities, not a fixed probability.
+- A calibration note: whether raw predicted probabilities reflect true frequencies, demonstrated with the lightest honest check available (e.g. mean predicted probability vs. actual base rate on held-out data) — no new library required. State plainly when `class_weight='balanced'` (or any other reweighting) breaks calibration, since a ranking-only score must never be read by a consumer as a calibrated probability.
+- Sample sizes and class balance for both train and held-out splits.
+- Confirmation that evaluation happened on held-out data, not in-sample.
+
+**Regression models** (forecast, capacity planning — not yet built): R², RMSE/MAE on held-out data, full coefficient table, and residual diagnostics (at minimum: residuals-vs-fitted for non-random pattern, and a note on whether errors are roughly homoscedastic). Nothing exists yet to apply this to — that's expected, not a gap, per this doc's TBD convention; the checklist exists so the first regression model has a bar to build to instead of improvising one.
+
+**Structural/logic artifacts** (the variance-diagnostic engine, named specifically): none of the above applies. There is no coefficient, no R², no confusion matrix — forcing one onto an artifact with no accuracy concept produces theater, not rigor. Its validation is exclusively the synthetic-test-case correctness check `analytics-model-validator` already performs (does it identify the true outlier Layer-2 child, respecting real tree depth). Say so explicitly in the methods doc entry rather than leaving statistics fields blank/TBD, which would misleadingly imply they're still pending.
+
+**Persistence**: single scalar metrics that make sense to track over time against a stated threshold (AUC, precision/recall/F1 at the operating threshold, calibration gap, confusion-matrix cell counts) go into `fact_model_performance_history` via `log_performance()`, one row per metric — same mechanism as `auc_holdout` today. Artifacts with no natural single-number/time-series shape (the full coefficient table; residual diagnostics) are recorded as a structured entry in `docs/acme-corp-analytics-methods.md` instead — this table's flat `(model_name, as_of_date, metric_name, metric_value)` grain fits a scalar time series, not a variable-width table like N coefficients.
+
+**Model type selection and rationale**: every predictive model states, in the methods doc, why its model class was chosen over credible alternatives — tied to this artifact's actual constraints (need for direct interpretability, dataset size/dimensionality, what the score is actually used for downstream), not a default or arbitrary pick. Resolves the "which ML framework" question below for the concrete case each model actually faces, without pre-committing every future model to the same choice.
+
 ## Not yet decided, don't assume an answer
 
 - Language/framework for Phase 4 beyond "Python" — no ML framework has been chosen

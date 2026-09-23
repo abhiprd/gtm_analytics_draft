@@ -9,6 +9,8 @@ description: Use whenever a change is made to the metric tree, company model, sc
 
 Any of: a metric's formula, owner, or layer position changes · a segment/company-model rule changes · a new field or table is added to the schema · an artifact is added, removed, or rescoped · a terminology change (this has happened before — tier → segment for the company model; tier/segment → wave for the build-priority groups, since both prior terms were already claimed by the segment invariant).
 
+`docs/asset-briefs/` is a separate, per-asset leadership-facing output maintained by `asset-brief-writer` — not part of this six-doc checklist.
+
 ## Checklist — go through all six, not just the one you're thinking of
 
 1. **`docs/acme-corp-gtm-metric-tree.md`** — the metric definition itself, if that's what changed

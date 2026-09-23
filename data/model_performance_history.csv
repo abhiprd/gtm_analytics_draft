@@ -1,1 +1,16 @@
 model_name,as_of_date,metric_name,metric_value
+account_health_score,2025-12-31,auc_holdout,0.7613135980091145
+account_health_score,2025-12-31,importance_pct_usage_trend,31.996463252274044
+account_health_score,2025-12-31,importance_pct_ticket_volume_severity,27.240150529948583
+account_health_score,2025-12-31,importance_pct_login_frequency,6.030005029442
+account_health_score,2025-12-31,importance_pct_am_sentiment,34.733381188335365
+account_health_score,2025-12-31,precision_high_tier,0.42613636363636365
+account_health_score,2025-12-31,recall_high_tier,0.4132231404958678
+account_health_score,2025-12-31,f1_high_tier,0.4195804195804196
+account_health_score,2025-12-31,true_positive_high_tier,150
+account_health_score,2025-12-31,false_positive_high_tier,202
+account_health_score,2025-12-31,true_negative_high_tier,1195
+account_health_score,2025-12-31,false_negative_high_tier,213
+account_health_score,2025-12-31,mean_predicted_probability,0.4431155829365224
+account_health_score,2025-12-31,actual_base_rate,0.20625
+account_health_score,2025-12-31,calibration_gap,0.23686558293652243

@@ -29,7 +29,7 @@ Building Wave 1 of the 22-artifact priority order (build spec, Section 8): Metri
 
 ## Repo structure
 
-- `docs/` — the reference markdown files (do not edit one without checking cross-references in the others — see the `sync-portfolio-docs` skill)
+- `docs/` — the reference markdown files (do not edit one without checking cross-references in the others — see the `sync-portfolio-docs` skill). `docs/asset-briefs/` holds one plain-language, leadership-facing brief per built analytics asset (mart or Phase 4 model), maintained by `asset-brief-writer` — explicitly outside `sync-portfolio-docs`'s six-doc cross-reference set.
 - `generators/` — Python Phase 1 raw data generators, one module per source system
 - `data/raw/` — generator output (CSV/Parquet)
 - `dbt/` — Phase 2 dbt-duckdb project
@@ -63,6 +63,7 @@ DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Next.js o
 - `analytics-model-validator` — one-time build-time check that a freshly built Phase 4 artifact meets its stated target; distinct from `drift-monitor`'s recurring production monitoring
 - `repo-audit` — one-time/milestone scan of commit history and docs for process-revealing language before sharing the repo publicly; diagnostic only, run manually, not part of routine work
 - `drift-monitor` — recurring production monitoring for model calibration drift and proxy-metric decoupling, checked against `docs/acme-corp-analytics-methods.md`'s stated thresholds; distinct from one-time build-time validation
+- `asset-brief-writer` — writes/updates one plain-language leadership brief per built dbt mart or Phase 4 artifact under `docs/asset-briefs/`; distinct from `dbt-docs-writer` (schema.yml, technical audience) and `sync-portfolio-docs` (the six fixed reference docs)
 
 ## Repo hygiene
 

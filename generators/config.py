@@ -280,3 +280,39 @@ MARKETING_SPEND_NOISE_SIGMA = 0.15  # month-to-month noise around the target-CAC
 CAC_CREEP_INCIDENT_CHANNEL = "inbound_marketing"
 CAC_CREEP_INCIDENT_WINDOW = (date(2024, 9, 1), date(2024, 11, 30))
 CAC_CREEP_INCIDENT_SPEND_MULTIPLIER = 1.8
+
+# --- Product logins / engagement frequency (batch 4) ------------------------
+# QA plan health-score section: login/engagement frequency must be
+# reinterpreted, not taken at face value -- a fully-automated, "set and
+# forget" workflow can be perfectly healthy with almost no logins. The
+# mechanism that makes that edge case actually exist in the data: each
+# account's login intensity is its own latent draw (LOGIN_INTENSITY_SIGMA,
+# below), independent of contracts.py's usage_scale by construction -- drawn
+# from this module's own rng stream, never derived from usage. That
+# independence is what lets a high-usage, low-login "automated but healthy"
+# cohort exist (QA plan Test E), rather than logins just being usage
+# relabeled.
+#
+# Baseline login rate (sessions/account/month) by segment -- own resolved
+# decision. Higher for SMB (self-serve, UI-dependent, no AM relationship to
+# fall back on) than Enterprise (larger accounts more often run
+# integrations/automation rather than manual UI use).
+LOGIN_RATE_BASELINE = {"SMB": 3.5, "Commercial": 2.5, "Enterprise": 1.8}
+# Per-account latent login-intensity multiplier -- lognormal, mean ~1.
+LOGIN_INTENSITY_SIGMA = 0.45
+# Onboarding window/multiplier -- QA plan: "weight it higher in an account's
+# first ~90 days, lower after." Implemented as a genuinely higher observed
+# frequency during onboarding (new users actively learning the product),
+# not just a downstream scoring-weight artifact. A fixed 90-day window
+# (not config.ACTIVATION_RAMP_MONTHS, which varies 2/3/5 months by segment)
+# since the QA plan states this one in days, specifically.
+LOGIN_ONBOARDING_DAYS = 90
+LOGIN_ONBOARDING_MULTIPLIER = 2.0
+# Pre-churn multiplier -- applied in the same data-derived "fading" window
+# support_tickets.py/am_activity.py use, so login frequency genuinely
+# declines alongside usage/tickets/sentiment for a disengaging account --
+# the opposite direction from tickets/AM activity (which rise as a
+# reactive/intervention signal), since a login is a direct behavioral
+# signal, not a response to one. This is what distinguishes real
+# disengagement from an automated-but-healthy account's stable-low rate.
+LOGIN_PRECHURN_MULTIPLIER = 0.4

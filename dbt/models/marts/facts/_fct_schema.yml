@@ -259,6 +259,24 @@ models:
               arguments:
                 values: ['inbound_marketing', 'outbound_sdr', 'self_serve']
 
+  - name: fact_product_logins
+    description: "Grain: one row per login_id."
+    columns:
+      - name: login_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
   - name: fact_model_performance_history
     description: >
       Grain: one row per (model_name, as_of_date, metric_name). Append-only
