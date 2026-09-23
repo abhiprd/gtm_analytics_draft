@@ -44,3 +44,10 @@ select 'mart_account_health' as mart, cast(account_id as varchar), cast(month as
 from {{ ref('mart_account_health') }}
 group by 1, 2, 3, 4
 having count(*) > 1
+
+union all
+
+select 'mart_gtm_plan' as mart, cast(layer1_metric as varchar), cast(month as varchar), cast(null as varchar), count(*)
+from {{ ref('mart_gtm_plan') }}
+group by 1, 2, 3, 4
+having count(*) > 1

@@ -25,7 +25,7 @@ Acme Corp GTM Analytics Portfolio — a fictional company's simulated GTM analyt
 
 ## Current phase
 
-Building Wave 1 of the 22-artifact priority order (build spec, Section 8): Metric tree → Account health score → Segment migration → Variance-diagnostic engine → Weekly executive readout. Phase 1 (raw data generation) and Phase 2 (dbt marts) are built and passing — the metric tree's Layer-1 pillars are queryable now. Account health score is next. Do not begin Wave 2+ artifacts before Wave 1's core loop runs end to end against real generated data.
+Wave 1 of the 22-artifact priority order (build spec, Section 8) is built and validated end to end against real generated data: Metric tree → Account health score → Segment migration → Variance-diagnostic engine → Weekly executive readout. Phase 1 (raw data generation) and Phase 2 (dbt marts) are built and passing; Phase 4's first five artifacts are built, independently validated, and each has a `docs/asset-briefs/` entry. The weekly executive readout's executive-summary narrative (Claude API prose generation, per build spec Section 5) is a deliberately deferred, separate piece of work — not built here; the readout assembles everything else and leaves a documented seam for it. Next up is Wave 2 (Forecast, Capacity planning, Marketing attribution & channel mix — build spec Section 8).
 
 ## Repo structure
 

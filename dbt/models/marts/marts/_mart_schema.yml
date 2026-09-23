@@ -108,6 +108,58 @@ models:
               arguments:
                 values: ['SMB', 'Commercial', 'Enterprise']
 
+  - name: mart_gtm_plan
+    description: >
+      FP&A/RevOps plan (target) values for the metric tree's Layer-1 nodes.
+      Grain: one row per (layer1_metric, month), blended/company-wide (no
+      segment cut). Ten of the tree's eleven Layer-1 nodes carry a plan row;
+      Activation is excluded by design -- see model header comment and
+      generators/gtm_plan.py. Not yet compared to actuals; that comparison
+      is a later, separate Phase 4 task.
+    columns:
+      - name: layer1_metric
+        description: >
+          One of the metric tree's Layer-1 node names. Closed 10-value set
+          (Activation excluded -- see model description).
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - new_logo_consumption_revenue
+                  - expansion_consumption_revenue
+                  - contraction_churned_revenue
+                  - magic_number
+                  - consumption_payback
+                  - onboarding_cs_efficiency
+                  - am_efficiency
+                  - nrr
+                  - grr
+                  - logo_retention
+      - name: month
+        tests: [not_null]
+      - name: pillar
+        description: >
+          Growth / Efficiency / Durability -- the metric tree pillar this
+          Layer-1 node rolls up to.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Growth', 'Efficiency', 'Durability']
+      - name: plan_value
+        description: >
+          The planned/target value for this metric in this month, in the
+          unit stated in the model header comment. IMPORTANT: for nrr, grr,
+          and logo_retention, this is a decimal ANNUAL-EQUIVALENT rate
+          (1.15, not 115) per generators/gtm_plan.py's stated units --
+          NOT directly comparable to mart_durability's nrr / grr /
+          logo_retention_rate columns, which are monthly-grain. A consumer
+          comparing this plan value to mart_durability's actuals must
+          annualize (or use a trailing-twelve-month figure) first; this
+          mart does not perform that reconciliation.
+        tests: [not_null]
+
   - name: mart_tam_whitespace
     description: >
       Grain: one row per region x industry x employee_count_band.

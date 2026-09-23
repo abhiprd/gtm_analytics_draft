@@ -38,6 +38,7 @@ sources:
       - name: am_activity
       - name: marketing_spend_by_channel_month
       - name: product_logins
+      - name: gtm_plan_targets
 
   - name: analytics
     description: >

@@ -52,6 +52,10 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 ### Market universe
 - Firmographic distribution must be calibrated against real segment/ACV bands — an uncalibrated universe produces nonsensical whitespace and ICP-fit numbers.
 
+### Plan & variance
+- `gtm_plan_targets` must cover exactly the closed set of ten plan-bearing Layer-1 metrics for every month in the simulation window, with no gaps — a missing (metric, month) row silently breaks whichever week's readout lands on it.
+- Plan values must be genuinely independent of that period's realized actuals — generated top-down from the benchmark reference table and this simulation's business-scale constants, never derived from another generator's output for the same month. A plan that peeked at the actual would make "variance from plan" circular rather than a real comparison.
+
 ---
 
 ## Grounding requirements
@@ -85,12 +89,14 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - SMB accounts have exactly 0 or 1 opportunity record, never more
 - Downstream Actions ≤ upstream Actions in every `fact_workflow_chain_events` account-period
 - No orphaned account/opportunity ownership after any rep departure
+- `gtm_plan_targets` has exactly one row per (layer1_metric, month) for all ten plan-bearing metrics across the full simulation window, no duplicates, no gaps, no nulls
 
 ### B. Distributional realism
 - ACV falls within its segment's defined range; flag and investigate outliers
 - Aggregate revenue mix lands near ~65–70% Enterprise ARR (tolerance band, not exact)
 - Win rate, sales-cycle length, and churn rate by segment land within the benchmark reference table's ranges
 - NRR/GRR by segment land near the grounding targets (~118% / ~97%)
+- `gtm_plan_targets` values land within a defensible range per metric — the benchmark reference table's ranges (blended to a company-wide figure) for the six metrics it covers, and the generator's own documented resolved-decision range for `new_logo_consumption_revenue`, `am_efficiency` and `onboarding_cs_efficiency`, which the table has no row for. `expansion_consumption_revenue` and `contraction_churned_revenue` are neither: the metric tree defines NRR and GRR as those exact flows, so both lines are *derived* from this table's blended NRR/GRR rows (`contraction_share = 1 − GRR**(1/12)`, `expansion_share = NRR**(1/12) − 1 + contraction_share`) and their band is the envelope that derivation produces against the planned revenue base. A plan whose flow rows and durability rows state the same identity two different ways is a bug, so the reconciliation between them is asserted directly rather than left to the range check
 
 ### C. Correlational validity — the "meaningful results" tests
 - POC pass = true shows a statistically higher close rate than POC pass = false
@@ -112,3 +118,5 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - At least some deals show stage regression
 - At least some reps depart mid-simulation with a clean reassignment, zero ownership gap
 - High-automation, low-login, high-Actions accounts exist and are **not** predominantly mis-flagged as at-risk — this directly validates the health-score reweighting logic above
+
+**Deferred**: whether `gtm_plan_targets` actually produces real, detectable variance once compared against computed actuals (some months genuinely ahead of plan, some genuinely behind, not every metric drifting the same direction every month) can't be checked at the Phase 1 raw-data layer — there's no "actual" to compare against until Phase 2's marts exist. That correctness check belongs to the Phase 4 variance-diagnostic engine's own build-time validation, not to this suite.
