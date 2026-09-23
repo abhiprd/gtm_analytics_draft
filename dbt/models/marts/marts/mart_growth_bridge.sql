@@ -34,7 +34,7 @@
 --
 -- Activation (TTFA) is a Layer-1 Growth node but is NOT part of the
 -- additive bridge equation above -- it's reported here as a parallel
--- column (activation_ttfa_days_avg), cohorted by signup month, not
+-- column (activation_ttfa_months_avg), cohorted by signup month, not
 -- calendar month of revenue.
 
 with revenue_bridge as (

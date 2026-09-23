@@ -316,3 +316,30 @@ LOGIN_ONBOARDING_MULTIPLIER = 2.0
 # signal, not a response to one. This is what distinguishes real
 # disengagement from an automated-but-healthy account's stable-low rate.
 LOGIN_PRECHURN_MULTIPLIER = 0.4
+
+# --- GTM plan / targets (batch 5) -------------------------------------------
+# The closed set of Layer-1 metrics that carry an FP&A plan value, and the
+# pillar each belongs to. Node names and pillar assignment come straight from
+# docs/acme-corp-gtm-metric-tree.md -- this is the tree's own vocabulary in
+# snake_case, not a second naming scheme.
+#
+# Ten of the tree's eleven Layer-1 nodes are here. Activation (TTFA) is
+# deliberately absent: it is the one Layer-1 metric the leadership readout
+# reports against a trailing baseline ("2.4d last month") rather than a plan
+# figure, so a plan row for it would be a value nothing consumes. The
+# remaining constants that shape these plan values live in gtm_plan.py, next
+# to the reasoning that sets them -- they are single-module planning
+# assumptions, not cross-cutting simulation parameters.
+PLAN_PILLAR_BY_METRIC = {
+    "new_logo_consumption_revenue": "Growth",
+    "expansion_consumption_revenue": "Growth",
+    "contraction_churned_revenue": "Growth",
+    "magic_number": "Efficiency",
+    "consumption_payback": "Efficiency",
+    "onboarding_cs_efficiency": "Efficiency",
+    "am_efficiency": "Efficiency",
+    "nrr": "Durability",
+    "grr": "Durability",
+    "logo_retention": "Durability",
+}
+PLAN_LAYER1_METRICS = tuple(PLAN_PILLAR_BY_METRIC)

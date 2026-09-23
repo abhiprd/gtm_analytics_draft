@@ -204,6 +204,39 @@ models:
               arguments:
                 values: ['SMB', 'Commercial', 'Enterprise']
 
+  - name: stg_gtm_plan_targets
+    description: >
+      One row per (layer1_metric, month), blended/company-wide FP&A/RevOps
+      plan value. Ten of the metric tree's eleven Layer-1 nodes are present;
+      Activation is excluded by design (see generators/gtm_plan.py).
+    columns:
+      - name: layer1_metric
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - new_logo_consumption_revenue
+                  - expansion_consumption_revenue
+                  - contraction_churned_revenue
+                  - magic_number
+                  - consumption_payback
+                  - onboarding_cs_efficiency
+                  - am_efficiency
+                  - nrr
+                  - grr
+                  - logo_retention
+      - name: month
+        tests: [not_null]
+      - name: plan_value
+        tests: [not_null]
+      - name: pillar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Growth', 'Efficiency', 'Durability']
+
   - name: stg_model_performance_history
     description: >
       One row per (model_name, as_of_date, metric_name) Phase 4 model-eval
