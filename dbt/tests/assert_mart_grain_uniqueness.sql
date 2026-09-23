@@ -37,3 +37,10 @@ select 'mart_tam_whitespace' as mart, cast(region as varchar), cast(industry as 
 from {{ ref('mart_tam_whitespace') }}
 group by 1, 2, 3, 4
 having count(*) > 1
+
+union all
+
+select 'mart_account_health' as mart, cast(account_id as varchar), cast(month as varchar), cast(null as varchar), count(*)
+from {{ ref('mart_account_health') }}
+group by 1, 2, 3, 4
+having count(*) > 1

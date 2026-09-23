@@ -193,6 +193,17 @@ models:
       - name: channel
         tests: [not_null]
 
+  - name: stg_product_logins
+    description: One row per login/session event.
+    columns:
+      - name: login_id
+        tests: [not_null, unique]
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
   - name: stg_model_performance_history
     description: >
       One row per (model_name, as_of_date, metric_name) Phase 4 model-eval

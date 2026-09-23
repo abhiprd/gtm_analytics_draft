@@ -19,6 +19,7 @@ Don't silently invent a target and build to it. Propose one — grounded in the 
 - Accept an `as_of_date` parameter; use only data available as of that date, no leakage from the future
 - Seed every stochastic step
 - One-line docstring stating grain and source mart(s)
+- Capture the statistical validation package appropriate to the artifact's type — see `.claude/skills/analytics-engineering-conventions/SKILL.md`'s "Statistical validation package" section for exactly what's required per type. This is a standing requirement for every model this agent builds, not a one-off addition for the health score. Includes stating why this model class was chosen over credible alternatives, per that same skill section's "Model type selection and rationale" line.
 
 ## If you're building the variance-diagnostic engine specifically
 
@@ -26,4 +27,4 @@ The most likely failure mode for this artifact: a drill-down that surfaces an in
 
 ## Before reporting done
 
-Update `docs/acme-corp-analytics-methods.md`'s entry for this artifact — inputs, methodology, and (if newly proposed) the target and drift threshold — so the doc reflects what was actually built, not what was originally planned. Then hand off to `analytics-model-validator`. A model that hasn't been validated isn't done, the same way an unstaged dbt model isn't done — this mirrors the `dbt-model-writer` → `dbt-test-runner` handoff exactly.
+Update `docs/acme-corp-analytics-methods.md`'s entry for this artifact — inputs, methodology, and (if newly proposed) the target and drift threshold — plus its statistical validation package (coefficients/importances, confusion matrix at the real operating threshold, calibration note, sample sizes, or the regression/structural equivalent per the conventions skill) and its model-choice rationale — so the doc reflects what was actually built and how it was actually validated, not what was originally planned. Then hand off to `analytics-model-validator`. A model that hasn't been validated isn't done, the same way an unstaged dbt model isn't done — this mirrors the `dbt-model-writer` → `dbt-test-runner` handoff exactly.

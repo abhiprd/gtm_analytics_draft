@@ -82,6 +82,32 @@ models:
       - name: month
         tests: [not_null]
 
+  - name: mart_account_health
+    description: >
+      Account health score / churn-risk model input mart. Grain: one row
+      per account_id per month, anchored on fact_usage_monthly. Bundles
+      usage, support-ticket, login, and AM-activity signals plus a churn
+      outcome label (is_eventually_churned / churn_month / is_censored) so
+      analytics/health_score.py never has to read the underlying fact
+      tables directly. is_eventually_churned is a training label, not a
+      health-score input -- see model header comment.
+    columns:
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: month
+        tests: [not_null]
+      - name: segment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+
   - name: mart_tam_whitespace
     description: >
       Grain: one row per region x industry x employee_count_band.
