@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 
 from generators import config
+from generators.opportunities import FORECAST_CATEGORIES as FORECAST_CATEGORY_ORDER
 
 DATA_DIR = "data/raw"
 
@@ -325,6 +326,47 @@ class TestCorrelationalValidity:
         rate_in = (in_window["poc_outcome"] == "pass").mean()
         rate_rest = (rest["poc_outcome"] == "pass").mean()
         assert rate_in < rate_rest - 0.10, f"incident window pass rate {rate_in:.1%} not clearly below baseline {rate_rest:.1%}"
+
+    def test_forecast_category_win_rate_is_monotone_and_non_degenerate(self, opportunities):
+        """`forecast_category` is the deal's final close-time call, so it
+        must carry real outcome signal without collapsing onto the outcome.
+        Three things together: every category is populated, win rate rises
+        strictly with category rank, and no category is a perfect
+        separator -- a Commit that always closed (and a lower category that
+        never did) would mean the field is just `is_won` renamed, and an
+        equal rate across categories would mean it is independent noise."""
+        rates = opportunities.groupby("forecast_category")["is_won"].agg(["count", "mean"])
+        rates = rates.reindex(list(FORECAST_CATEGORY_ORDER))
+        assert rates["count"].notna().all(), f"unpopulated category: {rates['count'].to_dict()}"
+        assert (rates["count"] >= 100).all(), f"category too thin to read: {rates['count'].to_dict()}"
+
+        ordered = rates["mean"].to_numpy()
+        assert (ordered[1:] > ordered[:-1]).all(), f"win rate not monotone in rank: {rates['mean'].round(4).to_dict()}"
+        assert ((ordered > 0.0) & (ordered < 1.0)).all(), (
+            f"a category is a perfect separator: {rates['mean'].round(4).to_dict()}"
+        )
+        # Real signal, not a token difference: the strongest and weakest
+        # calls must be far apart even though neither is absolute.
+        assert ordered[-1] - ordered[0] > 0.50
+
+    def test_forecast_category_reflects_loss_reason_and_rep_ramp(self, opportunities, users):
+        """The two named drivers behind a *losing* deal's call have to be
+        visible in the output, not just in the generator: a deal that
+        stalled out (`no_decision`) was never carried confidently, while a
+        late slip on `price` was; and a ramping rep's optimism bias makes
+        that rep's Commit convert measurably worse than a ramped rep's."""
+        rank = {name: i for i, name in enumerate(FORECAST_CATEGORY_ORDER)}
+        lost = opportunities[~opportunities["is_won"]].copy()
+        lost["rank"] = lost["forecast_category"].map(rank)
+        mean_rank = lost.groupby("loss_reason")["rank"].mean()
+        assert mean_rank["no_decision"] < mean_rank["other"] < mean_rank["price"], mean_rank.to_dict()
+
+        commit = opportunities[
+            (opportunities["forecast_category"] == "Commit") & opportunities["rep_id"].notna()
+        ].merge(users[["rep_id", "hire_date"]], on="rep_id")
+        tenure_days = (commit["created_date"] - commit["hire_date"]).dt.days
+        by_ramp = commit.assign(ramped=tenure_days >= 180).groupby("ramped")["is_won"].mean()
+        assert 0 < by_ramp[False] < by_ramp[True] < 1, by_ramp.to_dict()
 
 
 # =====================================================================
