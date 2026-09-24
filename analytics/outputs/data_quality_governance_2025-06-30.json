@@ -1,0 +1,809 @@
+{
+  "as_of_date": "2025-06-30",
+  "metric_tree_integrity": {
+    "as_of_date": "2025-06-30",
+    "computed_edges": [
+      {
+        "edge_id": "growth_pillar_identity",
+        "parent": "Growth pillar",
+        "formula": "Starting + New logo + Expansion - Contraction - Churn (+/- migration, nets to zero)",
+        "formula_type": "sum",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 192,
+          "n_rows_skipped_null": 3,
+          "max_abs_diff": 0.0,
+          "tolerance": 0.01
+        }
+      },
+      {
+        "edge_id": "migration_nets_to_zero",
+        "parent": "Growth pillar (migration qualifier)",
+        "formula": "Company-wide sum(migration_in) == sum(migration_out) per month",
+        "formula_type": "sum",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 66,
+          "n_rows_skipped_null": 0,
+          "max_abs_diff": 1.4551915228366852e-11,
+          "tolerance": 0.01
+        }
+      },
+      {
+        "edge_id": "win_rate_ratio",
+        "parent": "Win rate (Layer 2, under New logo)",
+        "formula": "Closed won / (won + lost)",
+        "formula_type": "ratio",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 170,
+          "n_rows_skipped_null": 25,
+          "max_abs_diff": 0.0,
+          "tolerance": 1e-06
+        }
+      },
+      {
+        "edge_id": "net_new_arr_cross_mart",
+        "parent": "Magic number numerator ('Net new ARR... covered under Growth')",
+        "formula": "(new_logo_mrr + expansion_mrr - contraction_mrr - churn_mrr) x 12",
+        "formula_type": "cross_mart_consistency",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 192,
+          "n_rows_skipped_null": 3,
+          "max_abs_diff": 1.862645149230957e-09,
+          "tolerance": 0.01
+        }
+      },
+      {
+        "edge_id": "am_expansion_arr_cross_mart",
+        "parent": "AM efficiency numerator ('Expansion consumption revenue... See Growth')",
+        "formula": "expansion_mrr x 12",
+        "formula_type": "cross_mart_consistency",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 192,
+          "n_rows_skipped_null": 3,
+          "max_abs_diff": 1.862645149230957e-09,
+          "tolerance": 0.01
+        }
+      },
+      {
+        "edge_id": "consumption_payback_ratio",
+        "parent": "Consumption payback (Layer 1, Efficiency)",
+        "formula": "CAC / utilized-Action margin",
+        "formula_type": "ratio",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 90,
+          "n_rows_skipped_null": 96,
+          "max_abs_diff": 0.0,
+          "tolerance": 1e-06
+        }
+      },
+      {
+        "edge_id": "onboarding_cs_efficiency_ratio",
+        "parent": "Onboarding/CS efficiency (Layer 1, Efficiency)",
+        "formula": "Manual AM/CS touchpoints / volume of automated Actions delivered",
+        "formula_type": "ratio",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 192,
+          "n_rows_skipped_null": 0,
+          "max_abs_diff": 0.0,
+          "tolerance": 1e-06
+        }
+      },
+      {
+        "edge_id": "nrr_ratio",
+        "parent": "NRR (Layer 1, Durability)",
+        "formula": "(Starting - Contraction - Churn + Expansion) / Starting",
+        "formula_type": "ratio",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 189,
+          "n_rows_skipped_null": 0,
+          "max_abs_diff": 0.0,
+          "tolerance": 1e-06
+        }
+      },
+      {
+        "edge_id": "grr_ratio",
+        "parent": "GRR (Layer 1, Durability)",
+        "formula": "(Starting - Contraction - Churn) / Starting",
+        "formula_type": "ratio",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 189,
+          "n_rows_skipped_null": 0,
+          "max_abs_diff": 0.0,
+          "tolerance": 1e-06
+        }
+      },
+      {
+        "edge_id": "logo_retention_ratio",
+        "parent": "Logo retention (Layer 1, Durability)",
+        "formula": "Retained accounts / Starting accounts",
+        "formula_type": "ratio",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 378,
+          "n_rows_skipped_null": 3,
+          "max_abs_diff": 0.0,
+          "tolerance": 1e-06,
+          "detail": {
+            "retained_accounts_identity": {
+              "passed": true,
+              "n_rows_checked": 189,
+              "n_rows_skipped_null": 3,
+              "max_abs_diff": 0.0,
+              "tolerance": 0.01
+            },
+            "logo_retention_rate": {
+              "passed": true,
+              "n_rows_checked": 189,
+              "n_rows_skipped_null": 0,
+              "max_abs_diff": 0.0,
+              "tolerance": 1e-06
+            }
+          }
+        }
+      },
+      {
+        "edge_id": "durability_growth_cross_mart_consistency",
+        "parent": "NRR/GRR drivers ('See Growth -- expansion, contraction, churn drivers')",
+        "formula": "mart_durability's dollar_bridge == mart_growth_bridge's revenue_bridge, same segment/month",
+        "formula_type": "cross_mart_consistency",
+        "result": {
+          "passed": true,
+          "n_rows_checked": 192,
+          "n_rows_skipped_null": 0,
+          "max_abs_diff": 9.313225746154785e-10,
+          "tolerance": 0.01
+        }
+      }
+    ],
+    "static_edges": [
+      {
+        "edge_id": "new_logo_equals_pipeline_x_winrate_x_commitment",
+        "parent": "New logo consumption revenue (Layer 1, Growth)",
+        "formula": "Pipeline generated x Win rate x Avg initial commitment",
+        "formula_type": "product",
+        "status": "NOT_COMPUTABLE",
+        "reason": "No mart exposes 'Pipeline generated' at New Logo's own population -- mart_growth_bridge's win_rate/avg_initial_commitment are computed over closed SQO-stage opportunities, while Pipeline generated (per analytics/marketing_attribution.py) is computed over converting LEADS, a different population and a different unit (SMB in particular has no real win-rate concept at all -- one Opportunity record, always Closed Won). mart_growth_bridge's own header states the two New Logo lenses 'will NOT match exactly... a normal, real bookings-vs-revenue-recognition gap, not a bug.' Multiplying three marts-derived legs that don't share a population would manufacture a false tie-out, not a real one."
+      },
+      {
+        "edge_id": "pipeline_generated_channel_formula",
+        "parent": "Pipeline generated (Layer 2, under New logo)",
+        "formula": "Sum over channels (channel volume x channel-to-lead rate x lead-to-PQL rate)",
+        "formula_type": "sum_of_products",
+        "status": "VALIDATED_ELSEWHERE",
+        "reason": "Computable, but not re-derived here. analytics/marketing_attribution.py already computes this formula from marts (fact_leads, fact_campaign_engagement_events, dim_campaign) and independently validates it exactly in its own build-time check (reconcile_pipeline_generated_identity, listed there as pipeline_generated_rollup_reconciles_to_source; <=1e-9 tolerance, passing at both checkpoints). The formula's correctness depends on point-in-time lead-resolution-horizon logic (open/lapsed/converted state, derived per sub-channel) that is non-trivial and already owned by that module -- re-implementing it here would risk a second, silently-diverging copy rather than adding governance value. This edge is reported as validated, not skipped, with a pointer to where the check actually runs."
+      },
+      {
+        "edge_id": "expansion_equals_wallet_share_x_overage",
+        "parent": "Expansion consumption revenue (Layer 1, Growth)",
+        "formula": "Wallet share progression x Overage realization",
+        "formula_type": "product",
+        "status": "NOT_COMPUTABLE",
+        "reason": "Wallet share progression (% of an account's total addressable workflow footprint running through Acme Corp) has no source anywhere in the raw data or the marts layer -- nothing estimates the non-Acme denominator. This is a genuine Phase 1 data gap (confirmed in analytics/variance_diagnostic.py's coverage table: 'Expansion consumption revenue | 0 of 2'), not a scope choice a Phase 4 workaround could close."
+      },
+      {
+        "edge_id": "magic_number_ratio",
+        "parent": "Magic number (Layer 1, Efficiency)",
+        "formula": "Net new ARR / prior-period S&M cost",
+        "formula_type": "ratio",
+        "status": "NOT_COMPUTABLE",
+        "reason": "No rep-cost/comp data exists anywhere in the raw sources, so mart_efficiency.magic_number_sm_cost and .magic_number are NULL by design (mart_efficiency's own header). This is the same gap analytics/variance_diagnostic.py and analytics/capacity_planning.py both name as structurally not-computable.",
+        "gap_confirmation_cols": [
+          "magic_number_sm_cost",
+          "magic_number"
+        ],
+        "gap_confirmation": {
+          "still_all_null": {
+            "magic_number_sm_cost": true,
+            "magic_number": true
+          },
+          "confirmed_gap": true
+        }
+      },
+      {
+        "edge_id": "am_efficiency_ratio",
+        "parent": "AM efficiency (Layer 1, Efficiency)",
+        "formula": "Expansion consumption revenue / AM cost",
+        "formula_type": "ratio",
+        "status": "NOT_COMPUTABLE",
+        "reason": "No AM comp/cost data exists anywhere in the raw sources, so mart_efficiency.am_cost and .am_efficiency are NULL by design (mart_efficiency's own header). Same gap as magic_number above.",
+        "gap_confirmation_cols": [
+          "am_cost",
+          "am_efficiency"
+        ],
+        "gap_confirmation": {
+          "still_all_null": {
+            "am_cost": true,
+            "am_efficiency": true
+          },
+          "confirmed_gap": true
+        }
+      }
+    ],
+    "excluded_nodes": [
+      {
+        "node": "Brand & awareness",
+        "reason": "Tree's own text: 'leading indicator, not summed into the pipeline math.' CLAUDE.md names this node explicitly as the one deliberate non-additive exception to the parent-equals-function-of-children invariant."
+      },
+      {
+        "node": "Marketing-sales handoff quality",
+        "reason": "Tree's own text, parenthetical right after the node name: 'diagnostic overlay on the above three [Pipeline generated, Win rate, Avg initial commitment], not a fourth multiplicative factor.' A second explicitly non-additive node the tree itself carves out, alongside Brand & awareness -- CLAUDE.md's invariant text names only Brand & awareness as 'the one deliberate exception,' but the tree's own prose names two. Recorded here rather than silently reconciled, since resolving the wording gap between the two docs is a documentation call, not this checker's call to make unilaterally."
+      }
+    ],
+    "edges_checked": 11,
+    "edges_passed": 11,
+    "edges_failed": 0,
+    "edges_not_computable": 4,
+    "edges_validated_elsewhere": 1,
+    "all_computed_edges_pass": true
+  },
+  "marts_data_quality": {
+    "referential_integrity": [
+      {
+        "child_table": "fact_opportunities",
+        "child_col": "account_id",
+        "parent_table": "dim_accounts",
+        "parent_col": "account_id",
+        "total_rows": 9815,
+        "null_child_values": 1191,
+        "unmatched_non_null": 0,
+        "allow_null": true,
+        "passed": true,
+        "note": "Lost new-business opportunities carry a NULL account_id by design (fact_opportunities carries account_id only on won new-business rows for lost deals it cannot trace); non-null values must still resolve."
+      },
+      {
+        "child_table": "fact_opportunities",
+        "child_col": "rep_id",
+        "parent_table": "dim_reps",
+        "parent_col": "rep_id",
+        "total_rows": 40683,
+        "null_child_values": 6500,
+        "unmatched_non_null": 0,
+        "allow_null": true,
+        "passed": true,
+        "note": "SMB's system-owned opportunities (owner_role='system') carry a NULL rep_id."
+      },
+      {
+        "child_table": "fact_revenue_monthly",
+        "child_col": "account_id",
+        "parent_table": "dim_accounts",
+        "parent_col": "account_id",
+        "total_rows": 142942,
+        "null_child_values": 0,
+        "unmatched_non_null": 0,
+        "allow_null": false,
+        "passed": true,
+        "note": ""
+      },
+      {
+        "child_table": "fact_account_segment_history",
+        "child_col": "account_id",
+        "parent_table": "dim_accounts",
+        "parent_col": "account_id",
+        "total_rows": 8509,
+        "null_child_values": 0,
+        "unmatched_non_null": 0,
+        "allow_null": false,
+        "passed": true,
+        "note": ""
+      },
+      {
+        "child_table": "mart_segment_migration",
+        "child_col": "account_id",
+        "parent_table": "dim_accounts",
+        "parent_col": "account_id",
+        "total_rows": 809,
+        "null_child_values": 0,
+        "unmatched_non_null": 0,
+        "allow_null": false,
+        "passed": true,
+        "note": ""
+      },
+      {
+        "child_table": "fact_usage_monthly",
+        "child_col": "account_id",
+        "parent_table": "dim_accounts",
+        "parent_col": "account_id",
+        "total_rows": 142942,
+        "null_child_values": 0,
+        "unmatched_non_null": 0,
+        "allow_null": false,
+        "passed": true,
+        "note": ""
+      },
+      {
+        "child_table": "fact_leads",
+        "child_col": "account_id",
+        "parent_table": "dim_accounts",
+        "parent_col": "account_id",
+        "total_rows": 47118,
+        "null_child_values": 45057,
+        "unmatched_non_null": 0,
+        "allow_null": true,
+        "passed": true,
+        "note": "Non-converting leads never gain an account_id."
+      },
+      {
+        "child_table": "fact_forecast_submissions",
+        "child_col": "opportunity_id",
+        "parent_table": "fact_opportunities",
+        "parent_col": "opportunity_id",
+        "total_rows": 21223,
+        "null_child_values": 0,
+        "unmatched_non_null": 0,
+        "allow_null": false,
+        "passed": true,
+        "note": ""
+      },
+      {
+        "child_table": "fact_committed_vs_utilized_monthly",
+        "child_col": "account_id",
+        "parent_table": "dim_accounts",
+        "parent_col": "account_id",
+        "total_rows": 142942,
+        "null_child_values": 0,
+        "unmatched_non_null": 0,
+        "allow_null": false,
+        "passed": true,
+        "note": ""
+      }
+    ],
+    "completeness": [
+      {
+        "table": "dim_accounts",
+        "column": "segment",
+        "total_rows": 7700,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "dim_accounts",
+        "column": "channel",
+        "total_rows": 7700,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "dim_accounts",
+        "column": "signup_date",
+        "total_rows": 7700,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "fact_opportunities",
+        "column": "opportunity_type",
+        "total_rows": 9815,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "fact_opportunities",
+        "column": "owner_role",
+        "total_rows": 9815,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "fact_opportunities",
+        "column": "is_won",
+        "total_rows": 9815,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "mart_growth_bridge",
+        "column": "segment",
+        "total_rows": 213,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "mart_growth_bridge",
+        "column": "month",
+        "total_rows": 213,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "mart_durability",
+        "column": "segment",
+        "total_rows": 210,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "mart_efficiency",
+        "column": "segment",
+        "total_rows": 214,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "mart_account_health",
+        "column": "account_id",
+        "total_rows": 142942,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "mart_account_health",
+        "column": "month",
+        "total_rows": 142942,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      },
+      {
+        "table": "fact_account_segment_history",
+        "column": "trigger_reason",
+        "total_rows": 8509,
+        "null_rows": 0,
+        "null_share": 0.0,
+        "max_allowed_null_share": 0.0,
+        "passed": true
+      }
+    ],
+    "distributional_sanity": [
+      {
+        "check": "win_rate_in_unit_interval",
+        "table": "mart_growth_bridge",
+        "n_checked": 170,
+        "n_violations": 0,
+        "passed": true
+      },
+      {
+        "check": "nrr_within_sanity_band_[-1,10]",
+        "table": "mart_durability",
+        "n_checked": 189,
+        "n_violations": 0,
+        "passed": true
+      },
+      {
+        "check": "grr_within_sanity_band_[-1,2]",
+        "table": "mart_durability",
+        "n_checked": 189,
+        "n_violations": 0,
+        "passed": true
+      },
+      {
+        "check": "logo_retention_rate_in_unit_interval",
+        "table": "mart_durability",
+        "n_checked": 189,
+        "n_violations": 0,
+        "passed": true
+      },
+      {
+        "check": "won_deal_amount_under_2.0x_segment_acv_ceiling",
+        "table": "fact_opportunities",
+        "n_checked": 6548,
+        "n_violations": 0,
+        "passed": true
+      }
+    ],
+    "volume_sufficiency": [
+      {
+        "table": "dim_accounts",
+        "row_count": 7700,
+        "floor": 4000,
+        "passed": true,
+        "note": "Build spec Section 4: SMB 5,000-8,000 + Commercial 800-1,200 + Enterprise 150-250."
+      },
+      {
+        "table": "fact_opportunities",
+        "row_count": 7576,
+        "floor": 3000,
+        "passed": true,
+        "note": "Enough new-business + renewal/expansion volume to be usable."
+      },
+      {
+        "table": "mart_growth_bridge",
+        "row_count": 195,
+        "floor": 90,
+        "passed": true,
+        "note": "3 segments x >=30 months."
+      },
+      {
+        "table": "mart_durability",
+        "row_count": 192,
+        "floor": 90,
+        "passed": true,
+        "note": "3 segments x >=30 months."
+      },
+      {
+        "table": "mart_efficiency",
+        "row_count": 196,
+        "floor": 90,
+        "passed": true,
+        "note": "3 segments x >=30 months."
+      },
+      {
+        "table": "fact_account_segment_history",
+        "row_count": 6717,
+        "floor": 4000,
+        "passed": true,
+        "note": "At least one row per account (initial + migrations)."
+      },
+      {
+        "table": "fact_usage_monthly",
+        "row_count": 110336,
+        "floor": 50000,
+        "passed": true,
+        "note": "Monthly usage grain across the whole 36+ month window."
+      }
+    ],
+    "referential_integrity_checks": 9,
+    "referential_integrity_passed": 9,
+    "completeness_checks": 13,
+    "completeness_passed": 13,
+    "distributional_checks": 5,
+    "distributional_passed": 5,
+    "volume_checks": 7,
+    "volume_passed": 7
+  },
+  "invariant_governance": {
+    "checks": {
+      "segment_terminology": {
+        "detail": [
+          {
+            "table": "dim_accounts",
+            "column": "segment",
+            "n_rows": 6246,
+            "n_null": 0,
+            "invalid_values": [],
+            "passed": true
+          },
+          {
+            "table": "dim_reps",
+            "column": "segment",
+            "n_rows": 699,
+            "n_null": 0,
+            "invalid_values": [],
+            "passed": true
+          },
+          {
+            "table": "fact_account_segment_history",
+            "column": "segment",
+            "n_rows": 6717,
+            "n_null": 0,
+            "invalid_values": [],
+            "passed": true
+          },
+          {
+            "table": "mart_segment_migration.from_segment",
+            "column": "from_segment",
+            "n_rows": 471,
+            "n_null": 0,
+            "invalid_values": [],
+            "passed": true
+          },
+          {
+            "table": "mart_segment_migration.to_segment",
+            "column": "to_segment",
+            "n_rows": 471,
+            "n_null": 0,
+            "invalid_values": [],
+            "passed": true
+          }
+        ],
+        "passed": true
+      },
+      "no_segment_downgrade": {
+        "n_migration_events": 471,
+        "observed_pairs": [
+          [
+            "SMB",
+            "Commercial"
+          ],
+          [
+            "Commercial",
+            "Enterprise"
+          ]
+        ],
+        "invalid_pairs": [],
+        "n_invalid_rows": 0,
+        "passed": true
+      },
+      "currency_usd_only": {
+        "columns_scanned": 278,
+        "currency_or_fx_columns_found": [],
+        "passed": true
+      },
+      "channel_segment_orthogonality": {
+        "detail": [
+          {
+            "channel": "inbound_marketing",
+            "n_segments": 3,
+            "rule": "must span >=2 segments (orthogonality)",
+            "passed": true
+          },
+          {
+            "channel": "outbound_sdr",
+            "segments_present": [
+              "Enterprise"
+            ],
+            "rule": "documented exception -- Enterprise-only by design",
+            "passed": true
+          },
+          {
+            "channel": "self_serve",
+            "n_segments": 3,
+            "rule": "must span >=2 segments (orthogonality)",
+            "passed": true
+          }
+        ],
+        "passed": true
+      },
+      "trigger_reason_coverage": {
+        "counts": {
+          "initial_default": 5862,
+          "initial_firmographic": 384,
+          "usage_threshold": 324,
+          "firmographic_rescore": 147
+        },
+        "missing_values": [],
+        "below_floor": [],
+        "min_count_floor": 20,
+        "passed": true
+      },
+      "win_probability_not_random": {
+        "driver": "poc_outcome (Enterprise POC pass rate, a stated metric-tree Layer-3 driver of win rate)",
+        "poc_pass_win_rate": 0.4675324675324675,
+        "poc_pass_n": 154,
+        "poc_fail_win_rate": 0.0821917808219178,
+        "poc_fail_n": 219,
+        "gap_pp": 0.3853406867105497,
+        "z": 8.563814041452995,
+        "min_gap_floor": 0.15,
+        "z_threshold": 2.58,
+        "passed": true
+      },
+      "churn_probability_not_random": {
+        "driver": "actions_consumed / login_count trend, account-relative (stated health-score inputs)",
+        "min_decline_floor": 0.2,
+        "detail": {
+          "actions_consumed": {
+            "n_accounts": 1499,
+            "mean_relative_decline": 0.09168840290824821,
+            "median_relative_decline": 0.6270258666952881,
+            "share_with_meaningful_decline": 0.7024683122081388,
+            "passed": true
+          },
+          "login_count": {
+            "n_accounts": 1497,
+            "mean_relative_decline": 0.4608407970796757,
+            "median_relative_decline": 0.5769230769230769,
+            "share_with_meaningful_decline": 0.8082832331329325,
+            "passed": true
+          }
+        },
+        "passed": true
+      },
+      "usage_growth_not_random": {
+        "driver": "usage_threshold migration trigger (metric tree's own segment-migration mechanism)",
+        "n_migrating_events_measured": 324,
+        "migrating_accounts_mean_pre_migration_growth": 4.488195717603287,
+        "non_migrating_population_mean_growth": 0.5278645094432296,
+        "ratio": 8.502552524959968,
+        "min_ratio_floor": 1.5,
+        "passed": true
+      }
+    },
+    "invariant_checks_total": 8,
+    "invariant_checks_passed": 8,
+    "all_invariants_pass": true
+  },
+  "synthetic_validation": {
+    "results": [
+      {
+        "scenario": "metric_tree_growth_identity_clean_passes",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": "Hand-built bridge row where ending_mrr is exactly the stated sum of its children."
+      },
+      {
+        "scenario": "metric_tree_growth_identity_injected_break_fails",
+        "expected_pass": false,
+        "actual_pass": false,
+        "matches_expectation": true,
+        "detail": "Same row with ending_mrr perturbed by $25,000 -- the parent no longer ties to its children."
+      },
+      {
+        "scenario": "metric_tree_win_rate_clean_passes",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": ""
+      },
+      {
+        "scenario": "metric_tree_win_rate_injected_break_fails",
+        "expected_pass": false,
+        "actual_pass": false,
+        "matches_expectation": true,
+        "detail": "win_rate=0.75 stored against 40 won / 60 lost, which implies 0.40 -- an injected mismatch."
+      },
+      {
+        "scenario": "segment_terminology_clean_passes",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": ""
+      },
+      {
+        "scenario": "segment_terminology_fabricated_tier_value_fails",
+        "expected_pass": false,
+        "actual_pass": false,
+        "matches_expectation": true,
+        "detail": "One account's segment replaced with the forbidden 'Tier 2' string."
+      },
+      {
+        "scenario": "no_segment_downgrade_clean_passes",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": ""
+      },
+      {
+        "scenario": "no_segment_downgrade_fabricated_path_fails",
+        "expected_pass": false,
+        "actual_pass": false,
+        "matches_expectation": true,
+        "detail": "Injected a fabricated Enterprise->SMB migration row -- a downgrade the build spec forbids."
+      },
+      {
+        "scenario": "win_probability_real_driver_relationship_passes",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": "Synthetic population where POC pass really does close at a much higher rate."
+      },
+      {
+        "scenario": "win_probability_independently_random_column_fails",
+        "expected_pass": false,
+        "actual_pass": false,
+        "matches_expectation": true,
+        "detail": "Synthetic population where is_won is drawn independently of poc_outcome -- the exact bug CLAUDE.md's 'independently-random columns are a bug, not a feature' invariant guards against."
+      }
+    ],
+    "all_pass": true,
+    "n_scenarios": 10
+  },
+  "summary": {
+    "checks_total": 53,
+    "checks_passed": 53,
+    "checks_failed": 0,
+    "all_pass": true,
+    "synthetic_validation_all_pass": true
+  }
+}
