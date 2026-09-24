@@ -1,0 +1,16 @@
+# Semantic layer / MCP server dependencies.
+#
+# REQUIRES PYTHON >=3.10 -- the MCP Python SDK does not support this
+# project's default interpreter (system Python 3.9.6). This is scoped to
+# the semantic/ subdirectory only; the rest of the project (generators/,
+# dbt/ Python helpers, analytics/) stays on 3.9 per CLAUDE.md.
+#
+# Setup (already done once for this checkout -- see semantic/README.md):
+#   /opt/homebrew/bin/python3.12 -m venv semantic/.venv
+#   semantic/.venv/bin/pip install -r semantic/requirements.txt
+#
+# Run everything under semantic/ with semantic/.venv/bin/python, never the
+# system `python3`/`pip3` used elsewhere in this repo.
+
+mcp==2.2.0
+duckdb==1.5.5
