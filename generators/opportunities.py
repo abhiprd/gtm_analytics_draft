@@ -38,6 +38,162 @@ AM_REP_TYPE_BY_SEGMENT = {"Commercial": "AM-Commercial", "Enterprise": "AM-Enter
 
 _RAMP_FULL_DAYS = 180  # "first 2 quarters" (build spec Section 4) treated as a single ramped/ramping cutoff here
 
+# =====================================================================
+# forecast_category -- the deal's FINAL close-time forecast call
+#
+# Build spec Section 5 lists `forecast_category` as an `opportunities`
+# field; neither reference doc states how it is generated. Resolved here:
+# it is the last call the owner made on the deal before it closed, so it
+# is built as a *perceived win probability* assembled from the drivers
+# that were genuinely visible by then, then cut into the four-value
+# vocabulary. Correlated with the outcome, never a function of it alone --
+# CLAUDE.md's causal-wiring invariant ("independently-random columns are a
+# bug"), which the previous implementation violated in both directions: a
+# blanket "Commit" for every won deal, and an outcome-independent
+# rng.choice over the other three for every lost deal.
+#
+# Distinct from `fact_forecast_submissions` (generators/forecast.py),
+# which is a weekly *point-in-time* series and is forbidden from reading
+# anything fixed at close. This field is the opposite case: it is stamped
+# at close, so the deal's realized trajectory is legitimately in scope.
+# The two are built independently and neither reads the other.
+#
+# Every draw below comes from a dedicated rng stream threaded in as
+# `forecast_rng`, never from the shared sequential `rng` that generates
+# amount/discount/loss_reason/stage history -- same isolation rationale
+# (and same precedent) as run_batch2.py's `reassign_rng`: adding draws to
+# the shared stream would shift every subsequent draw in this and every
+# later iteration and silently change columns that are already correct.
+# =====================================================================
+
+# Ordered weakest to strongest. The same four-value vocabulary carried by
+# fact_forecast_submissions.
+FORECAST_CATEGORIES = ("Omitted", "Pipeline", "Best Case", "Commit")
+
+# Perceived-win-probability cut points. Deliberately the same conventional
+# pipeline-review bands generators/forecast.py applies to its weekly
+# submissions (a Commit is a deal the owner would be surprised to lose;
+# Omitted is one they have effectively written off), so the close-time
+# field and the weekly series speak the same language. Kept local rather
+# than imported: batch 2 must not depend on a batch 6 module.
+_FORECAST_CATEGORY_CUTS = ((0.70, "Commit"), (0.40, "Best Case"), (0.15, "Pipeline"))
+
+# Evidence shifts, all on the log-odds scale, all own resolved decisions
+# (no upstream doc states a number for any of them):
+#
+# _CYCLE_DEPTH_SHIFT -- how far through its segment's cycle envelope
+#   (config.CYCLE_LENGTH_DAYS) the deal ran. This is the available proxy
+#   for "how far it progressed": _generate_stage_history emits the full
+#   config.NEW_BUSINESS_STAGES list for every deal, so the stage list
+#   itself carries no per-deal signal, and the stage *dates* are derived
+#   from cycle_days anyway. A deal that died three weeks in was never a
+#   Commit; one that ran the full envelope died in late negotiation.
+# _WON_EVIDENCE_SHIFT -- by the final call a deal that is about to close
+#   is visibly closing (verbal, signature routing, PO raised).
+# _LOSS_REASON_SHIFT -- a `price` or `competitive` loss is a late slip off
+#   a deal the owner was carrying confidently; `no_decision` is the
+#   stalled deal nobody was forecasting. Directions follow the reason
+#   vocabulary in config.LOSS_REASON_MIX_*.
+# _POC_SHIFT -- Enterprise only, the same POC->outcome relationship
+#   config.POC_PASS_RATE_GIVEN_WON/_GIVEN_LOST already encode; a passed
+#   POC is the single strongest mid-cycle confidence signal this motion
+#   has (QA plan Test C).
+# _DISCOUNT_RESCUE_SHIFT -- position within the segment's
+#   config.DISCOUNT_RATE_RANGE band. A deal bought at the top of its band
+#   needed concessions to land, so it was not sitting in Commit before
+#   them; a deal closed near list was never in doubt.
+# _RAMPING_OPTIMISM_SHIFT -- a ramping rep's own optimism bias, the same
+#   bias fact_forecast_submissions models on the rep lens. Applied to the
+#   *call*, not the outcome, which is what makes a ramping rep's Commit
+#   convert at a lower rate than a ramped rep's.
+# _FORECAST_CALL_NOISE -- residual judgement spread, so the mapping stays
+#   probabilistic. Real forecasting is signal plus noise, not a lookup.
+_CYCLE_DEPTH_SHIFT = 1.2
+_WON_EVIDENCE_SHIFT = 2.9
+_LOSS_REASON_SHIFT = {"price": 0.5, "competitive": 0.0, "other": -0.5, "no_decision": -1.2}
+_POC_SHIFT = 0.6
+_DISCOUNT_RESCUE_SHIFT = 1.0
+_RAMPING_OPTIMISM_SHIFT = 0.45
+_FORECAST_CALL_NOISE = 1.15
+
+# Renewal/expansion book. The base prior is the complement of
+# config.ANNUAL_CHURN_RATE (itself back-derived from the QA plan's
+# GRR/logo-retention benchmark rows), so a renewal starts the final call
+# as a Commit and has to lose that standing. Shifts keyed on the
+# contracts.build_contract_plan outcome vocabulary: an expansion renewal
+# was visibly growing, a contraction was visibly wobbling, a churn was
+# visibly leaving.
+_RENEWAL_OUTCOME_SHIFT = {
+    "retained_expansion": 0.8,
+    "retained_flat": 0.0,
+    "retained_contraction": -2.4,
+    "churned": -3.4,
+}
+# Notice-period runway sharpens the final call: the longer the AM worked
+# the renewal before the boundary, the more the last call converged on
+# what actually happened. Own resolved decision.
+_RENEWAL_RUNWAY_SHARPENING = 0.7
+
+
+def _logit(p: float) -> float:
+    return float(np.log(p / (1.0 - p)))
+
+
+def _forecast_category(forecast_rng: np.random.Generator, perceived_logit: float) -> str:
+    """Cuts a perceived-win-probability log-odds into the four-value
+    vocabulary, with one residual-judgement draw from the *dedicated*
+    forecast rng stream (exactly one draw per opportunity, so the stream
+    stays trivially reproducible and independent of the shared rng)."""
+    z = perceived_logit + forecast_rng.normal(0.0, _FORECAST_CALL_NOISE)
+    p = 1.0 / (1.0 + np.exp(-z))
+    for cut, category in _FORECAST_CATEGORY_CUTS:
+        if p >= cut:
+            return category
+    return "Omitted"
+
+
+def _band_position(value: float, lo: float, hi: float) -> float:
+    """Where `value` sits in its segment's [lo, hi] band, clipped to 0-1."""
+    if hi <= lo:
+        return 0.0
+    return float(np.clip((value - lo) / (hi - lo), 0.0, 1.0))
+
+
+def _new_business_forecast_category(forecast_rng, segment, is_won, loss_reason, cycle_days,
+                                    discount, poc_outcome, rep_is_ramped):
+    """Final close-time call on a Commercial/Enterprise new-business deal.
+    Every argument is already computed at the call site -- this function
+    adds no draw to the shared sequential rng."""
+    cyc_lo, cyc_hi = config.CYCLE_LENGTH_DAYS[segment]
+    disc_lo, disc_hi = config.DISCOUNT_RATE_RANGE[segment]
+
+    z = _logit(config.NEW_BUSINESS_WIN_RATE_TARGET[segment])
+    z += _CYCLE_DEPTH_SHIFT * _band_position(cycle_days, cyc_lo, cyc_hi)
+    z += _WON_EVIDENCE_SHIFT if is_won else _LOSS_REASON_SHIFT[str(loss_reason)]
+    z -= _DISCOUNT_RESCUE_SHIFT * _band_position(discount, disc_lo, disc_hi)
+    if poc_outcome == "pass":
+        z += _POC_SHIFT
+    elif poc_outcome == "fail":
+        z -= _POC_SHIFT
+    if not rep_is_ramped:
+        z += _RAMPING_OPTIMISM_SHIFT
+    return _forecast_category(forecast_rng, z)
+
+
+def _renewal_forecast_category(forecast_rng, segment, outcome, is_won, loss_reason,
+                               runway_days, notice_days_range, rep_is_ramped):
+    """Final close-time call on a renewal/expansion boundary. Same
+    no-shared-rng-draw contract as _new_business_forecast_category."""
+    z = _logit(1.0 - config.ANNUAL_CHURN_RATE[segment])
+    z += _RENEWAL_OUTCOME_SHIFT[str(outcome)]
+    if not is_won:
+        z += _LOSS_REASON_SHIFT[str(loss_reason)]
+    runway = _band_position(runway_days, *notice_days_range)
+    z += _RENEWAL_RUNWAY_SHARPENING * runway * (1.0 if is_won else -1.0)
+    if not rep_is_ramped:
+        z += _RAMPING_OPTIMISM_SHIFT
+    return _forecast_category(forecast_rng, z)
+
 
 def _departed_by(rep_status_history: pd.DataFrame) -> dict:
     departed = rep_status_history[rep_status_history["status"] == "departed"]
@@ -136,7 +292,13 @@ def _new_business_amount(rng, segment, committed_actions_monthly):
 
 
 def generate_new_business_opportunities(rng, accounts, segment_history, market_universe, users,
-                                         rep_status_history, contract_plan):
+                                         rep_status_history, contract_plan, forecast_rng):
+    """`forecast_rng` is a dedicated stream used only for the close-time
+    forecast_category call (see the taxonomy block above). It is
+    deliberately *not* the shared sequential `rng`: every other column here
+    is drawn from `rng` in a fixed order, so adding draws to it would shift
+    amount, discount, loss_reason, POC outcome and stage timing for this
+    and every later opportunity."""
     departed_by = _departed_by(rep_status_history)
     committed_by_account = contract_plan.set_index("account_id")["committed_actions_monthly"]
 
@@ -148,6 +310,11 @@ def generate_new_business_opportunities(rng, accounts, segment_history, market_u
         lo, hi = config.ACV_RANGES["SMB"]
         amount = float(np.clip(rng.lognormal(np.log(max(committed_by_account[row.account_id] * 12 * config.PRICE_PER_ACTION, 50)), 0.4), lo if lo > 0 else 50, hi))
         discount, list_price = _sample_discount_and_list_price(rng, amount, "SMB")
+        # SMB is the one structurally unconditional Commit: a self-serve
+        # signup closes the same day it is created, with no rep, no stage
+        # history and no forecast cadence to have made a call in (which is
+        # also why fact_forecast_submissions excludes SMB entirely, build
+        # spec Section 5). There is no judgement here to model.
         opp_rows.append({
             "account_id": row.account_id, "company_id": row.company_id, "segment": "SMB",
             "opportunity_type": "new_business", "owner_role": "system", "rep_id": None,
@@ -193,11 +360,19 @@ def generate_new_business_opportunities(rng, accounts, segment_history, market_u
                 poc_outcome = "pass" if rng.random() < _poc_pass_rate(close_date, given_won=True) else "fail"
             amount = _new_business_amount(rng, segment, committed_by_account[row.account_id])
             discount, list_price = _sample_discount_and_list_price(rng, amount, segment)
+            # Most wins were called Commit, but not all: a deal that closed
+            # unusually fast for its segment, needed a top-of-band discount
+            # to land, or failed its POC and closed anyway is an upside
+            # surprise the owner had carried lower. forecast_rng only.
+            forecast_category = _new_business_forecast_category(
+                forecast_rng, segment, True, None, cycle_days, discount, poc_outcome,
+                _is_ramped(users, rep_id, created_date),
+            )
             opp_id_placeholder = f"__won_{row.account_id}"
             opp_rows.append({
                 "account_id": row.account_id, "company_id": row.company_id, "segment": segment,
                 "opportunity_type": "new_business", "owner_role": OWNER_ROLE_NEW_BUSINESS[segment], "rep_id": rep_id,
-                "is_won": True, "loss_reason": None, "forecast_category": "Commit",
+                "is_won": True, "loss_reason": None, "forecast_category": forecast_category,
                 "amount": round(amount, 2), "list_price": list_price, "discount_rate": discount,
                 "poc_outcome": poc_outcome, "created_date": created_date, "close_date": close_date,
                 "_temp_id": opp_id_placeholder,
@@ -222,7 +397,22 @@ def generate_new_business_opportunities(rng, accounts, segment_history, market_u
             amount = float(np.clip(rng.lognormal(np.log((lo + hi) / 4 or 1), 0.5), lo if lo > 0 else 50, hi))
             discount, list_price = _sample_discount_and_list_price(rng, amount, segment)
             loss_reason = rng.choice(loss_reasons, p=loss_probs)
-            forecast_category = rng.choice(["Best Case", "Pipeline", "Omitted"], p=[0.3, 0.4, 0.3])
+            # Shared-stream position holder. The retired independent
+            # forecast_category draw is still taken from `rng` and
+            # discarded, so the shared sequential stream advances exactly
+            # as it did before this field was rewired and every other
+            # column this batch produces stays byte-for-byte unchanged.
+            # The real category is assembled from deal drivers below.
+            rng.choice(["Best Case", "Pipeline", "Omitted"], p=[0.3, 0.4, 0.3])
+            # A loss is not automatically a low-confidence call: a deal that
+            # ran its full cycle and died on price or a competitor was being
+            # carried at Commit until it slipped, while a no_decision loss
+            # that stalled early was never forecast at all. forecast_rng
+            # only.
+            forecast_category = _new_business_forecast_category(
+                forecast_rng, segment, False, loss_reason, cycle_days, discount, poc_outcome,
+                _is_ramped(users, rep_id, created_date),
+            )
             opp_id_placeholder = f"__lost_{segment}_{i}"
             opp_rows.append({
                 "account_id": None, "company_id": mu_row.company_id, "segment": segment,
@@ -260,6 +450,11 @@ def generate_expansion_opportunities(rng, accounts, segment_history, users, rep_
         rep_id = _pick_rep(rng, _eligible_reps(users, departed_by, rep_type, created_date), created_date, bias_toward_ramped=True)
 
         opp_id_placeholder = f"__expmig_{row.account_id}_{close_date}"
+        # The second structurally unconditional Commit: a migration-driven
+        # expansion formalises a committed minimum the account's own usage
+        # has *already* crossed (QA plan design decisions), so there is no
+        # open question at the final call. Unlike the renewal book below,
+        # this opportunity has no losing branch at all.
         opp_rows.append({
             "account_id": row.account_id, "company_id": company_by_account[row.account_id], "segment": segment,
             "opportunity_type": "expansion", "owner_role": "AM", "rep_id": rep_id,
@@ -273,7 +468,10 @@ def generate_expansion_opportunities(rng, accounts, segment_history, users, rep_
     return opp_rows, stage_rows
 
 
-def generate_renewal_opportunities(rng, accounts, renewal_events, users, rep_status_history):
+def generate_renewal_opportunities(rng, accounts, renewal_events, users, rep_status_history, forecast_rng):
+    """`forecast_rng` is the same dedicated close-time-call stream
+    generate_new_business_opportunities takes -- never the shared
+    sequential `rng`, for the reason documented there."""
     departed_by = _departed_by(rep_status_history)
     company_by_account = accounts.set_index("account_id")["company_id"]
     opp_rows, stage_rows = [], []
@@ -295,7 +493,21 @@ def generate_renewal_opportunities(rng, accounts, renewal_events, users, rep_sta
         amount = _new_business_amount(rng, segment, row.committed_actions_monthly)
         discount, list_price = _sample_discount_and_list_price(rng, amount, segment)
         loss_reason = None if is_won else rng.choice(loss_reasons, p=loss_probs)
-        forecast_category = "Commit" if is_won else rng.choice(["Best Case", "Pipeline", "Omitted"], p=[0.3, 0.4, 0.3])
+        if not is_won:
+            # Shared-stream position holder -- see the matching note in
+            # generate_new_business_opportunities. The retired draw was
+            # taken only on the losing branch, so the discard is too.
+            rng.choice(["Best Case", "Pipeline", "Omitted"], p=[0.3, 0.4, 0.3])
+        # A renewal starts its final call as a Commit (the base prior is the
+        # complement of config.ANNUAL_CHURN_RATE) and has to lose that
+        # standing: a contraction was visibly wobbling, a churn visibly
+        # leaving, and the longer the notice runway the AM worked, the
+        # closer the last call landed to what actually happened.
+        forecast_category = _renewal_forecast_category(
+            forecast_rng, segment, row.outcome, is_won, loss_reason,
+            (pd.Timestamp(close_date) - pd.Timestamp(created_date)).days, notice_days,
+            _is_ramped(users, rep_id, created_date),
+        )
 
         opp_id_placeholder = f"__renew_{row.account_id}_{row.sequence_number}"
         opp_rows.append({

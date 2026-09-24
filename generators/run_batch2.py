@@ -53,13 +53,26 @@ def main():
 
     contract_plan, renewal_events = build_contract_plan(rng, accounts, segment_history)
 
+    # Own rng stream, not the shared sequential `rng` below -- the
+    # close-time forecast_category call is assembled from deal drivers that
+    # are already decided by the time it is made (cycle depth, loss reason,
+    # POC outcome, discount depth, renewal outcome, rep ramp status), so
+    # its residual-judgement draw is logically independent of the
+    # amount/discount/stage-timing sequence. Keeping it off the shared
+    # stream means rewiring this one field cannot shift any other column,
+    # the same isolation reassign_rng gets below.
+    forecast_call_rng = np.random.default_rng(BATCH2_SEED + 600)
+
     nb_opp, nb_stage = generate_new_business_opportunities(
-        rng, accounts, segment_history, market_universe, users, rep_status_history, contract_plan
+        rng, accounts, segment_history, market_universe, users, rep_status_history, contract_plan,
+        forecast_call_rng,
     )
     exp_opp, exp_stage = generate_expansion_opportunities(
         rng, accounts, segment_history, users, rep_status_history, contract_plan
     )
-    ren_opp, ren_stage = generate_renewal_opportunities(rng, accounts, renewal_events, users, rep_status_history)
+    ren_opp, ren_stage = generate_renewal_opportunities(
+        rng, accounts, renewal_events, users, rep_status_history, forecast_call_rng
+    )
     opportunities_df, stage_history_df = finalize_opportunities(
         nb_opp + exp_opp + ren_opp, nb_stage + exp_stage + ren_stage
     )
