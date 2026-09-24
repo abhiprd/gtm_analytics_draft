@@ -1,0 +1,183 @@
+campaign_id,name,channel,start_date,end_date,budget,is_holdout
+CMP-00001,Docs SEO Program 2018Q4,organic,2018-10-01,2018-12-31,121.31,False
+CMP-00002,Search Ads - Workflow Automation 2018Q4,paid,2018-10-01,2018-12-31,355.73,False
+CMP-00003,LinkedIn ABM - Enterprise 2018Q4,paid,2018-10-06,2018-12-27,322.82,False
+CMP-00004,Developer Meetup Series 2018Q4,community,2018-10-01,2018-12-31,223.54,False
+CMP-00005,Docs SEO Program 2019Q1,organic,2019-01-01,2019-03-31,88.58,False
+CMP-00006,Search Ads - Workflow Automation 2019Q1,paid,2019-01-01,2019-03-31,183.92,False
+CMP-00007,LinkedIn ABM - Enterprise 2019Q1,paid,2019-01-06,2019-03-27,372.07,False
+CMP-00008,Developer Meetup Series 2019Q1,community,2019-01-01,2019-03-31,155.8,False
+CMP-00009,Docs SEO Program 2019Q2,organic,2019-04-01,2019-06-30,130.83,False
+CMP-00010,Search Ads - Workflow Automation 2019Q2,paid,2019-04-01,2019-06-30,312.77,False
+CMP-00011,LinkedIn ABM - Enterprise 2019Q2,paid,2019-04-08,2019-06-29,347.04,False
+CMP-00012,Developer Meetup Series 2019Q2,community,2019-04-01,2019-06-30,187.59,False
+CMP-00013,Docs SEO Program 2019Q3,organic,2019-07-01,2019-09-30,146.55,False
+CMP-00014,Search Ads - Workflow Automation 2019Q3,paid,2019-07-01,2019-09-30,261.61,False
+CMP-00015,LinkedIn ABM - Enterprise 2019Q3,paid,2019-07-09,2019-09-25,347.15,False
+CMP-00016,Developer Meetup Series 2019Q3,community,2019-07-01,2019-09-30,198.14,False
+CMP-00017,Docs SEO Program 2019Q4,organic,2019-10-01,2019-12-31,1993.62,False
+CMP-00018,Search Ads - Workflow Automation 2019Q4,paid,2019-10-01,2019-12-31,2787.56,False
+CMP-00019,LinkedIn ABM - Enterprise 2019Q4,paid,2019-10-02,2019-12-28,1910.67,False
+CMP-00020,Developer Meetup Series 2019Q4,community,2019-10-01,2019-12-31,1732.22,False
+CMP-00021,Docs SEO Program 2020Q1,organic,2020-01-01,2020-03-31,20905.99,False
+CMP-00022,Search Ads - Workflow Automation 2020Q1,paid,2020-01-01,2020-03-31,6442.71,False
+CMP-00023,LinkedIn ABM - Enterprise 2020Q1,paid,2020-01-01,2020-03-25,5587.63,False
+CMP-00024,Developer Meetup Series 2020Q1,community,2020-01-01,2020-03-31,4436.39,False
+CMP-00025,Docs SEO Program 2020Q2,organic,2020-04-01,2020-06-30,20030.02,False
+CMP-00026,Search Ads - Workflow Automation 2020Q2,paid,2020-04-01,2020-06-30,6359.59,False
+CMP-00027,LinkedIn ABM - Enterprise 2020Q2,paid,2020-04-10,2020-06-26,8529.7,False
+CMP-00028,Developer Meetup Series 2020Q2,community,2020-04-01,2020-06-30,5735.49,False
+CMP-00029,Docs SEO Program 2020Q3,organic,2020-07-01,2020-09-30,10380.04,False
+CMP-00030,Search Ads - Workflow Automation 2020Q3,paid,2020-07-01,2020-09-30,7121.76,False
+CMP-00031,LinkedIn ABM - Enterprise 2020Q3,paid,2020-07-11,2020-09-26,12369.2,False
+CMP-00032,Developer Meetup Series 2020Q3,community,2020-07-01,2020-09-30,5592.39,False
+CMP-00033,Docs SEO Program 2020Q4,organic,2020-10-01,2020-12-31,16400.24,False
+CMP-00034,Search Ads - Workflow Automation 2020Q4,paid,2020-10-01,2020-12-31,9891.59,False
+CMP-00035,LinkedIn ABM - Enterprise 2020Q4,paid,2020-10-01,2020-12-30,8567.77,False
+CMP-00036,Developer Meetup Series 2020Q4,community,2020-10-01,2020-12-31,4491.04,False
+CMP-00037,Docs SEO Program 2021Q1,organic,2021-01-01,2021-03-31,9496.38,False
+CMP-00038,Search Ads - Workflow Automation 2021Q1,paid,2021-01-01,2021-03-31,8149.86,False
+CMP-00039,LinkedIn ABM - Enterprise 2021Q1,paid,2021-01-05,2021-03-24,5077.83,False
+CMP-00040,Developer Meetup Series 2021Q1,community,2021-01-01,2021-03-31,5123.78,False
+CMP-00041,Docs SEO Program 2021Q2,organic,2021-04-01,2021-06-30,19852.73,False
+CMP-00042,Search Ads - Workflow Automation 2021Q2,paid,2021-04-01,2021-06-30,11006.0,False
+CMP-00043,LinkedIn ABM - Enterprise 2021Q2,paid,2021-04-08,2021-06-27,11920.85,False
+CMP-00044,Developer Meetup Series 2021Q2,community,2021-04-01,2021-06-30,4929.64,False
+CMP-00045,Docs SEO Program 2021Q3,organic,2021-07-01,2021-09-30,13669.22,False
+CMP-00046,Search Ads - Workflow Automation 2021Q3,paid,2021-07-01,2021-09-30,20312.11,False
+CMP-00047,LinkedIn ABM - Enterprise 2021Q3,paid,2021-07-06,2021-09-26,8390.48,False
+CMP-00048,Developer Meetup Series 2021Q3,community,2021-07-01,2021-09-30,5541.8,False
+CMP-00049,Docs SEO Program 2021Q4,organic,2021-10-01,2021-12-31,16322.73,False
+CMP-00050,Search Ads - Workflow Automation 2021Q4,paid,2021-10-01,2021-12-31,7502.78,False
+CMP-00051,LinkedIn ABM - Enterprise 2021Q4,paid,2021-10-07,2021-12-26,20675.94,False
+CMP-00052,Developer Meetup Series 2021Q4,community,2021-10-01,2021-12-31,5229.13,False
+CMP-00053,Docs SEO Program 2022Q1,organic,2022-01-01,2022-03-31,14338.42,False
+CMP-00054,Search Ads - Workflow Automation 2022Q1,paid,2022-01-01,2022-03-31,13715.02,False
+CMP-00055,LinkedIn ABM - Enterprise 2022Q1,paid,2022-01-07,2022-03-27,12337.69,False
+CMP-00056,Developer Meetup Series 2022Q1,community,2022-01-01,2022-03-31,6460.37,False
+CMP-00057,Docs SEO Program 2022Q2,organic,2022-04-01,2022-06-30,18046.25,False
+CMP-00058,Search Ads - Workflow Automation 2022Q2,paid,2022-04-01,2022-06-30,10361.98,False
+CMP-00059,LinkedIn ABM - Enterprise 2022Q2,paid,2022-04-02,2022-06-26,12975.38,False
+CMP-00060,Developer Meetup Series 2022Q2,community,2022-04-01,2022-06-30,7141.59,False
+CMP-00061,Docs SEO Program 2022Q3,organic,2022-07-01,2022-09-30,13658.98,False
+CMP-00062,Search Ads - Workflow Automation 2022Q3,paid,2022-07-01,2022-09-30,5767.16,False
+CMP-00063,LinkedIn ABM - Enterprise 2022Q3,paid,2022-07-04,2022-09-29,16037.58,False
+CMP-00064,Developer Meetup Series 2022Q3,community,2022-07-01,2022-09-30,4773.79,False
+CMP-00065,Docs SEO Program 2022Q4,organic,2022-10-01,2022-12-31,16465.17,False
+CMP-00066,Search Ads - Workflow Automation 2022Q4,paid,2022-10-01,2022-12-31,15704.96,False
+CMP-00067,LinkedIn ABM - Enterprise 2022Q4,paid,2022-10-02,2022-12-30,14044.25,False
+CMP-00068,Developer Meetup Series 2022Q4,community,2022-10-01,2022-12-31,9524.42,False
+CMP-00069,Docs SEO Program 2023Q1,organic,2023-01-01,2023-03-31,10361.94,False
+CMP-00070,Technical Blog Series 2023Q1,organic,2023-01-05,2023-03-28,9911.49,False
+CMP-00071,Search Ads - Workflow Automation 2023Q1,paid,2023-01-01,2023-03-31,8795.74,False
+CMP-00072,LinkedIn ABM - Enterprise 2023Q1,paid,2023-01-11,2023-03-27,8156.35,False
+CMP-00073,Retargeting - Docs Visitors 2023Q1,paid,2023-01-01,2023-03-24,6408.54,False
+CMP-00074,Review Site Paid Placement 2023Q1,paid,2023-01-08,2023-03-30,19888.89,False
+CMP-00075,Developer Meetup Series 2023Q1,community,2023-01-01,2023-03-31,2780.16,False
+CMP-00076,Quarterly Product Webinar 2023Q1,community,2023-01-03,2023-03-29,6305.59,False
+CMP-00077,Community Slack Growth 2023Q1,community,2023-01-06,2023-03-31,3460.12,False
+CMP-00078,Docs SEO Program 2023Q2,organic,2023-04-01,2023-06-30,24758.75,False
+CMP-00079,Technical Blog Series 2023Q2,organic,2023-04-08,2023-06-25,18471.24,False
+CMP-00080,Search Ads - Workflow Automation 2023Q2,paid,2023-04-01,2023-06-30,12429.98,False
+CMP-00081,LinkedIn ABM - Enterprise 2023Q2,paid,2023-04-07,2023-06-27,33714.05,False
+CMP-00082,Retargeting - Docs Visitors 2023Q2,paid,2023-04-05,2023-06-28,21392.62,False
+CMP-00083,Review Site Paid Placement 2023Q2,paid,2023-04-09,2023-06-24,9861.95,False
+CMP-00084,Developer Meetup Series 2023Q2,community,2023-04-01,2023-06-30,6717.58,False
+CMP-00085,Quarterly Product Webinar 2023Q2,community,2023-04-02,2023-06-28,4616.42,False
+CMP-00086,Community Slack Growth 2023Q2,community,2023-04-05,2023-06-26,7462.46,False
+CMP-00087,Docs SEO Program 2023Q3,organic,2023-07-01,2023-09-30,22306.09,False
+CMP-00088,Technical Blog Series 2023Q3,organic,2023-07-07,2023-09-26,17703.91,False
+CMP-00089,Search Ads - Workflow Automation 2023Q3,paid,2023-07-01,2023-09-30,13733.38,False
+CMP-00090,LinkedIn ABM - Enterprise 2023Q3,paid,2023-07-11,2023-09-29,25269.41,False
+CMP-00091,Retargeting - Docs Visitors 2023Q3,paid,2023-07-06,2023-09-27,25786.39,False
+CMP-00092,Review Site Paid Placement 2023Q3,paid,2023-07-04,2023-09-23,21552.01,False
+CMP-00093,Paid Holdout Cell 2023Q3,paid,2023-07-01,2023-09-30,691.35,True
+CMP-00094,Developer Meetup Series 2023Q3,community,2023-07-01,2023-09-30,6026.29,False
+CMP-00095,Quarterly Product Webinar 2023Q3,community,2023-07-09,2023-09-23,5117.32,False
+CMP-00096,Community Slack Growth 2023Q3,community,2023-07-07,2023-09-30,6586.34,False
+CMP-00097,Community Holdout Cell 2023Q3,community,2023-07-01,2023-09-30,209.89,True
+CMP-00098,Docs SEO Program 2023Q4,organic,2023-10-01,2023-12-31,13240.39,False
+CMP-00099,Technical Blog Series 2023Q4,organic,2023-10-08,2023-12-27,28735.73,False
+CMP-00100,Search Ads - Workflow Automation 2023Q4,paid,2023-10-01,2023-12-31,40460.26,False
+CMP-00101,LinkedIn ABM - Enterprise 2023Q4,paid,2023-10-06,2023-12-25,29970.78,False
+CMP-00102,Retargeting - Docs Visitors 2023Q4,paid,2023-10-07,2023-12-28,22933.7,False
+CMP-00103,Review Site Paid Placement 2023Q4,paid,2023-10-10,2023-12-24,17344.91,False
+CMP-00104,Developer Meetup Series 2023Q4,community,2023-10-01,2023-12-31,11310.44,False
+CMP-00105,Quarterly Product Webinar 2023Q4,community,2023-10-03,2023-12-25,4206.3,False
+CMP-00106,Community Slack Growth 2023Q4,community,2023-10-09,2023-12-28,8729.28,False
+CMP-00107,Docs SEO Program 2024Q1,organic,2024-01-01,2024-03-31,13956.08,False
+CMP-00108,Technical Blog Series 2024Q1,organic,2024-01-04,2024-03-30,32119.48,False
+CMP-00109,Search Ads - Workflow Automation 2024Q1,paid,2024-01-01,2024-03-31,29063.71,False
+CMP-00110,LinkedIn ABM - Enterprise 2024Q1,paid,2024-01-11,2024-03-28,41265.04,False
+CMP-00111,Retargeting - Docs Visitors 2024Q1,paid,2024-01-07,2024-03-24,30408.2,False
+CMP-00112,Review Site Paid Placement 2024Q1,paid,2024-01-10,2024-03-24,28091.18,False
+CMP-00113,Developer Meetup Series 2024Q1,community,2024-01-01,2024-03-31,9029.13,False
+CMP-00114,Quarterly Product Webinar 2024Q1,community,2024-01-05,2024-03-31,8137.6,False
+CMP-00115,Community Slack Growth 2024Q1,community,2024-01-04,2024-03-29,8468.38,False
+CMP-00116,Docs SEO Program 2024Q2,organic,2024-04-01,2024-06-30,33788.72,False
+CMP-00117,Technical Blog Series 2024Q2,organic,2024-04-05,2024-06-30,19200.63,False
+CMP-00118,Search Ads - Workflow Automation 2024Q2,paid,2024-04-01,2024-06-30,32995.04,False
+CMP-00119,LinkedIn ABM - Enterprise 2024Q2,paid,2024-04-06,2024-06-28,42377.47,False
+CMP-00120,Retargeting - Docs Visitors 2024Q2,paid,2024-04-11,2024-06-27,16333.25,False
+CMP-00121,Review Site Paid Placement 2024Q2,paid,2024-04-09,2024-06-25,23447.26,False
+CMP-00122,Paid Holdout Cell 2024Q2,paid,2024-04-01,2024-06-30,1118.28,True
+CMP-00123,Developer Meetup Series 2024Q2,community,2024-04-01,2024-06-30,9612.16,False
+CMP-00124,Quarterly Product Webinar 2024Q2,community,2024-04-03,2024-06-27,5913.95,False
+CMP-00125,Community Slack Growth 2024Q2,community,2024-04-11,2024-06-23,7946.86,False
+CMP-00126,Community Holdout Cell 2024Q2,community,2024-04-01,2024-06-30,343.27,True
+CMP-00127,Docs SEO Program 2024Q3,organic,2024-07-01,2024-09-30,29923.69,False
+CMP-00128,Technical Blog Series 2024Q3,organic,2024-07-02,2024-09-25,28456.43,False
+CMP-00129,Search Ads - Workflow Automation 2024Q3,paid,2024-07-01,2024-09-30,59444.59,False
+CMP-00130,LinkedIn ABM - Enterprise 2024Q3,paid,2024-07-03,2024-09-27,33138.75,False
+CMP-00131,Retargeting - Docs Visitors 2024Q3,paid,2024-07-03,2024-09-25,93087.79,False
+CMP-00132,Review Site Paid Placement 2024Q3,paid,2024-07-09,2024-09-27,42790.66,False
+CMP-00133,Developer Meetup Series 2024Q3,community,2024-07-01,2024-09-30,3792.73,False
+CMP-00134,Quarterly Product Webinar 2024Q3,community,2024-07-01,2024-09-27,13602.07,False
+CMP-00135,Community Slack Growth 2024Q3,community,2024-07-06,2024-09-30,8577.84,False
+CMP-00136,Docs SEO Program 2024Q4,organic,2024-10-01,2024-12-31,35115.02,False
+CMP-00137,Technical Blog Series 2024Q4,organic,2024-10-04,2024-12-31,19335.31,False
+CMP-00138,Search Ads - Workflow Automation 2024Q4,paid,2024-10-01,2024-12-31,68868.57,False
+CMP-00139,LinkedIn ABM - Enterprise 2024Q4,paid,2024-10-06,2024-12-30,64072.43,False
+CMP-00140,Retargeting - Docs Visitors 2024Q4,paid,2024-10-06,2024-12-28,84532.99,False
+CMP-00141,Review Site Paid Placement 2024Q4,paid,2024-10-11,2024-12-28,80630.62,False
+CMP-00142,Developer Meetup Series 2024Q4,community,2024-10-01,2024-12-31,10259.74,False
+CMP-00143,Quarterly Product Webinar 2024Q4,community,2024-10-02,2024-12-31,12678.18,False
+CMP-00144,Community Slack Growth 2024Q4,community,2024-10-04,2024-12-29,7405.28,False
+CMP-00145,Docs SEO Program 2025Q1,organic,2025-01-01,2025-03-31,21476.55,False
+CMP-00146,Technical Blog Series 2025Q1,organic,2025-01-05,2025-03-31,45231.87,False
+CMP-00147,Search Ads - Workflow Automation 2025Q1,paid,2025-01-01,2025-03-31,49353.55,False
+CMP-00148,LinkedIn ABM - Enterprise 2025Q1,paid,2025-01-03,2025-03-24,46351.84,False
+CMP-00149,Retargeting - Docs Visitors 2025Q1,paid,2025-01-03,2025-03-26,30443.49,False
+CMP-00150,Review Site Paid Placement 2025Q1,paid,2025-01-07,2025-03-25,40941.88,False
+CMP-00151,Paid Holdout Cell 2025Q1,paid,2025-01-01,2025-03-31,623.09,True
+CMP-00152,Developer Meetup Series 2025Q1,community,2025-01-01,2025-03-31,12134.95,False
+CMP-00153,Quarterly Product Webinar 2025Q1,community,2025-01-08,2025-03-26,6089.97,False
+CMP-00154,Community Slack Growth 2025Q1,community,2025-01-05,2025-03-25,12889.11,False
+CMP-00155,Community Holdout Cell 2025Q1,community,2025-01-01,2025-03-31,185.8,True
+CMP-00156,Docs SEO Program 2025Q2,organic,2025-04-01,2025-06-30,22862.53,False
+CMP-00157,Technical Blog Series 2025Q2,organic,2025-04-07,2025-06-30,36745.37,False
+CMP-00158,Search Ads - Workflow Automation 2025Q2,paid,2025-04-01,2025-06-30,45112.82,False
+CMP-00159,LinkedIn ABM - Enterprise 2025Q2,paid,2025-04-09,2025-06-30,49805.7,False
+CMP-00160,Retargeting - Docs Visitors 2025Q2,paid,2025-04-03,2025-06-30,28258.85,False
+CMP-00161,Review Site Paid Placement 2025Q2,paid,2025-04-05,2025-06-26,62361.56,False
+CMP-00162,Developer Meetup Series 2025Q2,community,2025-04-01,2025-06-30,12678.22,False
+CMP-00163,Quarterly Product Webinar 2025Q2,community,2025-04-04,2025-06-27,10319.54,False
+CMP-00164,Community Slack Growth 2025Q2,community,2025-04-06,2025-06-24,19344.48,False
+CMP-00165,Docs SEO Program 2025Q3,organic,2025-07-01,2025-09-30,30599.79,False
+CMP-00166,Technical Blog Series 2025Q3,organic,2025-07-05,2025-09-27,28566.15,False
+CMP-00167,Search Ads - Workflow Automation 2025Q3,paid,2025-07-01,2025-09-30,55508.77,False
+CMP-00168,LinkedIn ABM - Enterprise 2025Q3,paid,2025-07-04,2025-09-26,23993.59,False
+CMP-00169,Retargeting - Docs Visitors 2025Q3,paid,2025-07-11,2025-09-25,64375.88,False
+CMP-00170,Review Site Paid Placement 2025Q3,paid,2025-07-01,2025-09-27,36307.58,False
+CMP-00171,Developer Meetup Series 2025Q3,community,2025-07-01,2025-09-30,4968.35,False
+CMP-00172,Quarterly Product Webinar 2025Q3,community,2025-07-11,2025-09-30,19120.09,False
+CMP-00173,Community Slack Growth 2025Q3,community,2025-07-05,2025-09-30,9841.92,False
+CMP-00174,Docs SEO Program 2025Q4,organic,2025-10-01,2025-12-31,27361.7,False
+CMP-00175,Technical Blog Series 2025Q4,organic,2025-10-10,2025-12-27,36263.47,False
+CMP-00176,Search Ads - Workflow Automation 2025Q4,paid,2025-10-01,2025-12-31,20527.41,False
+CMP-00177,LinkedIn ABM - Enterprise 2025Q4,paid,2025-10-03,2025-12-27,19658.54,False
+CMP-00178,Retargeting - Docs Visitors 2025Q4,paid,2025-10-08,2025-12-31,54015.44,False
+CMP-00179,Review Site Paid Placement 2025Q4,paid,2025-10-01,2025-12-29,32886.77,False
+CMP-00180,Developer Meetup Series 2025Q4,community,2025-10-01,2025-12-31,6654.6,False
+CMP-00181,Quarterly Product Webinar 2025Q4,community,2025-10-10,2025-12-31,3846.13,False
+CMP-00182,Community Slack Growth 2025Q4,community,2025-10-07,2025-12-25,3826.46,False

@@ -43,6 +43,20 @@ def opportunities():
 
 
 @pytest.fixture(scope="module")
+def quota_history():
+    df = pd.read_csv(f"{DATA_DIR}/quota_history.csv")
+    df["effective_date"] = pd.to_datetime(df["effective_date"])
+    return df
+
+
+@pytest.fixture(scope="module")
+def rep_status_history():
+    df = pd.read_csv(f"{DATA_DIR}/rep_status_history.csv")
+    df["effective_date"] = pd.to_datetime(df["effective_date"])
+    return df
+
+
+@pytest.fixture(scope="module")
 def stage_history():
     df = pd.read_csv(f"{DATA_DIR}/opportunity_stage_history.csv")
     df["entered_date"] = pd.to_datetime(df["entered_date"])
@@ -176,6 +190,60 @@ class TestDistributionalRealism:
             nb = opportunities[(opportunities["segment"] == segment) & (opportunities["opportunity_type"] == "new_business")]
             win_rate = nb["is_won"].mean()
             assert abs(win_rate - target) < 0.03, f"{segment} win rate {win_rate:.1%} vs target {target:.1%}"
+
+    def test_quota_attainment_within_realistic_band(
+        self, users, quota_history, rep_status_history, opportunities
+    ):
+        """Cross-generator check: ISR/AE quota has to be reachable against
+        the deal supply this batch actually produces.
+
+        generators/reps.py back-solves _QUOTA_BASE_RANGE from this file's
+        realized supply (opportunities per ramped rep-quarter x win rate x
+        average won deal size), so the two sides are one derivation and
+        this asserts they stay that way -- the QA plan's causal-wiring
+        requirement applied to quota. The band is deliberately wide: it
+        catches a structural decoupling (quota drawn independently of deal
+        volume, which previously put company-wide attainment at 12.9% with
+        no rep-year in six years reaching 100%), not ordinary drift.
+
+        Scoped to the simulation window. Earlier quarters carry only a
+        thin back-dated won-deal tail with no lost pipeline at all, so
+        they understate real supply and would bias the ratio downward.
+        """
+        window_start = pd.Timestamp(config.SIM_START)
+        departed = (
+            rep_status_history[rep_status_history["status"] == "departed"]
+            .set_index("rep_id")["effective_date"]
+        )
+
+        qh = quota_history[quota_history["effective_date"] >= window_start].copy()
+        qh["departed_on"] = qh["rep_id"].map(departed)
+        # A rep carries a quarter's quota only if still active at its start.
+        qh = qh[qh["departed_on"].isna() | (qh["departed_on"] >= qh["effective_date"])]
+        quota_by_type = (
+            qh.merge(users[["rep_id", "rep_type"]], on="rep_id")
+            .groupby("rep_type")["amount"].sum()
+        )
+
+        won = opportunities[
+            opportunities["is_won"]
+            & (opportunities["opportunity_type"] == "new_business")
+            & opportunities["owner_role"].isin(["ISR", "AE"])
+            & (opportunities["close_date"] >= window_start)
+        ]
+        won_by_type = (
+            won.merge(users[["rep_id", "rep_type"]], on="rep_id")
+            .groupby("rep_type")["amount"].sum()
+        )
+
+        assert set(quota_by_type.index) == {"ISR", "AE"}
+        for rep_type, quota_total in quota_by_type.items():
+            attainment = won_by_type.get(rep_type, 0.0) / quota_total
+            assert 0.70 <= attainment <= 1.20, (
+                f"{rep_type} quota attainment {attainment:.1%} over the simulation "
+                f"window is outside the 70-120% band -- reps.py's _QUOTA_BASE_RANGE "
+                f"and this batch's deal supply have decoupled"
+            )
 
     def test_sales_cycle_length_within_benchmark(self, opportunities):
         nb = opportunities[opportunities["opportunity_type"] == "new_business"]

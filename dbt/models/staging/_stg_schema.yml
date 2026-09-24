@@ -246,3 +246,182 @@ models:
         tests: [not_null]
       - name: metric_name
         tests: [not_null]
+
+  - name: stg_forecast_submissions
+    description: >
+      One row per (opportunity_id, snapshot_date) -- the weekly Friday
+      forecast call on an open Commercial/Enterprise opportunity. Two
+      categorisations of the same deal on the same day: the rep's, which
+      carries a real optimism bias, and the manager's, which is better
+      calibrated. SMB never appears (no weekly forecast cadence).
+    columns:
+      - name: opportunity_id
+        tests: [not_null]
+      - name: snapshot_date
+        tests: [not_null]
+      - name: rep_forecast_category
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Omitted', 'Pipeline', 'Best Case', 'Commit']
+      - name: manager_forecast_category
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Omitted', 'Pipeline', 'Best Case', 'Commit']
+
+  - name: stg_cro_forecast_adjustments
+    description: >
+      At most one row per (period, segment) -- a logged, reasoned CRO
+      override of the bottoms-up forecast roll-up for a fiscal quarter and
+      segment. Sparse by design: only materially divergent segment-quarters
+      carry a row, so an absent pair means "no override was filed".
+    columns:
+      - name: period
+        tests: [not_null]
+      - name: segment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+      - name: adjustment_amount
+        description: >
+          Signed USD. Negative where the top-down read is below the
+          bottoms-up roll-up (coverage shortfall, slippage risk), positive
+          where it is above (sandbagging correction, named-account upside).
+        tests: [not_null]
+      - name: reason
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - pipeline_coverage_shortfall
+                  - rep_sandbagging_pattern
+                  - late_stage_slippage_risk
+                  - named_account_upside
+      - name: timestamp
+        description: >
+          When the override was filed -- the same business day as the
+          quarter's first forecast call, after the roll-up was reviewed.
+        tests: [not_null]
+
+  # --- Marketing automation (generators/marketing_funnel.py) ---
+  # The organic/paid/community taxonomy on all three of the models below
+  # DECOMPOSES the `inbound_marketing` value of accounts.channel. It is not
+  # a second, competing channel field: it carries no self_serve volume
+  # (product-led) and no outbound_sdr volume (tracked under win rate), and
+  # channel stays orthogonal to segment throughout.
+
+  - name: stg_campaigns
+    description: >
+      One row per campaign -- a channel program running over a defined
+      [start_date, end_date] window. Period-level by nature, not event
+      grain. Raw `name` is renamed to `campaign_name`; no other change.
+    columns:
+      - name: campaign_id
+        tests: [not_null, unique]
+      - name: campaign_name
+        tests: [not_null]
+      - name: channel
+        description: >
+          Sub-channel taxonomy decomposing accounts.channel's
+          `inbound_marketing` value -- never the coarse 3-value acquisition
+          taxonomy, and never joined to it as if it were.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['organic', 'paid', 'community']
+      - name: start_date
+        tests: [not_null]
+      - name: end_date
+        tests: [not_null]
+      - name: budget
+        tests: [not_null]
+      - name: is_holdout
+        description: >
+          A genuinely suppressed control cell, not a label -- treatment and
+          budget are both withheld. Only channels that can actually be
+          switched off for a chosen cell carry one, so this is always false
+          for organic.
+        tests: [not_null]
+
+  - name: stg_leads
+    description: >
+      One row per lead. account_id and converted_date are populated only
+      when is_converted = true; NULL for the non-converting population by
+      design, not missing data.
+    columns:
+      - name: lead_id
+        tests: [not_null, unique]
+      - name: company_id
+        description: >
+          Always resolves to market_universe. Non-converting leads draw only
+          from companies that are neither current nor former customers.
+        tests: [not_null]
+      - name: channel
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['organic', 'paid', 'community']
+      - name: created_date
+        tests: [not_null]
+      - name: lead_score
+        description: >
+          Composite as of the lead's TERMINAL state, not a point-in-time
+          score -- it reads observed engagement depth and therefore leaks
+          the conversion outcome. Not a valid conversion-prediction feature
+          and not a substitute for lead_scoring_history.
+        tests: [not_null]
+      - name: is_converted
+        tests: [not_null]
+
+  - name: stg_campaign_engagement_events
+    description: >
+      One row per touch -- raw event grain, never deduplicated to one row
+      per lead or per campaign. `channel` here is the campaign's
+      sub-channel, which is not always the lead's own (cross-sub-channel
+      touch paths are deliberate).
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: lead_id
+        tests: [not_null]
+      - name: campaign_id
+        tests: [not_null]
+      - name: channel
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['organic', 'paid', 'community']
+      - name: event_type
+        description: >
+          Closed per-sub-channel vocabulary; every event's event_type
+          belongs to its own channel's set. Every listed value actually
+          fires in the generated data -- a schema value that never occurs is
+          the defect the QA plan flags for migration trigger_reason.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - organic_search_visit
+                  - blog_view
+                  - docs_view
+                  - content_download
+                  - ad_click
+                  - landing_page_view
+                  - retargeting_click
+                  - paid_asset_download
+                  - event_registration
+                  - event_attendance
+                  - community_join
+                  - community_post
+      - name: event_timestamp
+        tests: [not_null]

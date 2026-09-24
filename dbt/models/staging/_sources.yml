@@ -1,14 +1,16 @@
 version: 2
 
-# Source pattern: dbt-duckdb external tables, not seeds. These 16 CSVs are
+# Source pattern: dbt-duckdb external tables, not seeds. These 23 CSVs are
 # Phase 1 generator output (data/raw/*.csv) -- tens to hundreds of thousands
 # of rows each, regenerated whenever the generator reruns. Seeds are meant
 # for small, dbt-managed reference data checked into the project; this is
 # neither small nor dbt-owned, so each source table is bound via
 # `meta.external_location` to a `read_csv` call over the file in place.
 # dbt-duckdb substitutes `{name}` with the dbt source table name by default;
-# the one raw file whose name doesn't match the table name we want
-# (fact_workflow_chain_events.csv) gets an explicit per-table override.
+# the raw files whose names don't match the table name we want
+# (fact_workflow_chain_events.csv, fact_forecast_submissions.csv -- both
+# already carry the fact_ prefix their mart-layer model takes) get an
+# explicit per-table override.
 sources:
   - name: raw
     description: >
@@ -39,6 +41,17 @@ sources:
       - name: marketing_spend_by_channel_month
       - name: product_logins
       - name: gtm_plan_targets
+      # Marketing automation (generators/marketing_funnel.py). The
+      # organic/paid/community taxonomy these three carry decomposes the
+      # `inbound_marketing` value of accounts.channel -- it does not replace
+      # it and carries no self_serve or outbound_sdr volume.
+      - name: campaigns
+      - name: leads
+      - name: campaign_engagement_events
+      - name: forecast_submissions
+        meta:
+          external_location: "{{ var('raw_data_path') }}/fact_forecast_submissions.csv"
+      - name: cro_forecast_adjustments
 
   - name: analytics
     description: >

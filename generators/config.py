@@ -343,3 +343,168 @@ PLAN_PILLAR_BY_METRIC = {
     "logo_retention": "Durability",
 }
 PLAN_LAYER1_METRICS = tuple(PLAN_PILLAR_BY_METRIC)
+
+# --- Marketing funnel / attribution (batch 7) -------------------------------
+# The finer sub-channel split the metric tree's "Pipeline generated" node is
+# built on (Organic/content, Paid, Community/events), which marketing.py's
+# module docstring names as deferred for lack of leads/campaigns data. These
+# three names are the tree's own vocabulary in snake_case, not a second
+# taxonomy: `channel` on accounts stays the coarse 3-value acquisition field
+# (self_serve / inbound_marketing / outbound_sdr), and these three are a
+# decomposition of `inbound_marketing` specifically -- the tree explicitly
+# routes outbound SDR and segment-graduation volume elsewhere, and self-serve
+# is product-led rather than campaign-sourced.
+MARKETING_SUB_CHANNELS = ("organic", "paid", "community")
+MARKETING_SUB_CHANNEL_PARENT = "inbound_marketing"
+
+# Sub-channel mix of inbound-sourced new logos, at the two ends of the
+# account population's signup range -- own resolved decision. Interpolated
+# linearly by signup date. Shape: a PLG-first company whose earliest inbound
+# volume is overwhelmingly organic/docs-led, layering on paid demand gen and
+# then DevRel/community as the GTM org scales. Neither doc states a mix, only
+# that the three sub-channels exist and carry separate owners.
+SUB_CHANNEL_MIX_ANCHORS = (date(2019, 1, 1), date(2026, 1, 1))
+SUB_CHANNEL_MIX_START = {"organic": 0.62, "paid": 0.24, "community": 0.14}
+SUB_CHANNEL_MIX_END = {"organic": 0.34, "paid": 0.44, "community": 0.22}
+
+# Sub-channel x segment affinity multiplier applied on top of the mix above.
+# Channel and segment stay orthogonal as a *rule* (no channel implies a
+# segment, and every sub-channel produces accounts in all three segments) --
+# this is a tilt, not a partition. Grounded in build spec Section 1's
+# touch-model gradient: self-directed docs/SEO discovery skews toward smaller
+# organisations, DevRel/event relationships toward larger ones.
+SUB_CHANNEL_SEGMENT_AFFINITY = {
+    "organic": {"SMB": 1.25, "Commercial": 1.00, "Enterprise": 0.55},
+    "paid": {"SMB": 1.00, "Commercial": 1.10, "Enterprise": 0.90},
+    "community": {"SMB": 0.55, "Commercial": 1.00, "Enterprise": 1.90},
+}
+
+# Lead -> customer conversion rate by sub-channel -- own resolved decision,
+# grounded against the typical B2B SaaS MQL-to-customer range (low single
+# digits for broad top-of-funnel, materially higher for pre-qualified flow).
+# A `lead` here is a marketing-qualified record, not a raw visitor, so these
+# sit at the upper end of that range. The spread is the point: self-directed
+# organic/docs leads arrive with intent, community/event leads arrive with a
+# relationship already formed, and paid reach is the broadest and least
+# qualified of the three. This is the first of the four axes that make
+# QA plan Test C's "channels should not look statistically identical"
+# true at organic/paid/community grain.
+LEAD_CONVERSION_RATE = {"organic": 0.055, "paid": 0.032, "community": 0.085}
+
+# Lead-to-signup gap (days) -- test C axis two. Median by sub-channel, scaled
+# by a segment factor consistent with build spec Section 1's sales-cycle
+# gradient (SMB instant-7d, Commercial 14-45d, Enterprise 60-180d). Organic
+# leads self-serve quickly; community/event leads sit in a nurture cycle
+# between the event and the decision.
+LEAD_TO_SIGNUP_MEDIAN_DAYS = {"organic": 18, "paid": 32, "community": 65}
+LEAD_TO_SIGNUP_SEGMENT_FACTOR = {"SMB": 0.70, "Commercial": 1.15, "Enterprise": 1.90}
+LEAD_TO_SIGNUP_SIGMA = 0.55
+LEAD_TO_SIGNUP_MAX_DAYS = 400
+
+# Touch volume -- test C axis three, and the causal-wiring mechanism the whole
+# table exists for. Mean touches for a non-converting, non-holdout lead, by
+# sub-channel: content channels accumulate many low-weight touches (docs
+# pages, blog posts); paid is a short click path; community is event-centric,
+# a handful of heavier interactions. TOUCH_CONVERSION_LIFT is what makes
+# touch volume a real predictor of conversion rather than decoration -- an
+# engaged lead is touched several times more often than one that goes quiet,
+# so bucketing leads by touch count produces a genuine conversion gradient.
+TOUCHES_BASE = {"organic": 3.4, "paid": 1.9, "community": 2.6}
+TOUCH_CONVERSION_LIFT = 2.6
+TOUCH_INTENSITY_SIGMA = 0.35
+# A non-converting lead goes quiet shortly after it is created; a converting
+# one keeps being touched right up to signup. That difference is what makes
+# touch *recency* (measured at a common horizon after lead creation) a
+# predictor alongside touch count.
+NONCONVERT_TOUCH_DECAY_MEAN_DAYS = 9
+NONCONVERT_TOUCH_WINDOW_MAX_DAYS = 45
+
+# Share of a lead's non-first touches that come from a campaign other than the
+# one that sourced it, and the share of those that cross sub-channels. Without
+# this every lead would sit under exactly one campaign and multi-touch
+# attribution downstream would have nothing to attribute -- a single-campaign
+# lead makes first-touch, last-touch and linear attribution identical by
+# construction. The first touch is always the sourcing campaign, which is what
+# `leads.channel` records.
+CROSS_CAMPAIGN_TOUCH_RATE = 0.22
+CROSS_CHANNEL_TOUCH_SHARE = 0.30
+
+# Campaign cost multiplier against the parent channel's blended target CAC
+# (TARGET_CAC_BY_CHANNEL["inbound_marketing"]) -- test C axis four. Weighted
+# by the sub-channel mix these reconcile to ~1.0x, so the finer split stays
+# consistent with the coarse CAC already implied by
+# marketing_spend_by_channel_month rather than restating it differently.
+CAMPAIGN_COST_MULTIPLIER = {"organic": 0.55, "paid": 1.55, "community": 1.00}
+CAMPAIGN_BUDGET_NOISE_SIGMA = 0.18
+CAMPAIGN_BASELINE_BUDGET_SHARE = 0.15  # zero-conversion quarter floor, mirroring marketing.py's baseline-cost rule
+
+# Campaign calendar density. The marketing org scales up at the start of the
+# simulation window; before that the account population is the established
+# staggered-tenure cohort accounts.py seeds, whose inbound volume is far
+# lower, so a mature campaign calendar back-dated over it would leave most
+# campaigns with no conversions at all.
+CAMPAIGNS_PER_QUARTER_EARLY = {"organic": 1, "paid": 2, "community": 1}
+CAMPAIGNS_PER_QUARTER_MATURE = {"organic": 2, "paid": 4, "community": 3}
+CAMPAIGN_REACH_SIGMA = 0.40
+MIN_LEADS_PER_CAMPAIGN = 20
+
+# Holdout / incrementality control group (build spec Section 4: campaigns
+# carry "holdout/control-group flags for specific periods -- incrementality
+# testing needs a deliberately-excluded group somewhere in the data").
+# Only paid and community run holdouts: organic/SEO cannot be switched off
+# for a randomly chosen cell, so a holdout flag on an organic campaign would
+# be a flag with no operational meaning.
+#
+# The suppression is a real behavioural consequence, not a label. A holdout
+# cell's leads receive the campaign treatment withheld -- HOLDOUT_TOUCH_
+# SUPPRESSION fewer touches -- and convert at HOLDOUT_CONVERSION_SUPPRESSION
+# of the treated rate, which is the baseline (non-incremental) conversion the
+# test exists to measure. 0.35 implies a ~65% incremental lift, inside the
+# range real paid-media incrementality tests report for mid-funnel programs.
+HOLDOUT_CHANNELS = ("paid", "community")
+HOLDOUT_QUARTERS = ("2023Q3", "2024Q2", "2025Q1")
+HOLDOUT_CONVERSION_SUPPRESSION = 0.35
+HOLDOUT_TOUCH_SUPPRESSION = 0.40
+HOLDOUT_BUDGET_SHARE = 0.10  # spend is withheld from the control cell, not merely re-labelled
+
+# Lead score composite. Built from real drivers already in the data --
+# firmographic fit (market_universe.icp_fit_score, the same score the whole
+# universe carries) and observed engagement depth -- plus a sub-channel
+# quality term, so the score correlates with conversion instead of being
+# independent noise. Test C axis five: the three sub-channels carry visibly
+# different score distributions.
+LEAD_SCORE_WEIGHTS = {"firmographic": 0.40, "behavioral": 0.42, "channel": 0.18}
+LEAD_SCORE_CHANNEL_QUALITY = {"organic": 60.0, "paid": 45.0, "community": 70.0}
+LEAD_SCORE_TOUCH_SCALE = 4.0
+LEAD_SCORE_NOISE_SD = 4.5
+
+# Inbound lead flow skews below the prospect universe's average firmographic
+# fit -- broad top-of-funnel pulls in a long tail of small, poor-fit
+# companies, which is the reason lead scoring exists at all. Implemented as a
+# downward tilt on the icp_fit_score of the market_universe companies drawn
+# as non-converting leads, giving the firmographic term of lead_score real
+# discriminating power without overstating it.
+NONCONVERT_LEAD_ICP_TILT = 45.0
+
+# Closed event-type vocabulary per sub-channel. Each maps onto a Layer-3
+# diagnostic the metric tree already names: docs/blog traffic and
+# docs-traffic-to-signup (organic), click -> lead conversion and retargeting
+# (paid), event attendance and community engagement depth (community).
+CAMPAIGN_EVENT_TYPES = {
+    "organic": ("organic_search_visit", "docs_view", "blog_view", "content_download"),
+    "paid": ("ad_click", "landing_page_view", "retargeting_click", "paid_asset_download"),
+    "community": ("event_registration", "event_attendance", "community_join", "community_post"),
+}
+# The touch that creates the lead record, per sub-channel. Fixing this also
+# enforces the one intra-lead ordering constraint in the vocabulary: an
+# `event_attendance` can never precede its `event_registration`.
+CAMPAIGN_FIRST_TOUCH_TYPE = {
+    "organic": "organic_search_visit",
+    "paid": "ad_click",
+    "community": "event_registration",
+}
+CAMPAIGN_FOLLOWUP_TYPE_MIX = {
+    "organic": {"docs_view": 0.45, "blog_view": 0.28, "content_download": 0.17, "organic_search_visit": 0.10},
+    "paid": {"landing_page_view": 0.46, "retargeting_click": 0.30, "paid_asset_download": 0.16, "ad_click": 0.08},
+    "community": {"event_attendance": 0.40, "community_post": 0.26, "community_join": 0.20, "event_registration": 0.14},
+}

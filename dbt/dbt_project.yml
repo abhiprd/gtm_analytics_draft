@@ -52,10 +52,18 @@ models:
           +materialized: incremental
           +unique_key: workflow_chain_event_id
           +incremental_strategy: delete+insert
+        fact_campaign_engagement_events:
+          +materialized: incremental
+          +unique_key: event_id
+          +incremental_strategy: delete+insert
       marts:
         +materialized: table
         +schema: marts
 
-# fct_workflow_chain_events is the one large, append-only event-grain fact
-# in this batch (142,943 rows and growing with every new month of usage) --
-# incremental per the dbt-conventions skill's materialization rule.
+# The large, append-only event-grain facts -- incremental per the
+# dbt-conventions skill's materialization rule:
+#   - fact_workflow_chain_events (142,943 rows, growing with every new month
+#     of usage)
+#   - fact_campaign_engagement_events (135,965 raw marketing touches, growing
+#     with every campaign month; never deduplicated, since multi-touch
+#     attribution reads the whole undeduplicated path)

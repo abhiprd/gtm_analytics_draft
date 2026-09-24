@@ -84,3 +84,49 @@ models:
                 values: ['SMB', 'Commercial', 'Enterprise']
               config:
                 where: "customer_segment is not null"
+
+  - name: dim_campaign
+    description: >
+      Grain: one row per campaign_id -- a channel program running over a
+      defined [start_date, end_date] window. Singular name per the build
+      spec's Phase 2 dimension list. The organic/paid/community channel
+      taxonomy here DECOMPOSES the `inbound_marketing` value of
+      dim_accounts.channel; it is not a replacement for that field and
+      carries no self_serve or outbound_sdr volume, so the two columns must
+      never be joined or unioned as if they shared a domain.
+    columns:
+      - name: campaign_id
+        tests: [not_null, unique]
+      - name: campaign_name
+        tests: [not_null]
+      - name: channel
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['organic', 'paid', 'community']
+      - name: start_date
+        tests: [not_null]
+      - name: end_date
+        tests: [not_null]
+      - name: start_month
+        description: Month of start_date, for period-level channel-mix rollups.
+        tests: [not_null]
+      - name: campaign_duration_days
+        description: Inclusive window length, end_date - start_date + 1.
+        tests: [not_null]
+      - name: budget
+        description: >
+          USD budget for the program. An attribute of the campaign, not an
+          additive per-event measure. A holdout cell's budget is withheld
+          rather than re-labelled or re-spent elsewhere, so treated-vs-
+          holdout spend comparisons are like-for-like.
+        tests: [not_null]
+      - name: is_holdout
+        description: >
+          Marks a genuinely suppressed control cell (treatment and budget
+          both withheld), not merely a flag. Always false for organic --
+          an SEO/content program cannot be switched off for a chosen cell,
+          so a holdout there would have no operational meaning. Enforced by
+          tests/assert_holdout_only_on_suppressible_channels.sql.
+        tests: [not_null]
