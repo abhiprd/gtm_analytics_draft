@@ -294,3 +294,260 @@ models:
         tests: [not_null]
       - name: metric_name
         tests: [not_null]
+
+  - name: fact_forecast_submissions
+    description: >
+      Grain: one row per (opportunity_id, snapshot_date) -- one weekly
+      Friday forecast call on one open Commercial/Enterprise opportunity.
+      A point-in-time judgement, not a property of the deal; the same
+      opportunity carries one row per Friday it was open. SMB never
+      appears. Distinct from fact_opportunities.forecast_category, which
+      is a single close-time field on the deal.
+    columns:
+      - name: forecast_submission_id
+        description: >
+          Surrogate key over the stated grain (opportunity_id,
+          snapshot_date) -- its unique test is what enforces the QA plan's
+          "no duplicate (opportunity_id, snapshot_date) pairs" invariant,
+          dbt_utils not being installed for this project.
+        tests: [not_null, unique]
+      - name: opportunity_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fact_opportunities')
+                field: opportunity_id
+      - name: snapshot_date
+        tests: [not_null]
+      - name: rep_forecast_category
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Omitted', 'Pipeline', 'Best Case', 'Commit']
+      - name: manager_forecast_category
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Omitted', 'Pipeline', 'Best Case', 'Commit']
+      - name: rep_forecast_rank
+        description: "Ordinal rank of rep_forecast_category: Omitted 0 -> Commit 3."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3]
+                quote: false
+      - name: manager_forecast_rank
+        description: "Ordinal rank of manager_forecast_category: Omitted 0 -> Commit 3."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3]
+                quote: false
+      - name: rep_minus_manager_rank_gap
+        description: >
+          rep_forecast_rank minus manager_forecast_rank. Positive = rep
+          more confident than manager (manager downgrade); negative =
+          manager more confident than rep. Both directions occur, per the
+          QA plan's Test E existence check.
+        tests: [not_null]
+      - name: is_manager_downgrade
+        tests: [not_null]
+      - name: is_manager_upgrade
+        tests: [not_null]
+
+  - name: fact_cro_forecast_adjustments
+    description: >
+      Grain: at most one row per (period, segment) -- one logged, reasoned
+      CRO override of a segment-quarter's bottoms-up forecast roll-up.
+      Sparse by design: an absent (period, segment) pair means no override
+      was filed, not missing data, so this table must be left-joined, never
+      inner-joined, to a full quarter/segment spine.
+    columns:
+      - name: cro_forecast_adjustment_id
+        description: >
+          Surrogate key over the stated grain (period, segment); its unique
+          test enforces the at-most-one-row-per-segment-quarter invariant.
+        tests: [not_null, unique]
+      - name: period
+        description: "Fiscal quarter label, 'YYYY-Qn'."
+        tests: [not_null]
+      - name: period_start_date
+        tests: [not_null]
+      - name: period_end_date
+        tests: [not_null]
+      - name: segment
+        description: >
+          Commercial/Enterprise only -- SMB files no bottoms-up forecast,
+          so there is nothing for a CRO to override.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+      - name: adjustment_amount
+        description: >
+          Signed USD applied on top of the bottoms-up roll-up. Negative for
+          coverage shortfall and slippage risk, positive for a sandbagging
+          correction or named-account upside.
+        tests: [not_null]
+      - name: is_downward_adjustment
+        tests: [not_null]
+      - name: reason
+        description: >
+          Closed four-value set the generator defines. All four occur in
+          the generated data, per the QA plan's Test E existence check.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - pipeline_coverage_shortfall
+                  - rep_sandbagging_pattern
+                  - late_stage_slippage_risk
+                  - named_account_upside
+      - name: timestamp
+        tests: [not_null]
+
+  - name: fact_leads
+    description: >
+      Grain: one row per lead_id. An accumulating-snapshot fact (created ->
+      converted) with the conversion outcome as its measure, standing in the
+      same relation to fact_campaign_engagement_events that
+      fact_opportunities stands in to fact_opportunity_stage_history. The
+      lead's firmographics are not here -- they live on dim_market_universe,
+      reachable via company_id. The organic/paid/community channel taxonomy
+      DECOMPOSES the `inbound_marketing` value of dim_accounts.channel and
+      does not replace it; channel remains orthogonal to segment.
+    columns:
+      - name: lead_id
+        tests: [not_null, unique]
+      - name: account_id
+        description: >
+          Populated only on converting leads; NULL by design for the
+          non-converting population, which is sized off a stated
+          per-sub-channel lead-to-customer conversion rate rather than
+          representing missing data. Converting leads are 1:1 with the
+          inbound_marketing slice of dim_accounts in both directions --
+          every converting lead resolves to a real inbound-acquired account,
+          and every such account is explained by exactly one converting
+          lead.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+              config:
+                where: "account_id is not null"
+          - unique:
+              config:
+                where: "account_id is not null"
+      - name: company_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_market_universe')
+                field: company_id
+      - name: channel
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['organic', 'paid', 'community']
+      - name: created_date
+        tests: [not_null]
+      - name: converted_date
+        description: >
+          NULL unless is_converted. Equal to the resolved account's
+          signup_date, and strictly later than created_date -- a lead
+          created the same day as the signup it explains would leave no
+          funnel behind it to attribute.
+      - name: is_converted
+        tests: [not_null]
+      - name: lead_score
+        description: >
+          Composite as of the lead's TERMINAL state, NOT point-in-time. It
+          reads observed engagement depth, so it leaks the conversion
+          outcome and must not be used as a feature to predict it. Exposed
+          for channel-mix and lead-quality reporting only; point-in-time
+          scoring belongs to lead_scoring_history.
+        tests: [not_null]
+      - name: days_to_conversion
+        description: >
+          Lead-to-signup gap in days; NULL for non-converting leads.
+          Strictly positive where present.
+
+  - name: fact_campaign_engagement_events
+    description: >
+      Grain: one row per event_id -- raw TOUCH grain, one row per touch,
+      NEVER deduplicated to one row per lead or per campaign. This is the
+      multi-touch-attribution event stream: deduplicating it would make
+      first-touch, last-touch and linear attribution identical by
+      construction. Point-in-time safety: no touch on a converting lead
+      falls on or after that lead's converted_date, every touch falls inside
+      its own campaign's window, and timestamps are strictly unique within a
+      lead so first-touch/last-touch positions are unambiguous. touch_seq
+      and first/last-touch flags are deliberately NOT materialized here --
+      they are window functions an incremental model cannot maintain
+      correctly, and they are attribution decisions rather than raw-stream
+      facts.
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: lead_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fact_leads')
+                field: lead_id
+      - name: campaign_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_campaign')
+                field: campaign_id
+      - name: channel
+        description: >
+          The CAMPAIGN's sub-channel, which is not always the lead's own --
+          cross-sub-channel touch paths are deliberate and load-bearing for
+          attribution. Join to fact_leads for the lead's channel rather than
+          assuming the two agree.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['organic', 'paid', 'community']
+      - name: event_type
+        description: >
+          Closed per-sub-channel vocabulary -- every event's event_type
+          belongs to its own channel's set, and every listed value actually
+          occurs in the data.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - organic_search_visit
+                  - blog_view
+                  - docs_view
+                  - content_download
+                  - ad_click
+                  - landing_page_view
+                  - retargeting_click
+                  - paid_asset_download
+                  - event_registration
+                  - event_attendance
+                  - community_join
+                  - community_post
+      - name: event_timestamp
+        tests: [not_null]
+      - name: event_date
+        description: Date part of event_timestamp; also the incremental filter key.
+        tests: [not_null]

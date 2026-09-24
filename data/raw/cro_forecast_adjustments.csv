@@ -1,0 +1,19 @@
+period,segment,adjustment_amount,reason,timestamp
+2023-Q1,Commercial,-17334.3,pipeline_coverage_shortfall,2023-01-06 18:07:00
+2023-Q1,Enterprise,-109098.91,late_stage_slippage_risk,2023-01-06 18:33:00
+2023-Q2,Commercial,51090.9,named_account_upside,2023-04-07 16:30:00
+2023-Q2,Enterprise,-199253.01,late_stage_slippage_risk,2023-04-07 18:23:00
+2023-Q3,Enterprise,213071.15,named_account_upside,2023-07-07 18:59:00
+2023-Q4,Commercial,45623.85,named_account_upside,2023-10-06 17:04:00
+2023-Q4,Enterprise,131062.1,named_account_upside,2023-10-06 15:36:00
+2024-Q1,Commercial,70634.54,named_account_upside,2024-01-05 17:41:00
+2024-Q1,Enterprise,172187.42,named_account_upside,2024-01-05 18:52:00
+2024-Q2,Enterprise,349382.06,rep_sandbagging_pattern,2024-04-05 17:50:00
+2024-Q4,Commercial,79184.41,rep_sandbagging_pattern,2024-10-04 15:12:00
+2024-Q4,Enterprise,-86603.92,late_stage_slippage_risk,2024-10-04 16:06:00
+2025-Q1,Enterprise,-251000.74,pipeline_coverage_shortfall,2025-01-03 17:40:00
+2025-Q2,Commercial,117624.54,rep_sandbagging_pattern,2025-04-04 17:12:00
+2025-Q3,Commercial,-97218.51,pipeline_coverage_shortfall,2025-07-04 18:59:00
+2025-Q3,Enterprise,-327631.38,pipeline_coverage_shortfall,2025-07-04 15:14:00
+2025-Q4,Commercial,-183944.73,pipeline_coverage_shortfall,2025-10-03 18:41:00
+2025-Q4,Enterprise,-468283.78,pipeline_coverage_shortfall,2025-10-03 15:42:00

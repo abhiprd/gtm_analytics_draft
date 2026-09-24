@@ -118,13 +118,58 @@ def generate_reps(rng: np.random.Generator, n_am_commercial: int, n_am_enterpris
     return users_df, quota_history_df, rep_status_history_df
 
 
-# Quarterly new-business ARR quota ranges by rep_type -- own resolved
-# decision, sized to be plausible against each segment's ACV band
-# (config.ACV_RANGES) for a rep closing a handful of deals per quarter.
-# Only ISR/AE carry quota: they're the new-business, quota-bearing roles
-# per build spec Section 2; AM comp isn't described as quota-based in either
-# doc, so quota_history is scoped to ISR/AE only here.
-_QUOTA_BASE_RANGE = {"ISR": (150_000, 220_000), "AE": (400_000, 700_000)}
+# Quarterly new-business ARR quota ranges by rep_type. Only ISR/AE carry
+# quota: they're the new-business, quota-bearing roles per build spec
+# Section 2; AM comp isn't described as quota-based in either doc, so
+# quota_history is scoped to ISR/AE only here.
+#
+# DERIVED, not guessed. These are back-solved from the opportunity
+# generator's realized deal supply -- the same "single source of truth,
+# derived not guessed" treatment gtm_plan.py's expansion/contraction
+# shares get from the benchmark-blended NRR/GRR anchors. Quota sized
+# independently of the deal supply that has to fill it is exactly the
+# "independently-random column" the QA plan's causal-wiring requirement
+# forbids: it makes attainment a function of an arbitrary constant rather
+# than of rep productivity.
+#
+# Grounding, measured over the fully-supplied window (2023-01 onward, the
+# first quarter in which opportunities.py generates *lost* pipeline as
+# well as won deals -- earlier quarters carry only a thin back-dated
+# won-deal tail and understate real supply), fully-ramped rep-quarters
+# only:
+#
+#   rep_type | closed new-biz opps | realized  | avg won    | = ARR per
+#            | per ramped rep-qtr  | win rate  | deal size  |   ramped rep-qtr
+#   ---------|---------------------|-----------|------------|-----------------
+#   AE       |        2.01         |  20.98%   |  $250,804  |   $103,619
+#   ISR      |        5.98         |  25.85%   |   $22,595  |    $34,363
+#
+# (the three drivers multiply to $105,972 / $34,950, within ~2% of the
+# directly-measured per-rep-quarter figures used as the anchor.)
+#
+# Resolved decision on the target band: quota is set AT a fully ramped
+# rep's realized quarterly production, so a ramped rep on seat all quarter
+# expects ~100% attainment, and company-wide blended attainment lands in
+# the mid-80s to mid-90s once ramping and partial-tenure rep-quarters are
+# folded in. That is the conventional SaaS shape -- a target set at, not
+# far above, median rep capacity, so it is genuinely missed and genuinely
+# beaten rather than being unreachable (the prior ranges put every rep-year
+# of the six-year history under 69% of annual quota) or trivially cleared.
+# It is not set higher: total AE new-business pipeline is 452 opportunities
+# across the whole simulation, so even at a hypothetical 100% win rate the
+# supply caps what any AE roster can produce. Quota is bounded by the deal
+# supply, not by what looks plausible against an ACV band in isolation.
+#
+# Each band's midpoint is the anchor above divided by the mean realized
+# step-up multiplier over the window (~1.25x; see the step-up below), so
+# the *stated* quota -- not the pre-step-up base -- lands on the anchor:
+# AE $103,619 / 1.2506 = $82,858 (band midpoint $82,500, -0.4%);
+# ISR $34,363 / 1.2450 = $27,601 (band midpoint $27,750, +0.5%).
+# Band half-width is carried over from the prior ranges unchanged
+# (AE +/-27.3%, ISR +/-18.9% of midpoint) -- rep-to-rep quota
+# differentiation is a real practice and the spread was never the defect;
+# only the level was.
+_QUOTA_BASE_RANGE = {"ISR": (22_500, 33_000), "AE": (60_000, 105_000)}
 
 
 def _generate_quota_history(rng: np.random.Generator, users_df: pd.DataFrame) -> pd.DataFrame:

@@ -27,10 +27,11 @@
 --
 -- NOT built here: the Layer-2 "Pipeline generated" organic/paid/community
 -- breakdown (Σ channel volume x channel-to-lead rate x lead-to-PQL rate).
--- That needs leads/campaign-touch data that doesn't exist in this raw data
--- (marketing_spend_by_channel_month has only a coarse 3-value channel
--- taxonomy, not organic/paid/community, and there's no leads or campaign
--- table at all). See docs gap note in stg_marketing_spend_by_channel_month.
+-- marketing_spend_by_channel_month still carries only the coarse 3-value
+-- channel taxonomy, not organic/paid/community -- that breakdown is
+-- computed at the finer grain by analytics/marketing_attribution.py from
+-- dim_campaign/fact_leads/fact_campaign_engagement_events, not restated
+-- here. See docs gap note in stg_marketing_spend_by_channel_month.
 --
 -- Activation (TTFA) is a Layer-1 Growth node but is NOT part of the
 -- additive bridge equation above -- it's reported here as a parallel

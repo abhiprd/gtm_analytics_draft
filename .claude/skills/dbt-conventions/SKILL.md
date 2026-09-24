@@ -9,7 +9,7 @@ description: Reference this whenever writing, reviewing, or restructuring any db
 
 - `stg_*` — one per raw source table. 1:1 with the source, light typing/renaming only. No joins, no business logic.
 - `int_*` — joins and business logic that don't belong in a single staging model or a final mart (e.g., deriving time-in-segment from `account_segment_history`, resolving duplicate contacts).
-- `dim_*` / `fct_*` — the dimensional model. Facts are append-only where possible; dimensions carry current state plus, where the build spec calls for it, historized attributes (e.g., `dim_reps` joined against `quota_history` and `rep_status_history` for point-in-time queries — don't collapse these into static current-value columns).
+- `dim_*` / `fact_*` — the dimensional model. Facts are append-only where possible; dimensions carry current state plus, where the build spec calls for it, historized attributes (e.g., `dim_reps` joined against `quota_history` and `rep_status_history` for point-in-time queries — don't collapse these into static current-value columns).
 - `mart_*` — consumption-ready, aligned to the metric tree's own structure (`mart_growth_bridge`, `mart_efficiency`, `mart_durability`, `mart_segment_migration`, `mart_tam_whitespace`). A mart should map cleanly to a pillar or a cross-cutting analysis, not to whatever's convenient to join.
 
 Never reference a `stg_` model from a `mart_`, and never reference a raw source from anything but its own `stg_` model. If a mart needs raw-source logic, that logic is missing from staging/intermediate — fix it there, don't shortcut.
