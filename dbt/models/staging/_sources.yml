@@ -29,6 +29,11 @@ sources:
       - name: market_universe
       - name: opportunities
       - name: opportunity_stage_history
+      # Sales engagement (generators/sales_activities.py). Individual-touch
+      # grain, Commercial/Enterprise new-business opportunities only.
+      - name: sales_activities
+        meta:
+          external_location: "{{ var('raw_data_path') }}/fact_sales_activities.csv"
       - name: usage_monthly
       - name: workflow_chain_events
         meta:
@@ -55,12 +60,16 @@ sources:
 
   - name: analytics
     description: >
-      Phase 4 analytics-artifact output. Currently just the model-performance
-      log (data/model_performance_history.csv), appended to by
-      analytics/model_performance.py after every backtest/build-time check --
+      Phase 4 analytics-artifact output: the model-performance log
+      (data/model_performance_history.csv, analytics/model_performance.py)
+      and the automated-playbook-triggers operational log
+      (data/playbook_triggers.csv, analytics/playbook_triggers.py) --
       version-controlled like Phase 1 raw data, not written straight into
       the (gitignored, rebuild-from-scratch) DuckDB file.
     tables:
       - name: model_performance_history
         meta:
           external_location: "{{ var('model_performance_path') }}"
+      - name: playbook_triggers
+        meta:
+          external_location: "{{ var('playbook_triggers_path') }}"

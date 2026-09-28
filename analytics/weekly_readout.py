@@ -41,13 +41,15 @@ Three consequences follow, all deliberate:
     engine's threshold, which can be zero. It is never padded to a fixed
     count and never truncated.
 
-SCOPE -- THREE SECTIONS ARE DELIBERATELY NOT BUILT HERE
---------------------------------------------------------
-Each is a separate, named piece of work. Each gets an explicit
-"not_yet_built"/"deferred" placeholder in the assembled structure and in
-the rendered document, rather than being silently omitted (which would
-make the readout look complete when it is not) or filled with invented
-content (which would make it dishonest).
+SCOPE -- TWO SECTIONS ARE DELIBERATELY NOT BUILT HERE; ONE SEAM IS NOW
+FILLED
+------------------------------------------------------------------------
+The executive-summary narrative and the forecast are each a separate,
+named piece of work, and each still gets an explicit "not_yet_built"/
+"deferred" placeholder in the assembled structure and in the rendered
+document, rather than being silently omitted (which would make the
+readout look complete when it is not) or filled with invented content
+(which would make it dishonest).
 
   1. EXECUTIVE SUMMARY NARRATIVE -- deferred, built separately. Build
      spec Section 5 calls for a narrative that names a specific
@@ -59,12 +61,17 @@ content (which would make it dishonest).
      instead is the seam: assemble_readout() returns the fully-assembled
      structured readout, which is exactly the input a narrative step
      consumes.
-  2. AUTOMATED PLAYBOOK TRIGGERS -- Wave 4, unbuilt. The same resolved
-     scope decision analytics/variance_diagnostic.py records: build spec
-     Section 8 places "Automated playbook triggers" in Wave 4 with the
-     stated dependency "needs Wave 1's thresholds validated against real
-     data first". Nothing here reads or writes fact_playbook_triggers,
-     which does not exist.
+  2. AUTOMATED PLAYBOOK TRIGGERS -- Wave 4, NOW BUILT. Wave 1's own
+     resolved scope decision (recorded in analytics/variance_diagnostic
+     .py and, until this build, here too) deferred this section because
+     build spec Section 8 places it in Wave 4 with the stated dependency
+     "needs Wave 1's thresholds validated against real data first" --
+     satisfied, since the variance-diagnostic engine and this readout are
+     both built and validated. This section now reads
+     analytics/playbook_triggers.py's run_playbook_triggers(as_of_date)
+     directly -- "whatever fired this period, unranked (binary, not
+     prioritized)," build spec Section 5's own phrasing -- and, like
+     every other section, performs no computation on what it reads.
   3. FORECAST -- Wave 2, unbuilt. Build spec Section 8 places the
      forecast (sales bottoms-up + ML/regression + CRO overlay) in Wave 2,
      after this wave. Its methods-doc entry is still TBD.
@@ -89,6 +96,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from . import playbook_triggers as pbt
 from . import variance_diagnostic as vd
 from .model_performance import log_performance
 
@@ -298,7 +306,7 @@ def assemble_readout(as_of_date: date,
         "executive_summary": _executive_summary_placeholder(),
         "layer1_scorecard": _scorecard_section(scorecard),
         "drilldowns": _drilldown_section(result["drilldowns"], scorecard),
-        "playbook_triggers": _playbook_triggers_placeholder(),
+        "playbook_triggers": _playbook_triggers_section(as_of_date),
         "forecast": _forecast_placeholder(),
         "watchlist": _watchlist_section(result["watchlist"], month),
         "data_window": {k: _none_if_nan(v) for k, v in result["data_window"].items()},
@@ -348,20 +356,32 @@ def _executive_summary_placeholder() -> Dict[str, Any]:
     }
 
 
-def _playbook_triggers_placeholder() -> Dict[str, Any]:
+def _playbook_triggers_section(as_of_date: date) -> Dict[str, Any]:
+    """Automated playbook triggers, Wave 4 (build spec Section 8, item
+    #10). Reads analytics/playbook_triggers.py's
+    run_playbook_triggers(as_of_date) directly -- this module still
+    performs no computation of its own on the trigger rows it renders,
+    only formatting, matching every other section's discipline. Grain:
+    one row per trigger firing (rule_id, account_id, timestamp,
+    resulting_action, outcome)."""
+    triggers = pbt.run_playbook_triggers(as_of_date)
+    rows = [{k: _none_if_nan(v) for k, v in rec.items()}
+            for rec in triggers.to_dict(orient="records")]
     return {
-        "status": STATUS_NOT_YET_BUILT,
-        "triggers": [],
+        "status": STATUS_PRESENT,
+        "count": len(rows),
+        "triggers": rows,
+        "rules": pbt.RULES,
         "note": (
-            "Automated playbook triggers is a Wave 4 artifact, not yet built. Build spec "
-            "Section 8 places it in Wave 4 with the stated dependency 'needs Wave 1's "
-            "thresholds validated against real data first', which is only coherent if the "
-            "triggers are built after this wave's thresholds exist and have been "
-            "validated -- the same resolved scope decision recorded in "
-            "analytics/variance_diagnostic.py and in the methods doc. The source table it "
-            "will log to, fact_playbook_triggers, does not exist yet either. The section "
-            "is carried here with this status so the readout's structure stays "
-            "forward-compatible; no trigger is invented to fill it."),
+            "Whatever fired this period, unranked (binary, not prioritized) -- build spec "
+            "Section 5's own phrasing for this section. Each row is one binary threshold "
+            "rule (see 'rules' above for each rule's stored, configurable threshold) firing "
+            "for one account, computed fresh from main_marts fact tables at as_of_date. "
+            "outcome is null/pending for every row: this artifact fires triggers and knows "
+            "what fired, not yet whether any specific firing was worth acting on -- that "
+            "judgement needs the trigger to age, which is what fact_playbook_triggers "
+            "(data/playbook_triggers.csv, analytics/playbook_triggers.py's upsert-safe "
+            "logger) exists to make backtestable later, per build spec line 118."),
     }
 
 
@@ -628,13 +648,25 @@ def render_markdown(readout: Dict[str, Any]) -> str:
     for i, entry in enumerate(dd["entries"], start=1):
         a(_render_drilldown(i, entry))
 
-    # ---- Not-yet-built sections, stated as such -----------------------
+    # ---- Automated playbook triggers: whatever fired, unranked --------
     pt = readout["playbook_triggers"]
-    a("## Automated playbook triggers")
+    a(f"## Automated playbook triggers ({pt['count']})")
     a("")
-    a(f"**Status: {pt['status']}.** {pt['note']}")
+    a(f"_{pt['note']}_")
     a("")
+    if pt["count"]:
+        a("| Rule | Account | Timestamp | Resulting action | Outcome |")
+        a("|---|---|---|---|---|")
+        for r in pt["triggers"]:
+            a(f"| {r['rule_id']} | {r['account_id']} | {r['timestamp']} "
+              f"| {r['resulting_action']} | {r['outcome'] or 'pending'} |")
+        a("")
+    else:
+        a("No playbook trigger fired this period. That is a real result, not a missing "
+          "section.")
+        a("")
 
+    # ---- Not-yet-built sections, stated as such -----------------------
     fc = readout["forecast"]
     a("## Forecast")
     a("")
@@ -773,13 +805,17 @@ _REQUIRED_SECTIONS = ("header", "executive_summary", "layer1_scorecard", "drilld
 _EXPECTED_LAYER1_NODES = 11
 
 
-def verify_source_trace(readout: Dict[str, Any], diagnostic: dict) -> List[Dict[str, Any]]:
+def verify_source_trace(readout: Dict[str, Any], diagnostic: dict,
+                        as_of_date: Optional[date] = None) -> List[Dict[str, Any]]:
     """Field-by-field re-check that the readout introduced no number of
     its own. Every scorecard value, drill-down variance and watchlist row
     is compared for exact equality against `diagnostic`, the engine output
-    it was assembled from. Grain: one check per assertion. Returns a list
-    of {name, passed, detail} rather than raising, so a validator can see
-    every failure at once."""
+    it was assembled from; the playbook-triggers section gets the same
+    treatment against a freshly-run analytics/playbook_triggers.py. Grain:
+    one check per assertion. Returns a list of {name, passed, detail}
+    rather than raising, so a validator can see every failure at once.
+    as_of_date is only needed for the playbook-triggers re-check; when
+    omitted, that one check is skipped rather than failed."""
     checks: List[Dict[str, Any]] = []
 
     def check(name: str, passed: bool, detail: str = "") -> None:
@@ -867,12 +903,31 @@ def verify_source_trace(readout: Dict[str, Any], diagnostic: dict) -> List[Dict[
                     wl_mismatch.append(f"{got['account_id']}.{field}")
     check("watchlist_traces_exactly_to_engine", not wl_mismatch, "; ".join(wl_mismatch))
 
-    check("unbuilt_sections_declare_themselves",
-          readout["playbook_triggers"]["status"] == STATUS_NOT_YET_BUILT
-          and readout["forecast"]["status"] == STATUS_NOT_YET_BUILT
-          and readout["playbook_triggers"]["triggers"] == [],
-          "playbook triggers (Wave 4) and forecast (Wave 2) must be present and "
-          "explicitly not_yet_built, never omitted and never fabricated")
+    check("forecast_section_declares_not_yet_built",
+          readout["forecast"]["status"] == STATUS_NOT_YET_BUILT,
+          "forecast (Wave 2) must be present and explicitly not_yet_built, never omitted, "
+          "never fabricated")
+
+    check("playbook_triggers_section_is_built_and_present",
+          readout["playbook_triggers"]["status"] == STATUS_PRESENT,
+          "playbook triggers (Wave 4) is now built; the readout must reflect that status, "
+          f"got {readout['playbook_triggers']['status']!r}")
+
+    if as_of_date is not None:
+        fresh_triggers = pbt.run_playbook_triggers(as_of_date)
+        pt_mismatch = []
+        readout_pt = readout["playbook_triggers"]["triggers"]
+        if len(readout_pt) != len(fresh_triggers):
+            pt_mismatch.append(f"row count {len(readout_pt)} != {len(fresh_triggers)}")
+        else:
+            for got, exp in zip(readout_pt, fresh_triggers.to_dict(orient="records")):
+                for field in ("rule_id", "account_id", "resulting_action"):
+                    if got[field] != exp[field]:
+                        pt_mismatch.append(f"{field}: {got[field]!r} != {exp[field]!r}")
+                if got["timestamp"] != _none_if_nan(exp["timestamp"]):
+                    pt_mismatch.append(f"timestamp: {got['timestamp']!r} != {exp['timestamp']!r}")
+        check("playbook_triggers_trace_exactly_to_a_fresh_run",
+              not pt_mismatch, "; ".join(pt_mismatch))
 
     check("narrative_is_deferred_not_generated",
           readout["executive_summary"]["status"] == STATUS_DEFERRED
@@ -915,9 +970,9 @@ def verify_rendered_document(markdown: str, readout: Dict[str, Any]) -> List[Dic
           f"expected exactly {readout['drilldowns']['count']} numbered drill-down headings "
           f"(`### N. `), found {len(drilldown_headings)} -- counting only these, not the "
           "pillar-scorecard or 'Scorecard notes' headings, which also start with '### '")
-    check("playbook_triggers_section_rendered_as_unbuilt",
-          "## Automated playbook triggers" in markdown
-          and f"Status: {STATUS_NOT_YET_BUILT}" in markdown)
+    check("playbook_triggers_section_rendered_with_its_count",
+          f"## Automated playbook triggers ({readout['playbook_triggers']['count']})" in markdown,
+          "the rendered heading must carry the same count as the structured payload")
     check("forecast_section_rendered_as_unbuilt", "## Forecast" in markdown)
     check("narrative_placeholder_rendered",
           _NARRATIVE_PLACEHOLDER in markdown,
@@ -955,6 +1010,17 @@ def verify_rendered_document(markdown: str, readout: Dict[str, Any]) -> List[Dic
           not watchlist_mismatches,
           f"accounts whose rendered row did not match the structured payload verbatim: "
           f"{watchlist_mismatches}")
+
+    playbook_trigger_mismatches = []
+    for r in readout["playbook_triggers"]["triggers"]:
+        expected = (f"| {r['rule_id']} | {r['account_id']} | {r['timestamp']} "
+                    f"| {r['resulting_action']} | {r['outcome'] or 'pending'} |")
+        if expected not in markdown:
+            playbook_trigger_mismatches.append((r["rule_id"], r["account_id"]))
+    check("playbook_triggers_rendered_values_match_structured_payload",
+          not playbook_trigger_mismatches,
+          f"trigger rows whose rendered line did not match the structured payload verbatim: "
+          f"{playbook_trigger_mismatches}")
 
     drilldown_heading_mismatches = []
     for dd in readout["drilldowns"]["entries"]:
@@ -1019,7 +1085,7 @@ def run_build_time_validation(as_of_date: date, threshold: float = vd._VARIANCE_
     readout = assemble_readout(as_of_date, threshold=threshold,
                                watchlist_top_n=watchlist_top_n, diagnostic=diagnostic)
     markdown = render_markdown(readout)
-    trace_checks = verify_source_trace(readout, diagnostic)
+    trace_checks = verify_source_trace(readout, diagnostic, as_of_date=as_of_date)
     render_checks = verify_rendered_document(markdown, readout)
     all_checks = trace_checks + render_checks
     passed = sum(c["passed"] for c in all_checks)
@@ -1037,6 +1103,8 @@ def run_build_time_validation(as_of_date: date, threshold: float = vd._VARIANCE_
                         float(readout["drilldowns"]["count"]))
         log_performance(_MODEL_NAME, as_of_date, "watchlist_accounts",
                         float(readout["watchlist"]["count"]))
+        log_performance(_MODEL_NAME, as_of_date, "playbook_triggers_fired",
+                        float(readout["playbook_triggers"]["count"]))
         log_performance(_MODEL_NAME, as_of_date, "sections_not_yet_built",
                         float(sum(1 for s in ("playbook_triggers", "forecast")
                                   if readout[s]["status"] == STATUS_NOT_YET_BUILT)))
@@ -1060,7 +1128,8 @@ if __name__ == "__main__":
           f"{out['readout']['layer1_scorecard']['nodes_breaching_threshold']}")
     print(f"Drill-downs rendered       : {out['readout']['drilldowns']['count']}")
     print(f"Watchlist accounts         : {out['readout']['watchlist']['count']}")
-    print(f"Playbook triggers          : {out['readout']['playbook_triggers']['status']}")
+    print(f"Playbook triggers          : {out['readout']['playbook_triggers']['status']} "
+          f"({out['readout']['playbook_triggers']['count']} fired)")
     print(f"Forecast                   : {out['readout']['forecast']['status']}")
     print(f"Executive summary          : {out['readout']['executive_summary']['status']}")
     print()
