@@ -61,17 +61,17 @@ Full formulas, owners, and layer depth: [`docs/acme-corp-gtm-metric-tree.md`](do
 | `dbt/` | Phase 2 dbt-duckdb project — staging → intermediate → dimensions/facts → marts |
 | `tests/` | QA plan's pytest suite — referential integrity, distributional realism, correlational validity, volume sufficiency, edge-case existence |
 | `semantic/` | Phase 3 MCP server + metric registry, generated from the tree file |
-| `analytics/` | Phase 4 variance-diagnostic engine, health score, forecast, capacity planning |
+| `analytics/` | Phase 4 artifacts — variance-diagnostic engine, health score, forecast, capacity planning, marketing attribution, data quality governance, deal-level diagnostics, rep productivity, automated playbook triggers |
 | `dashboard/` | Phase 5 CRO-facing web app |
 
 ## Build status
 
 Built phase by phase, each validated against real generated data before the next begins.
 
-- [x] **Phase 1 — Raw source simulation**: raw tables across CRM, billing, usage, CS-ops, and marketing spend (including `campaigns`/`leads`/`campaign_engagement_events` and `fact_forecast_submissions`/`cro_forecast_adjustments`, added in Wave 2), causally wired and incident-injected.
+- [x] **Phase 1 — Raw source simulation**: raw tables across CRM, billing, usage, CS-ops, and marketing spend (including `campaigns`/`leads`/`campaign_engagement_events` and `fact_forecast_submissions`/`cro_forecast_adjustments`, added in Wave 2, and `fact_sales_activities`, event-grain rep-opportunity engagement data added in Wave 4), causally wired and incident-injected.
 - [x] **Phase 2 — dbt data model**: staging through the core marts (`mart_growth_bridge`, `mart_efficiency`, `mart_durability`, `mart_segment_migration`) plus TAM whitespace.
 - [x] **Phase 3 — Semantic layer (MCP)**: metric registry generated from the tree file + MCP server (`list_metrics`, `get_metric_definition`, `query_metric`) under `semantic/`.
-- [~] **Phase 4 — Analytics artifacts**: Wave 1 (metric tree, account health score, segment migration, variance-diagnostic engine, weekly executive readout), Wave 2 (forecast, capacity planning, marketing attribution & channel mix), and Wave 3's data quality / metric governance module are built and validated. Waves 4–7 (deal-level diagnostics, rep productivity, playbook triggers, territory/TAM, MMM, scenario planning, lead-scoring drift, experimentation platform) remain.
+- [~] **Phase 4 — Analytics artifacts**: Wave 1 (metric tree, account health score, segment migration, variance-diagnostic engine, weekly executive readout), Wave 2 (forecast, capacity planning, marketing attribution & channel mix), Wave 3 (data quality / metric governance), and Wave 4 (deal-level diagnostics, rep productivity & coaching diagnostics, automated playbook triggers) are built and validated. Waves 5–7 (territory/TAM, pricing/packaging, MMM, scenario planning, retention cohorts, lead-scoring drift, experimentation platform) remain.
 - [ ] **Phase 5 — CRO / leadership interface**
 
 Known, deliberate gaps rather than silent placeholders: no rep-cost data exists yet, so Magic Number and AM Efficiency are null rather than fabricated; there's no territory dimension in the raw data yet, so TAM whitespace has none either.

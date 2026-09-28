@@ -74,6 +74,15 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - The campaign calendar is anchored to the account population's real signup range rather than to the simulation window — the established staggered-tenure cohort predates `SIM_START` and its leads still need a campaign to attach to.
 - Holdout campaigns must be genuinely suppressed, not merely flagged. The control cell's leads have the campaign treatment withheld, so they are touched less and convert materially worse than treated leads in the same sub-channel and the same period; the gap between the two is the incremental lift the test exists to measure. Only channels that can actually be switched off for a chosen cell carry a holdout — a flag on an organic/SEO campaign would have no operational meaning.
 
+### Sales engagement
+- `fact_sales_activities` is event grain, one row per rep-opportunity touch, and scoped to new-business opportunities only — no SMB opportunity appears (SMB has no rep-driven sales motion) and no expansion/renewal opportunity appears (those are AM-owned, not tracked by this table). Every new-business opportunity carries at least one touch.
+- `activity_type` (call, email, meeting, demo) and `outcome` are closed vocabularies, and `outcome`'s valid values are scoped per `activity_type` — a meeting's outcome (booked, held, no_show, rescheduled, cancelled) is not a valid outcome for a call or email. Every declared value in both vocabularies actually occurs.
+- Every `booked` meeting row has a later `held`/`no_show`/`rescheduled`/`cancelled` resolution row on the same opportunity, and the resolution never precedes its own booking — `meetings_booked` is represented as an outcome state within this one event-grain table rather than a second table, so the booked→resolved chronology is exactly what makes that representation valid instead of just convenient.
+- `is_outbound_touch` is scoped to call/email activity types only, and to Enterprise opportunities only, per the build spec's "outbound_activities (Enterprise only)" scoping — it never appears on a meeting, demo, or a Commercial/SMB opportunity.
+- `competitive_signal` must correlate with `opportunities.loss_reason == 'competitive'` without being a perfect predictor in either direction — a signal that only ever fires on competitive losses, or never fires on them, isn't a real signal.
+- Engagement quality and volume (meeting-held rate, multi-threading measured as distinct contacts touched, total touch count) must be measurably higher on won deals than lost ones, and measurably lower for ramping reps than ramped reps, without either comparison being a perfect separator — the same causal-wiring bar every other outcome column in this project is held to.
+- Both multi-threaded (3+ distinct contacts) and single-threaded (exactly 1 contact) deals must exist — multi-threading has nothing to distinguish if the whole population sits at one end.
+
 ---
 
 ## Grounding requirements
@@ -127,6 +136,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - `campaigns.is_holdout` is set only on channels and periods the holdout program actually defines
 - Every `fact_forecast_submissions.opportunity_id` resolves to a real Commercial/Enterprise opportunity, no SMB opportunity appears, no duplicate (opportunity_id, snapshot_date) pairs, every snapshot_date falls on a Friday inside that opportunity's open window
 - Every `cro_forecast_adjustments.reason` is one of the closed set the generator defines, and every row's `period`/`segment` pair is a real evaluated period
+- Every `fact_sales_activities.rep_id` and `opportunity_id` resolves to a real rep and a real new-business opportunity; no SMB and no expansion/renewal opportunity carries any row; every new-business opportunity carries at least one touch; `activity_type` and `outcome` are each a closed vocabulary and `outcome` is scoped to its own `activity_type`; every `booked` meeting has a later resolution row on the same opportunity, never preceding its own booking; every touch falls inside its opportunity's open window
 
 ### B. Distributional realism
 - ACV falls within its segment's defined range; flag and investigate outliers
@@ -138,6 +148,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 
 - Lead-to-customer conversion rate, lead-to-signup gap, touches per lead and CAC each land inside the sub-channel companion table's band, and total campaign budget over the simulation window reconciles with `marketing_spend_by_channel_month`'s `inbound_marketing` total — the two are independently built views of the same money at different grains, so exact agreement isn't expected, but a large divergence means the finer split has drifted from the coarse figure several Efficiency-pillar metrics already read
 - Every value in each sub-channel's event vocabulary actually occurs — an event type that exists only as a schema value and never fires is the same defect flagged above for migration `trigger_reason`
+- Every declared `activity_type` and every declared `outcome` in `fact_sales_activities` actually occurs; Enterprise opportunities carry more touches per opportunity than Commercial, and a higher meeting/demo share, consistent with the build spec's heavier-touch motion for that segment
 
 ### C. Correlational validity — the "meaningful results" tests
 - POC pass = true shows a statistically higher close rate than POC pass = false
@@ -150,6 +161,8 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - `leads.lead_score` correlates with eventual conversion by a meaningful, bounded margin and rises with both of its drivers (firmographic fit and engagement depth) — a composite carrying no outcome signal is independent noise; one that nearly determines the outcome has collapsed onto it
 - Opportunities where the manager downgrades a confident rep call close at a measurably lower rate than opportunities where rep and manager agree — the gap is the actual point of carrying two categories instead of one, and it must hold across new-business and renewal/expansion cuts separately, not just in aggregate where one cut could be masking the other
 - At least one injected incident period is detectable by a straightforward variance check (confirms the injected-incident mechanism actually works before relying on it)
+- Meeting-held rate, multi-threading (distinct contacts touched), and total touch volume are each measurably higher on won new-business opportunities than lost ones, and measurably lower for ramping reps than ramped reps, with neither comparison a perfect separator in either direction
+- `competitive_signal` is measurably elevated on opportunities lost to `loss_reason == 'competitive'` relative to other losses, without being a perfect predictor
 
 ### D. Volume/sufficiency for modeling
 - Minimum N of Closed-Won and Closed-Lost per segment per quarter, sufficient to train/validate a win-probability model
@@ -159,6 +172,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - Minimum leads, conversions and campaigns per sub-channel sufficient to fit a channel-level attribution model, with enough total touch volume that multi-touch paths aren't dominated by single-lead noise, and inbound conversions spread across the whole window rather than concentrated in one period
 - The holdout cell carries enough leads on its own for its suppressed conversion rate to be separable from noise — an incrementality test on a handful of leads is not a test
 - Enough opportunities carry enough weekly snapshots across their open window that a rep-vs-manager-gap analysis isn't dominated by a handful of long-cycle deals
+- Enough total `fact_sales_activities` volume, and enough distinct reps each carrying enough activity, that rep-level engagement signal isn't dominated by single-rep noise; enough opportunities carry a meaningful number of touches for opportunity-level engagement signal to be real rather than sparse
 
 ### E. Edge-case-specific existence checks
 - At least some segment migrations are `firmographic_rescore`-triggered, not only `usage_threshold`
@@ -171,6 +185,9 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - Holdout/control cells exist, per the build spec's incrementality requirement, and are genuinely suppressed rather than merely flagged: measured like-for-like against treated campaigns in the same sub-channels and quarters, the control cell is touched significantly less, converts materially worse, and carries a withheld rather than a re-labelled budget
 - Leads touched by more than one campaign exist, and so do touch paths crossing sub-channels — both ends of the engagement distribution (single-touch leads and deeply-engaged leads) are present
 - The injected CAC-creep incident is locatable to paid media at campaign grain, not only visible as an aggregate rise across `inbound_marketing` — the coarse spend table cannot show which sub-channel a cost creep came from
+- The meetings-rise-without-SQO-conversion-rise incident is detectable as a touches-per-opportunity spike inside its window with win rate for that same cohort staying inside the rest of the window's normal range — activity decoupling from outcome, not activity tracking it
+- The underperforming-rep-cohort incident is visible in meeting-held rate alone, independent of ramp status, and is not recoverable from `opportunities.csv` — it exists only in this activity data
+- Outbound touches (call/email activity on Enterprise opportunities) exist and appear nowhere outside Enterprise; both multi-threaded (3+ distinct contacts) and single-threaded (exactly 1 contact) opportunities exist
 
 **Deferred**: whether `gtm_plan_targets` actually produces real, detectable variance once compared against computed actuals (some months genuinely ahead of plan, some genuinely behind, not every metric drifting the same direction every month) can't be checked at the Phase 1 raw-data layer — there's no "actual" to compare against until Phase 2's marts exist. That correctness check belongs to the Phase 4 variance-diagnostic engine's own build-time validation, not to this suite.
 

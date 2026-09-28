@@ -74,6 +74,87 @@ models:
               arguments:
                 values: ['SAL', 'SQO', 'POC', 'Proposal/Negotiation', 'Negotiation', 'Open', 'Closed Won', 'Closed Lost']
 
+  - name: fact_sales_activities
+    description: >
+      Grain: one row per rep-opportunity sales-engagement touch
+      (activity_id) -- call, email, meeting, or demo. Commercial/Enterprise
+      new-business opportunities only; SMB and expansion/renewal activity
+      are out of scope by design. Every "booked" meeting row has exactly
+      one later resolution row (held/no_show/rescheduled/cancelled) on the
+      same opportunity_id. Deal-level columns (segment, is_won,
+      loss_reason) live on fact_opportunities, not here -- join on
+      opportunity_id.
+    columns:
+      - name: activity_id
+        tests: [not_null, unique]
+      - name: rep_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_users')
+                field: rep_id
+      - name: opportunity_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fact_opportunities')
+                field: opportunity_id
+      - name: activity_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['call', 'email', 'meeting', 'demo']
+      - name: outcome
+        description: >
+          Vocabulary is scoped per activity_type (call/email/meeting/demo
+          each have their own set of valid outcomes); see
+          assert_sales_activity_outcome_matches_activity_type for the
+          per-type check this generic test can't express.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - connected
+                  - voicemail
+                  - no_answer
+                  - gatekeeper
+                  - replied
+                  - opened_no_reply
+                  - no_response
+                  - bounced
+                  - booked
+                  - held
+                  - no_show
+                  - rescheduled
+                  - cancelled
+      - name: activity_timestamp
+        tests: [not_null]
+      - name: activity_date
+        description: "cast(activity_timestamp as date) -- the incremental filter/dedupe key."
+        tests: [not_null]
+      - name: contact_ref
+        description: >
+          Synthetic per-opportunity participant-slot identifier (e.g.
+          "OPP-0001234-C2") -- not a foreign key to a contacts table, since
+          this project has none yet. Distinct contact_ref per opportunity
+          measures multi-threading.
+        tests: [not_null]
+      - name: competitive_signal
+        description: >
+          Per-touch flag; correlates with but does not perfectly predict
+          fact_opportunities.loss_reason = 'competitive'.
+        tests: [not_null]
+      - name: is_outbound_touch
+        description: >
+          True only on Enterprise call/email rows -- a rep-initiated
+          prospecting touch into an already-open deal's buying committee.
+          Not the acquisition-channel sense of outbound SDR.
+        tests: [not_null]
+
   - name: fact_account_segment_history
     description: "Grain: one row per account_id per segment-effective_date."
     columns:
@@ -294,6 +375,58 @@ models:
         tests: [not_null]
       - name: metric_name
         tests: [not_null]
+
+  - name: fact_playbook_triggers
+    description: >
+      Grain: one row per (rule_id, account_id, timestamp) automated-
+      playbook-trigger firing. Append-only operational log -- see
+      docs/acme-corp-analytics-methods.md's "Automated playbook triggers"
+      entry and analytics/playbook_triggers.py. Zero rows until the first
+      build-time run.
+    columns:
+      - name: playbook_trigger_id
+        tests: [not_null, unique]
+      - name: rule_id
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - ingestion_without_completion
+                  - poc_pass_rate_below_threshold
+                  - post_close_underutilization
+      - name: account_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+      - name: timestamp
+        tests: [not_null]
+      - name: resulting_action
+        description: >
+          Deterministic 1:1 with rule_id -- analytics/playbook_triggers.py's
+          RULES dict fixes exactly one resulting_action string per rule_id,
+          never chosen independently, and every fired trigger carries one.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - Escalate to CS for workflow-chain diagnostic outreach
+                  - Escalate to Sales Engineering leadership for POC process review
+                  - Trigger AM proactive onboarding check-in
+      - name: outcome
+        description: >
+          Always null/pending on a freshly-fired trigger --
+          analytics/playbook_triggers.py's log_triggers() never fabricates a
+          value, and no enum is defined yet for what a filled-in outcome
+          will look like once backtesting populates it (build spec line
+          118's stated future use). No test here by design: a not_null test
+          would fail against the column's correct current state, and an
+          accepted_values test would have to invent a vocabulary the
+          generator itself hasn't defined.
 
   - name: fact_forecast_submissions
     description: >

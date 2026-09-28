@@ -508,3 +508,143 @@ CAMPAIGN_FOLLOWUP_TYPE_MIX = {
     "paid": {"landing_page_view": 0.46, "retargeting_click": 0.30, "paid_asset_download": 0.16, "ad_click": 0.08},
     "community": {"event_attendance": 0.40, "community_post": 0.26, "community_join": 0.20, "event_registration": 0.14},
 }
+
+# --- Sales engagement activity (batch 8) ------------------------------------
+# fact_sales_activities: build spec Section 5 ("Sales engagement"), event
+# grain -- one row per rep-opportunity touch. Scoped to new-business
+# opportunities only (Commercial ISR-owned, Enterprise AE/SE-owned): SMB has
+# no rep at all (build spec Section 1, "Fully automated -- no rep"), and
+# AM-owned expansion/renewal engagement already has its own event-grain table
+# (am_activity.py's touchpoints/QBRs/check-ins) -- covering it again here
+# would duplicate that grain rather than fill a real gap. New-business is
+# also exactly the population Wave 4's "deal-level diagnostics" (win/loss)
+# and "rep productivity & coaching diagnostics" (ISR/AE, not AM) read.
+SALES_ACTIVITY_TYPES = ("call", "email", "meeting", "demo")
+
+# activity_type mix by segment -- own resolved decision. Enterprise leans
+# meeting/demo-heavy (multi-stakeholder, technical evaluation); Commercial
+# leans call/email-heavy (lighter-touch, pooled-book ISR motion).
+SALES_ACTIVITY_TYPE_MIX = {
+    "Commercial": {"call": 0.42, "email": 0.40, "meeting": 0.15, "demo": 0.03},
+    "Enterprise": {"call": 0.22, "email": 0.24, "meeting": 0.32, "demo": 0.22},
+}
+
+# Outcome vocabulary per activity_type. `meeting` carries no "booked" outcome
+# here -- booking is its own antecedent event row (see sales_activities.py's
+# meeting-lifecycle note), which is how `meetings_booked` is represented
+# inside this single table rather than as a second one.
+SALES_ACTIVITY_OUTCOMES = {
+    "call": ("connected", "voicemail", "no_answer", "gatekeeper"),
+    "email": ("replied", "opened_no_reply", "no_response", "bounced"),
+    "meeting": ("booked", "held", "no_show", "rescheduled", "cancelled"),
+    "demo": ("held", "no_show", "cancelled"),
+}
+# Days between a meeting's `booked` row and its resolution row -- own
+# resolved decision.
+SALES_ACTIVITY_MEETING_LEAD_DAYS_RANGE = (2, 12)
+
+# Cadence: mean days between consecutive touches on one opportunity, by
+# segment, at baseline (ramped rep, no incident). Enterprise's named-account,
+# AE+SE motion runs a tighter cadence than Commercial's pooled-book ISR
+# motion. This single knob is what makes touch VOLUME a real function of its
+# drivers below -- a tighter mean gap simply fits more touches into the same
+# [created_date, close_date] window, so cadence and volume are the same
+# mechanism rather than two independently-tuned ones.
+SALES_ACTIVITY_BASE_GAP_DAYS = {"Commercial": 4.4, "Enterprise": 4.2}
+# A winning deal is worked harder as it closes -- tighter cadence.
+SALES_ACTIVITY_GAP_WON_MULTIPLIER = 0.70
+# A ramping rep (same 180-day cutoff opportunities.py uses) works a looser
+# cadence than a ramped one -- QA plan Test C's ramp-status requirement,
+# applied to engagement instead of win assignment.
+SALES_ACTIVITY_GAP_RAMPING_MULTIPLIER = 1.35
+
+# Injected incident #4 of the QA plan's required 3-5 (grounding requirement
+# 3): an underperforming rep cohort, visible in activity patterns rather
+# than in opportunities.csv (which this batch reads but never rewrites, so
+# the cohort cannot retroactively move any deal's already-generated
+# win/loss outcome). A fixed share of ISR/AE reps carry a persistent,
+# ramp-independent quality penalty on cadence, meeting-held rate, and
+# multi-threading breadth -- structural, not organic tail noise, the same
+# treatment the CAC-creep and POC-regression incidents give a time window.
+SALES_ACTIVITY_UNDERPERFORMER_SHARE = 0.16
+SALES_ACTIVITY_GAP_UNDERPERFORMER_MULTIPLIER = 1.55
+SALES_ACTIVITY_HELD_RATE_UNDERPERFORMER_PENALTY = 0.20
+SALES_ACTIVITY_THREADING_UNDERPERFORMER_PENALTY = 0.20
+
+# Injected incident #3 of the QA plan's required 3-5 (grounding requirement
+# 3): a meetings-rise-without-SQO-conversion-rise decoupling period.
+# Opportunities *created* in this window (own resolved decision on the exact
+# dates -- inside the simulation window, clear of the POC-regression
+# (2025-04..06) and CAC-creep (2024-09..11) windows) get a tightened cadence
+# -- more activity, including more meetings -- applied uniformly regardless
+# of eventual outcome, so win rate and SQO-stage conversion for this cohort
+# stay at their normal levels (already fixed by opportunities.py, unread and
+# unchanged here) while raw activity volume visibly climbs.
+SALES_ACTIVITY_DECOUPLING_INCIDENT_WINDOW = (date(2025, 1, 1), date(2025, 3, 31))
+SALES_ACTIVITY_DECOUPLING_GAP_MULTIPLIER = 0.55
+
+# Meeting/demo held-rate baseline and quality modifiers -- own resolved
+# decisions. A won deal's meetings/demos resolve to `held` more often; a
+# ramping rep's resolve less often (QA plan Test C, applied to engagement
+# quality alongside win assignment).
+SALES_ACTIVITY_HELD_RATE_BASE = 0.68
+SALES_ACTIVITY_HELD_RATE_WON_BOOST = 0.16
+SALES_ACTIVITY_HELD_RATE_RAMPING_PENALTY = 0.14
+
+# Call-connect and email-reply baselines and modifiers -- same shape as the
+# meeting-held rate above, applied to the other two activity_types.
+SALES_ACTIVITY_CONNECT_RATE_BASE = 0.36
+SALES_ACTIVITY_CONNECT_RATE_WON_BOOST = 0.14
+SALES_ACTIVITY_CONNECT_RATE_RAMPING_PENALTY = 0.12
+SALES_ACTIVITY_CONNECT_RATE_UNDERPERFORMER_PENALTY = 0.14
+SALES_ACTIVITY_REPLY_RATE_BASE = 0.28
+SALES_ACTIVITY_REPLY_RATE_WON_BOOST = 0.12
+SALES_ACTIVITY_REPLY_RATE_RAMPING_PENALTY = 0.10
+SALES_ACTIVITY_REPLY_RATE_UNDERPERFORMER_PENALTY = 0.12
+
+# Multi-threading: each touch either opens a new buying-committee contact
+# (up to a segment-sized pool) or reinforces one already touched, decided
+# per-touch by a "new-contact" draw probability -- own resolved decision.
+# Stochastic per-touch rather than a single rounded pool-fraction, so a
+# small pool (Commercial) still shows real won/lost and ramp-status
+# variation in *expected* distinct contacts rather than collapsing to a
+# constant under integer rounding. `contact_ref` is a synthetic per-
+# opportunity participant slot (this batch has no `contacts` table to join
+# against; build spec Section 5 lists one but no generator has produced it
+# yet), not a real contact identity -- documented in sales_activities.py.
+SALES_ACTIVITY_CONTACT_POOL_SIZE = {"Commercial": 3, "Enterprise": 8}
+SALES_ACTIVITY_THREADING_BASE_FRACTION = 0.40
+SALES_ACTIVITY_THREADING_WON_BOOST = 0.30
+SALES_ACTIVITY_THREADING_RAMPING_PENALTY = 0.15
+
+# competitive_signal -- per-touch boolean. Deal-level base rate by outcome
+# bucket, own resolved decision: elevated but not saturated on a
+# competitive loss, present at a low baseline everywhere else, so the field
+# correlates with `opportunities.loss_reason == 'competitive'` without
+# becoming a perfect predictor of it (QA plan Test C).
+SALES_ACTIVITY_COMPETITIVE_SIGNAL_RATE = {
+    "competitive_loss": 0.32,
+    "won": 0.09,
+    "other_loss": 0.04,
+}
+
+# outbound_activities scoping (build spec Section 5 parenthetical, "Enterprise
+# only"). Implemented as a boolean column (`is_outbound_touch`), not a
+# separate activity_type value: outbound-ness is a mode of a touch (rep-
+# initiated prospecting into the deal's buying committee) that cuts across
+# call/email, not a distinct kind of thing that happened, and every row here
+# already carries an opportunity_id (this table is opportunity-grain, unlike
+# the acquisition-channel sense of "outbound SDR", which the metric tree
+# already tracks under win rate at the account-channel level). Enterprise's
+# named-account, multi-stakeholder motion is where reps proactively work
+# additional buying-committee contacts; Commercial's pooled-book ISR motion
+# is reactive/inbound-triggered follow-through and carries no outbound
+# touches at all. Scoped to call/email only -- meetings and demos are
+# scheduled events, not prospecting touches.
+SALES_ACTIVITY_OUTBOUND_SHARE_ENTERPRISE = 0.22
+
+# Share of Enterprise demo-type touches worked by an eligible SE rather than
+# the deal's owning AE -- own resolved decision, reflecting the SE's
+# technical-evaluation role (build spec Section 1, "AE + SE (new business)").
+# Falls back to the AE when no SE is eligible as of the touch date.
+SALES_ACTIVITY_SE_SHARE_OF_DEMO = 0.70
