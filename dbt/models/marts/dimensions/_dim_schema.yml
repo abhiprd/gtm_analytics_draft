@@ -33,12 +33,41 @@ models:
           - accepted_values:
               arguments:
                 values: ['Active', 'Churned']
+      - name: territory
+        description: >
+          One of NA-East / NA-West / EMEA / APAC / LATAM -- a deterministic
+          sub-division of region. Unlike region/industry (baked into
+          accounts.csv directly at generation time), territory is sourced
+          via a join to stg_company_territory since it lives in a separate
+          lookup table; this is intentional, not an inconsistency.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['NA-East', 'NA-West', 'EMEA', 'APAC', 'LATAM']
 
   - name: dim_reps
-    description: "Grain: one row per rep_id per capacity-period (quota/status change point)."
+    description: >
+      Grain: one row per rep_id per capacity-period (quota/status change
+      point).
     columns:
       - name: rep_id
         tests: [not_null]
+      - name: territory
+        description: >
+          One of NA-East / NA-West / EMEA / APAC / LATAM. A new-business
+          coverage/routing concept scoped to account-owning reps (rep_type
+          ISR/AE) -- null for every SE and AM-Commercial/AM-Enterprise rep
+          by design, not a data gap. No not_null test here since null is a
+          legitimate value; accepted_values is scoped to the non-null rows
+          only (see tests/assert_dim_reps_territory_scoped_to_account_owning_reps.sql
+          for the null-iff-not-ISR/AE invariant in both directions).
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['NA-East', 'NA-West', 'EMEA', 'APAC', 'LATAM']
+              config:
+                where: "territory is not null"
       - name: segment
         description: >
           Rep's segment focus -- SMB is self-serve/system-owned with no
@@ -84,6 +113,16 @@ models:
                 values: ['SMB', 'Commercial', 'Enterprise']
               config:
                 where: "customer_segment is not null"
+      - name: territory
+        description: >
+          One of NA-East / NA-West / EMEA / APAC / LATAM -- a deterministic
+          sub-division of region, resolving for every row (every
+          market_universe company has exactly one territory row).
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['NA-East', 'NA-West', 'EMEA', 'APAC', 'LATAM']
 
   - name: dim_campaign
     description: >

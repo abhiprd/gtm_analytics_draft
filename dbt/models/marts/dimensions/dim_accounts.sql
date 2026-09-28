@@ -4,10 +4,18 @@
 -- derived from the account's most recent subscription record -- 'Churned'
 -- if that record's status = 'churned', 'Active' otherwise. channel (how
 -- acquired) and segment (what it is) are independent columns here by
--- design -- never assume one implies the other.
+-- design -- never assume one implies the other. territory, unlike region/
+-- industry (baked into accounts.csv directly at generation time), is
+-- sourced via a join to stg_company_territory since it lives in a separate
+-- lookup table keyed on company_id -- an intentional split, not an
+-- inconsistency to fix.
 
 with accounts as (
     select * from {{ ref('stg_accounts') }}
+),
+
+territories as (
+    select * from {{ ref('stg_company_territory') }}
 ),
 
 latest_subscription as (
@@ -34,6 +42,7 @@ select
     a.employee_count_band,
     a.industry,
     a.region,
+    t.territory,
     a.channel,
     a.signup_date,
     a.icp_fit_score,
@@ -45,3 +54,4 @@ select
     datediff('day', a.signup_date, cast('{{ var("analysis_as_of_date") }}' as date)) as account_tenure_days
 from accounts a
 left join current_subscription cs on cs.account_id = a.account_id
+left join territories t on t.company_id = a.company_id

@@ -497,3 +497,55 @@ models:
                   - community_post
       - name: event_timestamp
         tests: [not_null]
+
+  # --- Territory (generators/territories.py) ---
+  # A deterministic sub-division of region (North America splits into
+  # NA-East/NA-West; EMEA/APAC/LATAM each map 1:1 onto their own single
+  # territory value).
+
+  - name: stg_company_territory
+    description: >
+      One row per company_id (covers every market_universe company,
+      prospect and customer alike).
+    columns:
+      - name: company_id
+        description: Foreign key to market_universe/accounts.company_id.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_market_universe')
+                field: company_id
+      - name: territory
+        description: >
+          One of NA-East / NA-West / EMEA / APAC / LATAM -- a deterministic
+          sub-division of region.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['NA-East', 'NA-West', 'EMEA', 'APAC', 'LATAM']
+
+  - name: stg_rep_territory
+    description: >
+      One row per rep_id -- account-owning reps only (rep_type ISR/AE). SE
+      and AM-Commercial/AM-Enterprise reps carry no row here at all, not a
+      null territory.
+    columns:
+      - name: rep_id
+        description: Foreign key to users/dim_reps.rep_id.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_users')
+                field: rep_id
+      - name: territory
+        description: >
+          One of NA-East / NA-West / EMEA / APAC / LATAM -- a deterministic
+          sub-division of region.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['NA-East', 'NA-West', 'EMEA', 'APAC', 'LATAM']

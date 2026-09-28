@@ -162,10 +162,26 @@ models:
 
   - name: mart_tam_whitespace
     description: >
-      Grain: one row per region x industry x employee_count_band.
-      Penetration and whitespace, run off dim_market_universe.
+      Grain: one row per territory x industry x employee_count_band.
+      Penetration and whitespace, run off dim_market_universe. territory is
+      a strict refinement of region (every territory value maps to exactly
+      one region), used as the primary geographic grouping key for finer
+      territory/routing slicing; region is included as a plain column
+      (functionally determined by territory, not part of the group by) so
+      region-level rollups stay easy without a second lookup.
     columns:
+      - name: territory
+        description: >
+          One of NA-East / NA-West / EMEA / APAC / LATAM. Grouping key.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['NA-East', 'NA-West', 'EMEA', 'APAC', 'LATAM']
       - name: region
+        description: >
+          The region this territory belongs to -- functionally determined
+          by territory, included for convenience, not part of the grain.
         tests: [not_null]
       - name: total_companies
         tests: [not_null]

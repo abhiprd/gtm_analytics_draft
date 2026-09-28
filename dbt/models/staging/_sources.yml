@@ -57,6 +57,14 @@ sources:
         meta:
           external_location: "{{ var('raw_data_path') }}/fact_forecast_submissions.csv"
       - name: cro_forecast_adjustments
+      # Territory (generators/territories.py). A deterministic sub-division
+      # of region (North America splits into NA-East/NA-West; EMEA/APAC/
+      # LATAM each map 1:1 onto their own single territory value).
+      # company_territory covers the full market_universe population;
+      # rep_territory covers only account-owning rep_types (ISR, AE) --
+      # SE and AM-Commercial/AM-Enterprise reps carry no row at all.
+      - name: company_territory
+      - name: rep_territory
 
   - name: analytics
     description: >
