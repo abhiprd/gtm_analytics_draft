@@ -33,7 +33,7 @@ having count(*) > 1
 
 union all
 
-select 'mart_tam_whitespace' as mart, cast(region as varchar), cast(industry as varchar), cast(employee_count_band as varchar), count(*)
+select 'mart_tam_whitespace' as mart, cast(territory as varchar), cast(industry as varchar), cast(employee_count_band as varchar), count(*)
 from {{ ref('mart_tam_whitespace') }}
 group by 1, 2, 3, 4
 having count(*) > 1

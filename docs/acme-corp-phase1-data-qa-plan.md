@@ -83,6 +83,12 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - Engagement quality and volume (meeting-held rate, multi-threading measured as distinct contacts touched, total touch count) must be measurably higher on won deals than lost ones, and measurably lower for ramping reps than ramped reps, without either comparison being a perfect separator — the same causal-wiring bar every other outcome column in this project is held to.
 - Both multi-threaded (3+ distinct contacts) and single-threaded (exactly 1 contact) deals must exist — multi-threading has nothing to distinguish if the whole population sits at one end.
 
+### Territory
+- Territory is a deterministic sub-division of `region`, never an independently drawn value — every company's territory must map back losslessly to the region it already carries (`NA-East`/`NA-West` → `North America`, `EMEA`/`APAC`/`LATAM` → themselves 1:1). A territory that didn't trace back to its own company's region would violate the same causal-wiring bar every other derived column in this project is held to.
+- Territory is scoped to account-owning, quota-bearing new-business roles only (ISR, AE) — SE (pulled onto AE-owned deals as needed, owns no book) and AM-Commercial/AM-Enterprise (already own a portfolio of specific existing accounts via opportunity ownership, not a geographic prospecting patch) carry no territory at all, not a null one.
+- Rep territory headcount must be genuinely imbalanced against each territory's company-population share, not proportionally matched — real territories carry real imbalance, and a perfectly proportional split would leave the future Wave 5 coverage/routing artifact with no real coverage-gap signal to find. APAC is deliberately under-resourced (own resolved decision) relative to its market share; LATAM sits above its proportional share since even the smallest territory needs a minimum-viable staffing floor.
+- Every market_universe company (and, by shared `company_id`, every account and non-customer prospect) resolves a territory — territory is orthogonal to segment and customer status, the same invariant channel/segment already holds, so SMB accounts and non-customer prospects need territory coverage exactly like Commercial/Enterprise accounts do.
+
 ---
 
 ## Grounding requirements
@@ -137,6 +143,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - Every `fact_forecast_submissions.opportunity_id` resolves to a real Commercial/Enterprise opportunity, no SMB opportunity appears, no duplicate (opportunity_id, snapshot_date) pairs, every snapshot_date falls on a Friday inside that opportunity's open window
 - Every `cro_forecast_adjustments.reason` is one of the closed set the generator defines, and every row's `period`/`segment` pair is a real evaluated period
 - Every `fact_sales_activities.rep_id` and `opportunity_id` resolves to a real rep and a real new-business opportunity; no SMB and no expansion/renewal opportunity carries any row; every new-business opportunity carries at least one touch; `activity_type` and `outcome` are each a closed vocabulary and `outcome` is scoped to its own `activity_type`; every `booked` meeting has a later resolution row on the same opportunity, never preceding its own booking; every touch falls inside its opportunity's open window
+- Every `market_universe.company_id` resolves exactly one `company_territory` row, and every account resolves a territory through that same `company_id` join; every `rep_territory.rep_id` resolves to a real ISR/AE rep, with no SE or AM rep present; every territory value is one of the declared five; every company's territory maps back losslessly to the region it already carries
 
 ### B. Distributional realism
 - ACV falls within its segment's defined range; flag and investigate outliers
@@ -149,6 +156,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - Lead-to-customer conversion rate, lead-to-signup gap, touches per lead and CAC each land inside the sub-channel companion table's band, and total campaign budget over the simulation window reconciles with `marketing_spend_by_channel_month`'s `inbound_marketing` total — the two are independently built views of the same money at different grains, so exact agreement isn't expected, but a large divergence means the finer split has drifted from the coarse figure several Efficiency-pillar metrics already read
 - Every value in each sub-channel's event vocabulary actually occurs — an event type that exists only as a schema value and never fires is the same defect flagged above for migration `trigger_reason`
 - Every declared `activity_type` and every declared `outcome` in `fact_sales_activities` actually occurs; Enterprise opportunities carry more touches per opportunity than Commercial, and a higher meeting/demo share, consistent with the build spec's heavier-touch motion for that segment
+- Company territory sizes land close to the region distribution they're derived from (`NA-East` + `NA-West` combined near North America's overall share; `EMEA`/`APAC`/`LATAM` each near their own region's share), and the `NA-East`/`NA-West` split itself lands near its documented 56/44 weighting, not an even 50/50
 
 ### C. Correlational validity — the "meaningful results" tests
 - POC pass = true shows a statistically higher close rate than POC pass = false
@@ -163,6 +171,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - At least one injected incident period is detectable by a straightforward variance check (confirms the injected-incident mechanism actually works before relying on it)
 - Meeting-held rate, multi-threading (distinct contacts touched), and total touch volume are each measurably higher on won new-business opportunities than lost ones, and measurably lower for ramping reps than ramped reps, with neither comparison a perfect separator in either direction
 - `competitive_signal` is measurably elevated on opportunities lost to `loss_reason == 'competitive'` relative to other losses, without being a perfect predictor
+- Rep territory headcount is genuinely imbalanced against each territory's company-population share, not proportionally matched — at least one territory's rep-share/company-share ratio must fall outside a tight band around 1.0, and APAC's ratio specifically must land measurably below 1.0 (own resolved decision, the deliberate under-resourced-territory finding), or the future territory/routing diagnostic has no real coverage gap to detect
 
 ### D. Volume/sufficiency for modeling
 - Minimum N of Closed-Won and Closed-Lost per segment per quarter, sufficient to train/validate a win-probability model
@@ -173,6 +182,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - The holdout cell carries enough leads on its own for its suppressed conversion rate to be separable from noise — an incrementality test on a handful of leads is not a test
 - Enough opportunities carry enough weekly snapshots across their open window that a rep-vs-manager-gap analysis isn't dominated by a handful of long-cycle deals
 - Enough total `fact_sales_activities` volume, and enough distinct reps each carrying enough activity, that rep-level engagement signal isn't dominated by single-rep noise; enough opportunities carry a meaningful number of touches for opportunity-level engagement signal to be real rather than sparse
+- Every territory has a large enough company population (thousands, not a handful) for TAM/whitespace math at territory grain to be meaningful, and at least two account-owning reps, so it's a real coverage unit rather than a single-rep edge case
 
 ### E. Edge-case-specific existence checks
 - At least some segment migrations are `firmographic_rescore`-triggered, not only `usage_threshold`
@@ -188,6 +198,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - The meetings-rise-without-SQO-conversion-rise incident is detectable as a touches-per-opportunity spike inside its window with win rate for that same cohort staying inside the rest of the window's normal range — activity decoupling from outcome, not activity tracking it
 - The underperforming-rep-cohort incident is visible in meeting-held rate alone, independent of ramp status, and is not recoverable from `opportunities.csv` — it exists only in this activity data
 - Outbound touches (call/email activity on Enterprise opportunities) exist and appear nowhere outside Enterprise; both multi-threaded (3+ distinct contacts) and single-threaded (exactly 1 contact) opportunities exist
+- Both `NA-East` and `NA-West` exist as distinct territory values (North America is genuinely split, not left as one lumped territory); every non-NA region maps to exactly one territory, never further subdivided; SMB accounts — which carry no rep at all — still resolve a territory through `company_id` and appear across every territory, not concentrated in one or two
 
 **Deferred**: whether `gtm_plan_targets` actually produces real, detectable variance once compared against computed actuals (some months genuinely ahead of plan, some genuinely behind, not every metric drifting the same direction every month) can't be checked at the Phase 1 raw-data layer — there's no "actual" to compare against until Phase 2's marts exist. That correctness check belongs to the Phase 4 variance-diagnostic engine's own build-time validation, not to this suite.
 
