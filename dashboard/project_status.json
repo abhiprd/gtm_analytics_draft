@@ -1,0 +1,86 @@
+{
+  "_meta": {
+    "purpose": "The dashboard's single source of truth for whether a model-backed component's underlying artifact actually exists and is validated, per dashboard-design-conventions.md Section 7. Every dashboard page checks this before rendering a chart, number, or narrative for a component -- a page must never render a live-looking value for a component whose status here is not built_and_validated.",
+    "states": {
+      "built_and_validated": "The artifact is built and has passed its stated validation (analytics-model-validator, a dbt test suite, or equivalent). Safe to render as a live value.",
+      "in_progress": "Partially built or being actively worked on. The page must show an honest pending state, never a partial/fabricated value.",
+      "planned": "Named in the build spec but no work has started. The page must show an honest pending state.",
+      "deferred": "A deliberate, documented design decision to build this later or not at all right now -- distinct from planned, which implies it's simply not yet scheduled. See CLAUDE.md's 'Current phase' section for the two deferred Claude API seams this project carries on purpose."
+    },
+    "source_of_truth": "CLAUDE.md's 'Current phase' section and docs/acme-corp-analytics-methods.md are authoritative; this file is a dashboard-consumable projection of that state, not a second source of truth -- update it whenever either changes.",
+    "last_reviewed": "2025-09-29"
+  },
+  "components": {
+    "weekly_readout": {
+      "status": "built_and_validated",
+      "artifact": "analytics/weekly_readout.py",
+      "shown_on": ["Digest"]
+    },
+    "account_health_score": {
+      "status": "built_and_validated",
+      "artifact": "analytics/health_score.py",
+      "shown_on": ["Digest"],
+      "note": "Feeds the Digest page's watchlist via analytics/variance_diagnostic.py's build_watchlist()."
+    },
+    "variance_diagnostic_engine": {
+      "status": "built_and_validated",
+      "artifact": "analytics/variance_diagnostic.py",
+      "shown_on": ["Digest"],
+      "note": "Feeds the Layer-1 scorecard and drill-downs."
+    },
+    "playbook_triggers": {
+      "status": "built_and_validated",
+      "artifact": "analytics/playbook_triggers.py",
+      "shown_on": ["Digest"]
+    },
+    "executive_summary_narrative": {
+      "status": "deferred",
+      "artifact": "Claude API prose generation, build spec Section 5",
+      "shown_on": ["Digest"],
+      "note": "assemble_readout() in analytics/weekly_readout.py returns the fully-assembled structured readout as the seam this step consumes; no LLM is called and no template substitutes for one. This is the project's own established honesty pattern, not new to the dashboard."
+    },
+    "forecast": {
+      "status": "built_and_validated",
+      "artifact": "analytics/forecast.py",
+      "shown_on": ["Forecast"]
+    },
+    "segment_growth_bridge": {
+      "status": "built_and_validated",
+      "artifact": "mart_growth_bridge",
+      "shown_on": ["Segment Efficiency"]
+    },
+    "segment_efficiency_pillar": {
+      "status": "built_and_validated",
+      "artifact": "mart_efficiency",
+      "shown_on": ["Segment Efficiency"],
+      "note": "Magic Number and AM Efficiency are null within this mart by design (no rep-cost/comp data anywhere in the raw sources) -- a real data gap, not an unvalidated artifact. The page must render these as an explicit gap, not a blank pending state."
+    },
+    "segment_durability_pillar": {
+      "status": "built_and_validated",
+      "artifact": "mart_durability",
+      "shown_on": ["Segment Efficiency"]
+    },
+    "segment_migration": {
+      "status": "built_and_validated",
+      "artifact": "mart_segment_migration",
+      "shown_on": ["Segment Efficiency"]
+    },
+    "semantic_layer_query": {
+      "status": "built_and_validated",
+      "artifact": "semantic/server.py (list_metrics, get_metric_definition, query_metric)",
+      "shown_on": ["Ask the Metric Tree"]
+    },
+    "chat_deterministic_nl_routing": {
+      "status": "built_and_validated",
+      "artifact": "dashboard/lib/semantic_bridge.py's parse_question()",
+      "shown_on": ["Ask the Metric Tree"],
+      "note": "Deterministic keyword/substring routing against the registry's own whitelisted names -- built and working as exactly that, not a stand-in for the live LLM version below."
+    },
+    "chat_live_llm_routing": {
+      "status": "deferred",
+      "artifact": "Claude API as the NL query interface via MCP, build spec Section 3",
+      "shown_on": ["Ask the Metric Tree"],
+      "note": "The documented open seam -- see dashboard/README.md's 'chat demo's NL routing' section. The page must not imply a live LLM is answering; the deterministic-router disclosure already on this page is the correct, required honesty pattern."
+    }
+  }
+}

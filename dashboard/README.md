@@ -51,6 +51,33 @@ at least one `analytics/outputs/weekly_readout_*.json` (`python3 -c "from analyt
 | `pages/3_Segment_Efficiency.py` | `mart_growth_bridge`, `mart_efficiency`, `mart_durability`, `mart_segment_migration` | Nothing -- these marts are already segment x month grain |
 | `pages/4_Ask_the_Metric_Tree.py` | `semantic/server.py`'s `list_metrics`/`get_metric_definition`/`query_metric`, called in-process | Nothing new -- routes a question to the same guardrailed tool functions an MCP client calls |
 
+## Visual design system
+
+Every page follows `.claude/skills/dashboard-design-conventions/SKILL.md` -- color semantics
+(a pillar palette, a status palette, and a segment palette that never share a hue), chart-type
+selection, audience-adaptive layout (exec/analyst/ad-hoc/hybrid), grain constraints, and the
+Section 7 honesty patterns (never render a live-looking value for a component that isn't
+`built_and_validated`). The mechanical enforcement of that skill lives in two files every page
+imports rather than repeating:
+
+- **`theme.py`** -- the shared palette/font/component module (`scorecard()`, `status_color()`,
+  `plotly_layout()`, the `render_pending()`/`component_status()` honesty helpers). See its own
+  `inject_global_css()` docstring for a real, verified Streamlit limitation worth reading before
+  adding a new bordered card: `st.container(border=True)`'s background fill only works reliably
+  as one single `st.markdown()` call, not split across multiple calls or native widgets.
+- **`project_status.json`** -- the concrete "is this component built_and_validated" source of
+  truth the skill's Section 7 refers to as `project-status`. Update it whenever a component's
+  real build state changes; it's a projection of `CLAUDE.md`'s "Current phase" section, not a
+  second source of truth.
+
+Two agents (`.claude/agents/dashboard-page-builder.md`, `.claude/agents/dashboard-visual-qa.md`)
+build and independently audit pages against this system -- the builder renders and visually
+inspects its own output before reporting done; the QA agent is diagnostic-only and checks
+cross-page consistency plus the completeness-honesty pattern a single page's own builder is
+least likely to catch in itself. Both rely on `dashboard/scripts/screenshot.py`
+(Playwright-based) as their render/inspect harness -- `dashboard/.venv/bin/playwright install
+chromium` once after installing `requirements.txt` if it hasn't been run yet.
+
 ## The chat demo's NL routing, and what it deliberately isn't
 
 `lib/semantic_bridge.py`'s `parse_question()` is deterministic keyword and substring
