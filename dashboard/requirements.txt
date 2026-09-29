@@ -4,3 +4,9 @@ pandas
 numpy
 scikit-learn
 mcp
+plotly
+# playwright is a build-time dependency for dashboard/scripts/screenshot.py
+# (the dashboard-page-builder / dashboard-visual-qa render/inspect loop),
+# not something the app itself imports at runtime. Also run
+# `dashboard/.venv/bin/playwright install chromium` once after installing.
+playwright

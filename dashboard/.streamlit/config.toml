@@ -1,0 +1,16 @@
+# Native Streamlit theme -- base colors/font for widgets Streamlit itself
+# renders (buttons, sliders, the app chrome) that theme.py's CSS injection
+# doesn't reach. Palette A/B hex values and the Source Serif 4 / Inter font
+# pairing are the single source of truth in dashboard/theme.py -- this file
+# mirrors the base color and font family so widget chrome doesn't clash with
+# the CSS-styled cards/charts. See dashboard-design-conventions.md Section 9.
+[theme]
+base = "light"
+primaryColor = "#1E2761"
+backgroundColor = "#F7F8FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1E2761"
+font = "sans serif"
+
+[server]
+headless = true
