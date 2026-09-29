@@ -1,6 +1,8 @@
--- Grain: one row per account_id per month. Product telemetry, aggregated to
--- monthly Actions-consumed by the generator (raw touch-level workflow
--- events are in workflow_chain_events / fact_workflow_chain_events).
+-- Grain: one row per account_id per month. Product telemetry, generated
+-- directly at this grain -- there is no per-Action-step source anywhere
+-- upstream to aggregate from. workflow_chain_events / fact_workflow_chain_events
+-- is the companion upstream-vs-downstream Action view, also account_id x
+-- month grain, not touch-level (see that model's own header).
 
 select
     account_id,
