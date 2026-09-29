@@ -62,7 +62,7 @@ Full formulas, owners, and layer depth: [`docs/acme-corp-gtm-metric-tree.md`](do
 | `tests/` | QA plan's pytest suite — referential integrity, distributional realism, correlational validity, volume sufficiency, edge-case existence |
 | `semantic/` | Phase 3 MCP server + metric registry, generated from the tree file |
 | `analytics/` | All twenty Phase 4 artifacts — variance-diagnostic engine, health score, forecast, capacity planning, marketing attribution, data quality governance, deal-level diagnostics, rep productivity, automated playbook triggers, territory coverage, TAM/ICP sizing, pricing/packaging analytics, MMM/incrementality, scenario planning, retention/expansion cohorts, lead-scoring model validation, testing/experimentation platform, proxy-metric health |
-| `dashboard/` | Phase 5 CRO-facing web app |
+| `dashboard/` | Phase 5 CRO-facing web app (Streamlit) — digest, forecast, segment-efficiency, and "ask the metric tree" chat views |
 
 ## Build status
 
@@ -72,13 +72,13 @@ Built phase by phase, each validated against real generated data before the next
 - [x] **Phase 2 — dbt data model**: staging through the core marts (`mart_growth_bridge`, `mart_efficiency`, `mart_durability`, `mart_segment_migration`) plus TAM whitespace.
 - [x] **Phase 3 — Semantic layer (MCP)**: metric registry generated from the tree file + MCP server (`list_metrics`, `get_metric_definition`, `query_metric`) under `semantic/`.
 - [x] **Phase 4 — Analytics artifacts**: all seven waves (twenty artifacts — see `analytics/` above and `docs/asset-briefs/` for the full list) are built and validated, closing the build spec's full 22-artifact priority order (three items were absorbed into other artifacts by the spec's own design, not built standalone). See `CLAUDE.md`'s "Current phase" section or `CHANGELOG.md` for per-wave detail.
-- [ ] **Phase 5 — CRO / leadership interface**
+- [x] **Phase 5 — CRO / leadership interface**: a Streamlit app (`dashboard/`) reading live from the finished marts, the weekly readout's own generated output, and `analytics/forecast.py`/`semantic/server.py` called in-process — the digest, forecast, segment-efficiency, and chat views called for in the build spec's Section 6 scope guardrail, not a full BI platform.
 
 Known, deliberate gaps rather than silent placeholders: no rep-cost data exists yet, so Magic Number and AM Efficiency are null rather than fabricated.
 
 ## Stack
 
-DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Claude API for the readout's narrative generation
+DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Streamlit · Claude API for the readout's narrative generation
 
 ## Running it
 
@@ -91,4 +91,7 @@ python3 -m pytest tests/ -v
 
 # Phase 2 — build and test the dbt project
 cd dbt && dbt build
+
+# Phase 5 — run the dashboard (needs its own Python 3.12 venv; see dashboard/README.md)
+dashboard/.venv/bin/streamlit run dashboard/app.py
 ```
