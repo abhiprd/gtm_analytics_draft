@@ -61,7 +61,7 @@ Full formulas, owners, and layer depth: [`docs/acme-corp-gtm-metric-tree.md`](do
 | `dbt/` | Phase 2 dbt-duckdb project — staging → intermediate → dimensions/facts → marts |
 | `tests/` | QA plan's pytest suite — referential integrity, distributional realism, correlational validity, volume sufficiency, edge-case existence |
 | `semantic/` | Phase 3 MCP server + metric registry, generated from the tree file |
-| `analytics/` | Phase 4 artifacts — variance-diagnostic engine, health score, forecast, capacity planning, marketing attribution, data quality governance, deal-level diagnostics, rep productivity, automated playbook triggers, territory coverage, TAM/ICP sizing, pricing/packaging analytics |
+| `analytics/` | Phase 4 artifacts — variance-diagnostic engine, health score, forecast, capacity planning, marketing attribution, data quality governance, deal-level diagnostics, rep productivity, automated playbook triggers, territory coverage, TAM/ICP sizing, pricing/packaging analytics, MMM/incrementality, scenario planning, retention/expansion cohorts |
 | `dashboard/` | Phase 5 CRO-facing web app |
 
 ## Build status
@@ -71,7 +71,7 @@ Built phase by phase, each validated against real generated data before the next
 - [x] **Phase 1 — Raw source simulation**: raw tables across CRM, billing, usage, CS-ops, and marketing spend (including `campaigns`/`leads`/`campaign_engagement_events` and `fact_forecast_submissions`/`cro_forecast_adjustments`, added in Wave 2; `fact_sales_activities`, event-grain rep-opportunity engagement data added in Wave 4; and `company_territory`/`rep_territory`, the territory dimension `mart_tam_whitespace` slices by, added as a Wave 5 prerequisite), causally wired and incident-injected.
 - [x] **Phase 2 — dbt data model**: staging through the core marts (`mart_growth_bridge`, `mart_efficiency`, `mart_durability`, `mart_segment_migration`) plus TAM whitespace.
 - [x] **Phase 3 — Semantic layer (MCP)**: metric registry generated from the tree file + MCP server (`list_metrics`, `get_metric_definition`, `query_metric`) under `semantic/`.
-- [~] **Phase 4 — Analytics artifacts**: Wave 1 (metric tree, account health score, segment migration, variance-diagnostic engine, weekly executive readout), Wave 2 (forecast, capacity planning, marketing attribution & channel mix), Wave 3 (data quality / metric governance), Wave 4 (deal-level diagnostics, rep productivity & coaching diagnostics, automated playbook triggers), and Wave 5 (territory / account coverage & routing, TAM/ICP/opportunity-sizing, pricing/packaging analytics) are built and validated. Waves 6–7 (MMM, scenario planning, retention cohorts, lead-scoring drift, experimentation platform) remain.
+- [~] **Phase 4 — Analytics artifacts**: Waves 1–6 (seventeen artifacts — see `analytics/` above and `docs/asset-briefs/` for the full list) are built and validated. Wave 7 (lead-scoring model validation & drift detection, testing/experimentation platform, proxy-metric health / analytics investment prioritization) remains — see `CLAUDE.md`'s "Current phase" section or `CHANGELOG.md` for per-wave detail.
 - [ ] **Phase 5 — CRO / leadership interface**
 
 Known, deliberate gaps rather than silent placeholders: no rep-cost data exists yet, so Magic Number and AM Efficiency are null rather than fabricated.
