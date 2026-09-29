@@ -66,6 +66,7 @@ DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Streamlit
 - `analytics-engineering-conventions` — light-touch conventions for Phase 4+ (extend as each artifact is built)
 - `external-repo-conventions` — commit message and changelog rules; read before every commit
 - `import-downloads` — routes a downloaded batch of project files into place; invoke explicitly via `/import-downloads`, never autonomously
+- `dashboard-design-conventions` — the visual/presentation spec for Phase 5 (`dashboard/`): color semantics, chart-type selection, audience-adaptive layout, information hierarchy, grain/resolution rules, Streamlit implementation patterns; read before building or editing any dashboard page
 
 **Agents** (`.claude/agents/` — isolated subagents for delegable tasks):
 - `dbt-model-writer` — writes dbt models + schema.yml
@@ -78,6 +79,8 @@ DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Streamlit
 - `repo-audit` — one-time/milestone scan of commit history and docs for process-revealing language before sharing the repo publicly; diagnostic only, run manually, not part of routine work
 - `drift-monitor` — recurring production monitoring for model calibration drift and proxy-metric decoupling, checked against `docs/acme-corp-analytics-methods.md`'s stated thresholds; distinct from one-time build-time validation
 - `asset-brief-writer` — writes/updates one plain-language leadership brief per built dbt mart or Phase 4 artifact under `docs/asset-briefs/`; distinct from `dbt-docs-writer` (schema.yml, technical audience) and `sync-portfolio-docs` (the six fixed reference docs)
+- `dashboard-page-builder` — builds/updates a Streamlit page in `dashboard/` against `dashboard-design-conventions`; renders and visually inspects the result itself before reporting done, never just confirms the code runs
+- `dashboard-visual-qa` — diagnostic-only audit of the built dashboard for cross-page visual consistency and completeness honesty (flags a polished-looking page overselling an artifact that isn't actually built/validated); independent of `dashboard-page-builder` by design, so a page is never graded by the process that built it
 
 ## Repo hygiene
 
