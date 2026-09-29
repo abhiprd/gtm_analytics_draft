@@ -82,7 +82,7 @@ engine         + embedded chat via same MCP tools
 (Phase 4)
 ```
 
-**Stack:** DuckDB · dbt-core (dbt-duckdb) · Python (generation, diagnostics) · MCP server (Python SDK) · web dashboard (Next.js or Streamlit) · Claude API for the readout's narrative generation and as the NL query interface via MCP.
+**Stack:** DuckDB · dbt-core (dbt-duckdb) · Python (generation, diagnostics) · MCP server (Python SDK) · web dashboard (Streamlit) · Claude API for the readout's narrative generation and as the NL query interface via MCP.
 
 ---
 
@@ -161,10 +161,9 @@ Phases 1–3 are the technical backbone and the actual differentiator — go dee
 
 ## 7. Design Decisions and Open Questions
 
-**Established:** entry logic is firmographic-driven and channel-independent; migration `trigger_reason` has 4 values, not 2; AM (not ISR/AE) owns retention/expansion; `opportunity_type`/`owner_role`/`loss_reason` are real fields; account health score inputs are genuine time series; marketing's footprint is distributed across New Logo/Activation/Expansion with population-distinct metrics, not duplicated.
+**Established:** entry logic is firmographic-driven and channel-independent; migration `trigger_reason` has 4 values, not 2; AM (not ISR/AE) owns retention/expansion; `opportunity_type`/`owner_role`/`loss_reason` are real fields; account health score inputs are genuine time series; marketing's footprint is distributed across New Logo/Activation/Expansion with population-distinct metrics, not duplicated. Dashboard framework: Streamlit, chosen because every other layer of this system (marts, semantic layer, all twenty Phase 4 artifacts) is already Python end-to-end, so the dashboard reads DuckDB and imports `analytics`/`semantic` in-process with no separate API layer or second language — see `dashboard/README.md`.
 
 **Still open:**
-- Dashboard framework: Next.js vs. Streamlit
 - Exact variance threshold for triggering a drill-down (used ±8% in the sample readout — confirm or adjust)
 - Whether to model a full COGS ledger instead of the flat ~80% gross margin assumption
 
