@@ -1,0 +1,1243 @@
+{
+  "as_of_date": "2025-06-30",
+  "summary": {
+    "checks_total": 3,
+    "checks_passed": 3,
+    "hooks_cataloged": 26,
+    "hooks_traced_to_doc": 29,
+    "hooks_with_zero_persisted_readings": 7,
+    "not_drift_monitored_artifacts": 2,
+    "not_yet_built_artifacts": 1,
+    "models_with_any_checkpoint": 14,
+    "min_checkpoints_across_models": 1,
+    "max_checkpoints_across_models": 1,
+    "data_gap_roots_cataloged": 21,
+    "data_gap_roots_live_confirmed": 21,
+    "pipeline_generated_stale_marking_confirmed": true,
+    "artifacts_with_confirmed_threshold": 1,
+    "artifacts_with_proposed_not_confirmed_threshold": 14
+  },
+  "doc_trace_check": {
+    "passed": true,
+    "n_total": 29,
+    "n_passed": 29,
+    "results": [
+      {
+        "id": "health_score_auc",
+        "kind": "hook",
+        "artifact": "account_health_score",
+        "doc_anchor": "AUC below 0.65 for 2 consecutive monthly checkpoints",
+        "traces_to_doc": true
+      },
+      {
+        "id": "segment_migration_firmographic_rescore_share",
+        "kind": "hook",
+        "artifact": "segment_migration_analysis",
+        "doc_anchor": "the firmographic-rescore share floor is the one worth actually watching",
+        "traces_to_doc": true
+      },
+      {
+        "id": "marketing_mix_shift_tvd",
+        "kind": "hook",
+        "artifact": "marketing_attribution",
+        "doc_anchor": "`first_to_last_mix_shift_tvd`",
+        "traces_to_doc": true
+      },
+      {
+        "id": "marketing_channel_switch_share",
+        "kind": "hook",
+        "artifact": "marketing_attribution",
+        "doc_anchor": "`channel_switch_share`",
+        "traces_to_doc": true
+      },
+      {
+        "id": "marketing_measured_incremental_share_pooled",
+        "kind": "hook",
+        "artifact": "marketing_attribution",
+        "doc_anchor": "`measured_incremental_share_pooled`**: drifting outside 0.45",
+        "traces_to_doc": true
+      },
+      {
+        "id": "forecast_ml_calibration_gap",
+        "kind": "hook",
+        "artifact": "forecast",
+        "doc_anchor": "`ml_calibration_gap` outside **\u00b10.05**",
+        "traces_to_doc": true
+      },
+      {
+        "id": "forecast_ml_auc_ratio_vs_leak_proof_baseline",
+        "kind": "hook",
+        "artifact": "forecast",
+        "doc_anchor": "`ml_auc_ratio_vs_leak_proof_baseline` above **1.15**",
+        "traces_to_doc": true
+      },
+      {
+        "id": "capacity_empirical_ramp_ratio_pooled",
+        "kind": "hook",
+        "artifact": "capacity_planning",
+        "doc_anchor": "`empirical_ramp_ratio_pooled`**: if it drifted outside 0.40",
+        "traces_to_doc": true
+      },
+      {
+        "id": "capacity_ramped_baseline_attainment_pooled",
+        "kind": "hook",
+        "artifact": "capacity_planning",
+        "doc_anchor": "`ramped_baseline_attainment_pooled`**: now that quota",
+        "traces_to_doc": true
+      },
+      {
+        "id": "dq_governance_metric_tree_edges_not_computable",
+        "kind": "hook",
+        "artifact": "data_quality_governance",
+        "doc_anchor": "`metric_tree_edges_not_computable` (should only ever *decrease*",
+        "traces_to_doc": true
+      },
+      {
+        "id": "dq_governance_not_independently_random_spot_checks",
+        "kind": "hook",
+        "artifact": "data_quality_governance",
+        "doc_anchor": "not-independently-random spot-check margins (`win_probability` gap/z, `churn_probability` median decline, `usage_growth` ratio)",
+        "traces_to_doc": true
+      },
+      {
+        "id": "playbook_triggers_firing_counts",
+        "kind": "hook",
+        "artifact": "automated_playbook_triggers",
+        "doc_anchor": "each rule's `triggers_fired_<rule_id>` count",
+        "traces_to_doc": true
+      },
+      {
+        "id": "deal_diagnostics_flag_firing_counts",
+        "kind": "hook",
+        "artifact": "deal_diagnostics",
+        "doc_anchor": "any flag's real-data firing count collapsing to exactly 0 on a checkpoint where it has previously fired",
+        "traces_to_doc": true
+      },
+      {
+        "id": "deal_diagnostics_ml_auc",
+        "kind": "hook",
+        "artifact": "deal_diagnostics",
+        "doc_anchor": "`auc_holdout_out_of_time` outside 0.60\u20130.85",
+        "traces_to_doc": true
+      },
+      {
+        "id": "deal_diagnostics_calibration_gap",
+        "kind": "hook",
+        "artifact": "deal_diagnostics",
+        "doc_anchor": "`calibration_gap` outside \u00b10.05",
+        "traces_to_doc": true
+      },
+      {
+        "id": "rep_productivity_cohort_recovery",
+        "kind": "hook",
+        "artifact": "rep_productivity",
+        "doc_anchor": "`cohort_recovery_against_raw_quantile`'s enrichment rate is the genuinely worth-watching series",
+        "traces_to_doc": true
+      },
+      {
+        "id": "rep_productivity_flag_firing_counts",
+        "kind": "hook",
+        "artifact": "rep_productivity",
+        "doc_anchor": "`reps_flagged_<flag_name>` collapsing to exactly 0",
+        "traces_to_doc": true
+      },
+      {
+        "id": "pricing_deal_size_drift",
+        "kind": "hook",
+        "artifact": "pricing_packaging_analytics",
+        "doc_anchor": "Deal-size drift threshold: \u00b115% relative change",
+        "traces_to_doc": true
+      },
+      {
+        "id": "pricing_packaging_calibration",
+        "kind": "hook",
+        "artifact": "pricing_packaging_analytics",
+        "doc_anchor": "Packaging calibration reference: median utilization within \u00b110 percentage points",
+        "traces_to_doc": true
+      },
+      {
+        "id": "tam_icp_non_vacuousness_floors",
+        "kind": "hook",
+        "artifact": "tam_icp_opportunity_sizing",
+        "doc_anchor": "(`tier_acv_separation_ratio_tier1_tier2`",
+        "traces_to_doc": true
+      },
+      {
+        "id": "territory_coverage_index_whitespace",
+        "kind": "hook",
+        "artifact": "territory_coverage_routing",
+        "doc_anchor": "(`coverage_index_whitespace_apac`",
+        "traces_to_doc": true
+      },
+      {
+        "id": "mmm_checks_passed",
+        "kind": "hook",
+        "artifact": "mmm_incrementality",
+        "doc_anchor": "`checks_passed`** dropping to 0 of 3 for 2 consecutive checkpoints",
+        "traces_to_doc": true
+      },
+      {
+        "id": "mmm_vif_log_spend_with_trend",
+        "kind": "hook",
+        "artifact": "mmm_incrementality",
+        "doc_anchor": "`vif_log_spend_with_trend`** (pooled) exceeding 15",
+        "traces_to_doc": true
+      },
+      {
+        "id": "mmm_gap_vs_holdout",
+        "kind": "hook",
+        "artifact": "mmm_incrementality",
+        "doc_anchor": "**`gap_vs_holdout_{paid,community}`** is watched but not gated",
+        "traces_to_doc": true
+      },
+      {
+        "id": "retention_cohort_annualized_logo_retention_benchmark",
+        "kind": "hook",
+        "artifact": "retention_expansion_cohort_analytics",
+        "doc_anchor": "(`implied_annual_logo_retention_smb`",
+        "traces_to_doc": true
+      },
+      {
+        "id": "scenario_planning_baseline_self_check",
+        "kind": "hook",
+        "artifact": "scenario_planning",
+        "doc_anchor": "`baseline_self_check_nodes_passed` against `_total`",
+        "traces_to_doc": true
+      },
+      {
+        "id": "variance_diagnostic_engine",
+        "kind": "not_monitored",
+        "artifact": "variance_diagnostic_engine",
+        "doc_anchor": "**Not subject to drift monitoring.**",
+        "traces_to_doc": true
+      },
+      {
+        "id": "weekly_executive_readout",
+        "kind": "not_monitored",
+        "artifact": "weekly_executive_readout",
+        "doc_anchor": "### Drift monitoring \u2014 not applicable",
+        "traces_to_doc": true
+      },
+      {
+        "id": "segment_lead_scoring_model",
+        "kind": "not_yet_built",
+        "artifact": "segment_lead_scoring_model",
+        "doc_anchor": "## Segment/lead scoring model",
+        "traces_to_doc": true
+      }
+    ]
+  },
+  "data_gap_keys_live_check": {
+    "passed": true,
+    "n_total": 21,
+    "n_passed": 21,
+    "results": [
+      {
+        "node_key": "pipeline_generated",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "discount_rate_vs_list",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "deal_size_trend_within_band",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "loss_reason_mix",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "stage_to_stage_conversion",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "poc_pass_rate",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "renewal_win_rate",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "churn_reason_category",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "overage_realization",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "workflow_chain_underutilization",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "account_health_score",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "magic_number",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "am_efficiency",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "marketing_sales_handoff_quality",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "brand_awareness",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "wallet_share_progression",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "rep_capacity_ramp_mix",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "time_to_first_integration",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "quickstart_docs_engagement_rate",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "cohort_comparison",
+        "exists_live": true,
+        "still_not_computable": true
+      },
+      {
+        "node_key": "account_specific_baseline_deviation",
+        "exists_live": true,
+        "still_not_computable": true
+      }
+    ]
+  },
+  "checkpoint_reconciliation_check": {
+    "passed": true,
+    "n_models_checked": 14,
+    "mismatches": []
+  },
+  "pipeline_generated_staleness": {
+    "vd_node_computability": "not_computable",
+    "vd_children_still_not_computable": [
+      "organic_content",
+      "paid",
+      "community_events"
+    ],
+    "dqg_edge_status": "VALIDATED_ELSEWHERE",
+    "is_stale_marking": true
+  },
+  "checkpoint_counts_by_model": {
+    "automated_playbook_triggers": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "capacity_planning": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "data_quality_governance": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "deal_diagnostics": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "marketing_attribution": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "mmm_incrementality": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "pricing_packaging_analytics": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "proxy_metric_health": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "rep_productivity": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "retention_expansion_cohort_analytics": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "scenario_planning": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "tam_icp_opportunity_sizing": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "territory_coverage_routing": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "weekly_executive_readout": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    }
+  },
+  "hook_reading_counts": [
+    {
+      "hook_id": "health_score_auc",
+      "artifact": "account_health_score",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "auc_holdout"
+      ],
+      "reading_dates_by_metric": {
+        "auc_holdout": []
+      },
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "segment_migration_firmographic_rescore_share",
+      "artifact": "segment_migration_analysis",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "pct_firmographic_rescore_overall",
+        "pct_firmographic_rescore_smb_to_commercial",
+        "pct_firmographic_rescore_commercial_to_enterprise"
+      ],
+      "reading_dates_by_metric": {
+        "pct_firmographic_rescore_overall": [],
+        "pct_firmographic_rescore_smb_to_commercial": [],
+        "pct_firmographic_rescore_commercial_to_enterprise": []
+      },
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "marketing_mix_shift_tvd",
+      "artifact": "marketing_attribution",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "first_to_last_mix_shift_tvd"
+      ],
+      "reading_dates_by_metric": {
+        "first_to_last_mix_shift_tvd": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "marketing_channel_switch_share",
+      "artifact": "marketing_attribution",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "channel_switch_share"
+      ],
+      "reading_dates_by_metric": {
+        "channel_switch_share": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "marketing_measured_incremental_share_pooled",
+      "artifact": "marketing_attribution",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "measured_incremental_share_pooled"
+      ],
+      "reading_dates_by_metric": {
+        "measured_incremental_share_pooled": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "forecast_ml_calibration_gap",
+      "artifact": "forecast",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "ml_calibration_gap"
+      ],
+      "reading_dates_by_metric": {
+        "ml_calibration_gap": []
+      },
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "forecast_ml_auc_ratio_vs_leak_proof_baseline",
+      "artifact": "forecast",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "ml_auc_ratio_vs_leak_proof_baseline"
+      ],
+      "reading_dates_by_metric": {
+        "ml_auc_ratio_vs_leak_proof_baseline": []
+      },
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "capacity_empirical_ramp_ratio_pooled",
+      "artifact": "capacity_planning",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "empirical_ramp_ratio_pooled"
+      ],
+      "reading_dates_by_metric": {
+        "empirical_ramp_ratio_pooled": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "capacity_ramped_baseline_attainment_pooled",
+      "artifact": "capacity_planning",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "ramped_baseline_attainment_pooled"
+      ],
+      "reading_dates_by_metric": {
+        "ramped_baseline_attainment_pooled": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "dq_governance_metric_tree_edges_not_computable",
+      "artifact": "data_quality_governance",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "metric_tree_edges_not_computable"
+      ],
+      "reading_dates_by_metric": {
+        "metric_tree_edges_not_computable": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "dq_governance_not_independently_random_spot_checks",
+      "artifact": "data_quality_governance",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [],
+      "reading_dates_by_metric": {},
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "playbook_triggers_firing_counts",
+      "artifact": "automated_playbook_triggers",
+      "rule_family": "firing_rate_or_reuse_integrity",
+      "persisted_metric_names": [
+        "triggers_fired_ingestion_without_completion",
+        "triggers_fired_poc_pass_rate_below_threshold",
+        "triggers_fired_post_close_underutilization"
+      ],
+      "reading_dates_by_metric": {
+        "triggers_fired_ingestion_without_completion": [
+          "2025-06-30"
+        ],
+        "triggers_fired_poc_pass_rate_below_threshold": [
+          "2025-06-30"
+        ],
+        "triggers_fired_post_close_underutilization": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "deal_diagnostics_flag_firing_counts",
+      "artifact": "deal_diagnostics",
+      "rule_family": "firing_rate_or_reuse_integrity",
+      "persisted_metric_names": [],
+      "reading_dates_by_metric": {},
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "deal_diagnostics_ml_auc",
+      "artifact": "deal_diagnostics",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "auc_holdout_out_of_time"
+      ],
+      "reading_dates_by_metric": {
+        "auc_holdout_out_of_time": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "deal_diagnostics_calibration_gap",
+      "artifact": "deal_diagnostics",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "calibration_gap"
+      ],
+      "reading_dates_by_metric": {
+        "calibration_gap": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "rep_productivity_cohort_recovery",
+      "artifact": "rep_productivity",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [],
+      "reading_dates_by_metric": {},
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "rep_productivity_flag_firing_counts",
+      "artifact": "rep_productivity",
+      "rule_family": "firing_rate_or_reuse_integrity",
+      "persisted_metric_names": [
+        "reps_flagged_volume_constrained",
+        "reps_flagged_volume_and_quality_constrained",
+        "reps_flagged_engagement_quality_constrained",
+        "reps_flagged_ramp_explained_on_par",
+        "reps_flagged_on_par"
+      ],
+      "reading_dates_by_metric": {
+        "reps_flagged_volume_constrained": [],
+        "reps_flagged_volume_and_quality_constrained": [
+          "2025-06-30"
+        ],
+        "reps_flagged_engagement_quality_constrained": [
+          "2025-06-30"
+        ],
+        "reps_flagged_ramp_explained_on_par": [
+          "2025-06-30"
+        ],
+        "reps_flagged_on_par": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "pricing_deal_size_drift",
+      "artifact": "pricing_packaging_analytics",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "deal_size_pct_change_smb",
+        "deal_size_pct_change_commercial",
+        "deal_size_pct_change_enterprise"
+      ],
+      "reading_dates_by_metric": {
+        "deal_size_pct_change_smb": [
+          "2025-06-30"
+        ],
+        "deal_size_pct_change_commercial": [
+          "2025-06-30"
+        ],
+        "deal_size_pct_change_enterprise": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "pricing_packaging_calibration",
+      "artifact": "pricing_packaging_analytics",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "packaging_median_utilization_commercial",
+        "packaging_median_utilization_enterprise"
+      ],
+      "reading_dates_by_metric": {
+        "packaging_median_utilization_commercial": [
+          "2025-06-30"
+        ],
+        "packaging_median_utilization_enterprise": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "tam_icp_non_vacuousness_floors",
+      "artifact": "tam_icp_opportunity_sizing",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "tier_acv_separation_ratio_tier1_tier2",
+        "tier_acv_separation_ratio_tier2_tier3",
+        "entry_tier_explained_share",
+        "entry_tier_downgrade_anomaly_share"
+      ],
+      "reading_dates_by_metric": {
+        "tier_acv_separation_ratio_tier1_tier2": [
+          "2025-06-30"
+        ],
+        "tier_acv_separation_ratio_tier2_tier3": [
+          "2025-06-30"
+        ],
+        "entry_tier_explained_share": [
+          "2025-06-30"
+        ],
+        "entry_tier_downgrade_anomaly_share": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "territory_coverage_index_whitespace",
+      "artifact": "territory_coverage_routing",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "coverage_index_whitespace_apac",
+        "coverage_index_whitespace_emea",
+        "coverage_index_whitespace_latam",
+        "coverage_index_whitespace_na_east",
+        "coverage_index_whitespace_na_west"
+      ],
+      "reading_dates_by_metric": {
+        "coverage_index_whitespace_apac": [
+          "2025-06-30"
+        ],
+        "coverage_index_whitespace_emea": [
+          "2025-06-30"
+        ],
+        "coverage_index_whitespace_latam": [
+          "2025-06-30"
+        ],
+        "coverage_index_whitespace_na_east": [
+          "2025-06-30"
+        ],
+        "coverage_index_whitespace_na_west": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "mmm_checks_passed",
+      "artifact": "mmm_incrementality",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "checks_passed"
+      ],
+      "reading_dates_by_metric": {
+        "checks_passed": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "mmm_vif_log_spend_with_trend",
+      "artifact": "mmm_incrementality",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "vif_log_spend_with_trend"
+      ],
+      "reading_dates_by_metric": {
+        "vif_log_spend_with_trend": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "mmm_gap_vs_holdout",
+      "artifact": "mmm_incrementality",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "gap_vs_holdout_paid",
+        "gap_vs_holdout_community"
+      ],
+      "reading_dates_by_metric": {
+        "gap_vs_holdout_paid": [
+          "2025-06-30"
+        ],
+        "gap_vs_holdout_community": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "retention_cohort_annualized_logo_retention_benchmark",
+      "artifact": "retention_expansion_cohort_analytics",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "implied_annual_logo_retention_smb",
+        "implied_annual_logo_retention_commercial",
+        "implied_annual_logo_retention_enterprise"
+      ],
+      "reading_dates_by_metric": {
+        "implied_annual_logo_retention_smb": [
+          "2025-06-30"
+        ],
+        "implied_annual_logo_retention_commercial": [
+          "2025-06-30"
+        ],
+        "implied_annual_logo_retention_enterprise": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    },
+    {
+      "hook_id": "scenario_planning_baseline_self_check",
+      "artifact": "scenario_planning",
+      "rule_family": "firing_rate_or_reuse_integrity",
+      "persisted_metric_names": [
+        "baseline_self_check_nodes_passed"
+      ],
+      "reading_dates_by_metric": {
+        "baseline_self_check_nodes_passed": [
+          "2025-06-30"
+        ]
+      },
+      "max_reading_count": 1
+    }
+  ],
+  "unpersisted_hooks": [
+    {
+      "hook_id": "health_score_auc",
+      "artifact": "account_health_score",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "auc_holdout"
+      ],
+      "reading_dates_by_metric": {
+        "auc_holdout": []
+      },
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "segment_migration_firmographic_rescore_share",
+      "artifact": "segment_migration_analysis",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [
+        "pct_firmographic_rescore_overall",
+        "pct_firmographic_rescore_smb_to_commercial",
+        "pct_firmographic_rescore_commercial_to_enterprise"
+      ],
+      "reading_dates_by_metric": {
+        "pct_firmographic_rescore_overall": [],
+        "pct_firmographic_rescore_smb_to_commercial": [],
+        "pct_firmographic_rescore_commercial_to_enterprise": []
+      },
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "forecast_ml_calibration_gap",
+      "artifact": "forecast",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "ml_calibration_gap"
+      ],
+      "reading_dates_by_metric": {
+        "ml_calibration_gap": []
+      },
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "forecast_ml_auc_ratio_vs_leak_proof_baseline",
+      "artifact": "forecast",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "ml_auc_ratio_vs_leak_proof_baseline"
+      ],
+      "reading_dates_by_metric": {
+        "ml_auc_ratio_vs_leak_proof_baseline": []
+      },
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "dq_governance_not_independently_random_spot_checks",
+      "artifact": "data_quality_governance",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [],
+      "reading_dates_by_metric": {},
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "deal_diagnostics_flag_firing_counts",
+      "artifact": "deal_diagnostics",
+      "rule_family": "firing_rate_or_reuse_integrity",
+      "persisted_metric_names": [],
+      "reading_dates_by_metric": {},
+      "max_reading_count": 0
+    },
+    {
+      "hook_id": "rep_productivity_cohort_recovery",
+      "artifact": "rep_productivity",
+      "rule_family": "grounding_or_apparatus_integrity",
+      "persisted_metric_names": [],
+      "reading_dates_by_metric": {},
+      "max_reading_count": 0
+    }
+  ],
+  "data_gap_ranking": [
+    {
+      "node_key": "pipeline_generated",
+      "label": "Pipeline generated",
+      "layer": 2,
+      "parent_key": "new_logo_consumption_revenue",
+      "tier": "A_already_computed_elsewhere_wiring_only",
+      "blocked_node_count": 4,
+      "blocks_full_layer1_metric": false,
+      "rationale": "STALE marking, not a real gap. analytics/marketing_attribution.py already computes this exact formula from marts (fact_leads, dim_campaign, fact_campaign_engagement_events) and validates it (reconcile_pipeline_generated_identity, <=1e-9 tolerance, passing at both checkpoints) -- analytics/data_quality_governance.py's own governance-edge table already marks the identical formula VALIDATED_ELSEWHERE (edge_id pipeline_generated_channel_formula). Closing this needs no new data and no new mart -- only wiring analytics/variance_diagnostic.py's pipeline_generated/organic_content/paid/community_events nodes to call into marketing_attribution.py's already-validated functions, the same reuse pattern analytics/mmm_incrementality.py and analytics/scenario_planning.py already establish for borrowing another Phase 4 module's logic. Restores New Logo's first-ever real Layer-3 evidence anywhere in the tree -- today 0 of 32 Layer-3 leaves are computable from any mart."
+    },
+    {
+      "node_key": "workflow_chain_underutilization",
+      "label": "Workflow chain under-utilization",
+      "layer": 2,
+      "parent_key": "contraction_churned_revenue",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 4,
+      "blocks_full_layer1_metric": false,
+      "rationale": "fact_workflow_chain_events already exists but is not exposed through any mart_* table. Closing this one mart gap would also close its three Layer-3 children (ingestion_without_completion_rate, mid_chain_abandonment, full_vs_partial_chain_share) -- notably, analytics/playbook_triggers.py's own ingestion_without_completion rule already computes a version of this signal for its own purpose, a second real precedent (alongside pipeline_generated) that this project's own other artifacts have already done some of this work."
+    },
+    {
+      "node_key": "renewal_win_rate",
+      "label": "Renewal win rate",
+      "layer": 2,
+      "parent_key": "contraction_churned_revenue",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 3,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Same opportunity-detail mart-exposure gap. Blocks its own two Layer-3 children (time_to_respond_churn_risk_flag, loud_vs_silent_churn_mix) as well -- closing the parent mart gap would also need those two leaves' own source events (a churn-risk-flag timestamp, an AM response timestamp) which are a separate, smaller gap on top."
+    },
+    {
+      "node_key": "discount_rate_vs_list",
+      "label": "Discount rate vs. list",
+      "layer": 3,
+      "parent_key": "avg_initial_commitment",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Already named and scoped in the Pricing/packaging analytics methods-doc entry as a separate, already-flagged piece of work: fact_opportunities is confirmed to expose list_price/discount_rate/loss_reason; the fix is a Phase 2 mart change (expose the columns through a mart), not new Phase 1 data."
+    },
+    {
+      "node_key": "deal_size_trend_within_band",
+      "label": "Deal-size trend within segment band",
+      "layer": 3,
+      "parent_key": "avg_initial_commitment",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Same already-scoped fix as discount_rate_vs_list -- see that entry."
+    },
+    {
+      "node_key": "loss_reason_mix",
+      "label": "Loss-reason mix",
+      "layer": 3,
+      "parent_key": "win_rate",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Same already-scoped fix as discount_rate_vs_list -- loss_reason is the field this leaf needs."
+    },
+    {
+      "node_key": "stage_to_stage_conversion",
+      "label": "Stage-to-stage conversion",
+      "layer": 3,
+      "parent_key": "win_rate",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Needs fact_opportunity_stage_history's stage-transition detail exposed through a mart -- the raw fact already exists (fact_opportunity_stage_history), it is simply outside the mart_*-only read scope Phase 4 code operates under. Same root cause as poc_pass_rate, renewal_win_rate and churn_reason_category below -- one mart change could close several of these at once."
+    },
+    {
+      "node_key": "poc_pass_rate",
+      "label": "POC pass rate (Enterprise)",
+      "layer": 3,
+      "parent_key": "win_rate",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Same stage-history mart-exposure gap as stage_to_stage_conversion."
+    },
+    {
+      "node_key": "churn_reason_category",
+      "label": "Churn reason category (loud vs. silent)",
+      "layer": 2,
+      "parent_key": "logo_retention",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Same opportunity-detail (loss_reason) mart-exposure gap as the other opportunity-mart leaves."
+    },
+    {
+      "node_key": "overage_realization",
+      "label": "Overage realization",
+      "layer": 2,
+      "parent_key": "expansion_consumption_revenue",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "fact_committed_vs_utilized_monthly already exists and mart_efficiency already consumes it internally (exposing only a derived utilisation-haircut margin) -- realised overage billing itself just needs its own mart exposure, not new raw data."
+    },
+    {
+      "node_key": "rep_capacity_ramp_mix",
+      "label": "Rep capacity / ramp mix",
+      "layer": 3,
+      "parent_key": "win_rate",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "dim_reps and int_rep_capacity_periods already exist with the needed ramp/quota detail; win rate cut by rep ramp status just needs a mart that joins deal ownership to that detail. Distinct root cause from the opportunity-detail group above -- a different mart, not the same fix."
+    },
+    {
+      "node_key": "account_health_score",
+      "label": "Account health score",
+      "layer": 2,
+      "parent_key": "contraction_churned_revenue",
+      "tier": "C_phase4_code_or_design_fix",
+      "blocked_node_count": 5,
+      "blocks_full_layer1_metric": false,
+      "rationale": "No new data and no new mart needed -- mart_account_health already carries everything. analytics/health_score.py's score_accounts() defines its scored population by customer_status = 'Active' (a final-status field), which biases a historical trailing series. Gating the population on churn_month > month instead (a code change to health_score.py, out of the variance-diagnostic engine's own scope per that entry's explicit note) would close this node and its four Layer-3 children -- the single largest node count closed by a pure code fix with zero new data anywhere in this catalog."
+    },
+    {
+      "node_key": "magic_number",
+      "label": "Magic number (blended)",
+      "layer": 1,
+      "parent_key": null,
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 5,
+      "blocks_full_layer1_metric": true,
+      "rationale": "No rep-cost/comp data exists anywhere in the raw sources. This is the single highest-node-count gap in the whole tree (5 nodes) and the only gap that blocks an entire Layer-1 metric outright, alongside am_efficiency below -- together the only two of the tree's 11 Layer-1 nodes with zero computable actual. Needs a genuine new Phase 1 generator (rep comp/cost by role/segment/month), the most expensive tier in this catalog."
+    },
+    {
+      "node_key": "marketing_sales_handoff_quality",
+      "label": "Marketing-sales handoff quality",
+      "layer": 2,
+      "parent_key": "new_logo_consumption_revenue",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 4,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Needs an MQL/SAL lifecycle-stage field on the lead funnel. Verified directly against dbt/models/marts/facts/fact_leads.sql: the mart carries lead_id/account_id/channel/created_date/converted_date/is_converted/lead_score/days_to_conversion and nothing else -- no stage/status field of any kind, so this is a genuine gap and NOT the same stale-marking case pipeline_generated is (marketing_attribution.py computes Pipeline generated from exactly these columns; it does not and structurally cannot compute an MQL->SAL acceptance rate from them)."
+    },
+    {
+      "node_key": "brand_awareness",
+      "label": "Brand & awareness",
+      "layer": 2,
+      "parent_key": "new_logo_consumption_revenue",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 4,
+      "blocks_full_layer1_metric": false,
+      "rationale": "No web-traffic, branded-search or competitive-intelligence source exists anywhere in this project. Lowest actionable priority of the four-node-or-larger gaps despite its node count, because the tree itself excludes Brand & awareness from every sibling ranking (the one deliberate non-additive leading-indicator exception, per CLAUDE.md) -- closing it would add descriptive detail, never change a drill-down outcome."
+    },
+    {
+      "node_key": "wallet_share_progression",
+      "label": "Wallet share progression",
+      "layer": 2,
+      "parent_key": "expansion_consumption_revenue",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 4,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Needs an estimate of an account's non-Acme workflow footprint (the wallet-share denominator) -- nothing in this project's raw data or marts estimates it. This is Expansion consumption revenue's ONLY Layer-2 driver (0 of 2 computable per the variance-diagnostic engine's own coverage table, once overage_realization above is also counted) -- closing this is what it would take for the Expansion branch to produce any drill-down evidence at all when it breaches variance, which today it structurally cannot."
+    },
+    {
+      "node_key": "am_efficiency",
+      "label": "AM efficiency (blended)",
+      "layer": 1,
+      "parent_key": null,
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 3,
+      "blocks_full_layer1_metric": true,
+      "rationale": "Same rep-cost/comp gap as magic_number -- the other of the tree's two entirely-NOT_COMPUTABLE Layer-1 nodes."
+    },
+    {
+      "node_key": "time_to_first_integration",
+      "label": "Time-to-first-integration / first successful run",
+      "layer": 2,
+      "parent_key": "activation",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "No integration/first-successful-run event exists anywhere in the raw data; fact_usage_monthly is monthly grain with no first-Action timestamp."
+    },
+    {
+      "node_key": "quickstart_docs_engagement_rate",
+      "label": "Quickstart/docs content engagement rate",
+      "layer": 2,
+      "parent_key": "activation",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "The build spec's content_engagement source was never generated at all."
+    },
+    {
+      "node_key": "cohort_comparison",
+      "label": "Cohort comparison (same account type, same period last cycle)",
+      "layer": 3,
+      "parent_key": "cyclical_vs_structural_usage_dip",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "No mart exposes an account-type x usage-cycle cohort baseline; nothing in the raw data currently supports deriving one either."
+    },
+    {
+      "node_key": "account_specific_baseline_deviation",
+      "label": "Account-specific baseline deviation",
+      "layer": 3,
+      "parent_key": "cyclical_vs_structural_usage_dip",
+      "tier": "E_not_a_real_gap",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Not a real gap: the node's own gap_note states it is already folded into its parent's computation (usage_dip_breadth IS this leaf, aggregated) -- surfacing it separately would restate the parent, not add evidence. No investment closes this because there is nothing distinct left to compute."
+    }
+  ],
+  "validation_maturity_summary": [
+    {
+      "artifact_section": "Account health score / churn-risk model",
+      "n_proposed_not_confirmed_mentions": 0,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Segment/segmentation migration analysis",
+      "n_proposed_not_confirmed_mentions": 0,
+      "n_confirmed_by_validator_mentions": 1
+    },
+    {
+      "artifact_section": "Marketing attribution & channel mix",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Segment/lead scoring model",
+      "n_proposed_not_confirmed_mentions": 0,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Forecast (sales bottoms-up / ML / CRO overlay reconciliation)",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Variance-diagnostic engine",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Weekly executive readout",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Capacity planning",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Data quality / metric governance",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Automated playbook triggers",
+      "n_proposed_not_confirmed_mentions": 3,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Deal-level diagnostics",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Rep productivity & coaching diagnostics",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Pricing / packaging analytics",
+      "n_proposed_not_confirmed_mentions": 2,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "TAM / ICP / opportunity-sizing model",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Territory / account coverage & routing",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "MMM / incrementality-based measurement",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Retention / expansion cohort analytics",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Scenario planning / sensitivity analysis",
+      "n_proposed_not_confirmed_mentions": 0,
+      "n_confirmed_by_validator_mentions": 0
+    }
+  ]
+}

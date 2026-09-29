@@ -1,6 +1,6 @@
 version: 2
 
-# Source pattern: dbt-duckdb external tables, not seeds. These 23 CSVs are
+# Source pattern: dbt-duckdb external tables, not seeds. These 29 CSVs are
 # Phase 1 generator output (data/raw/*.csv) -- tens to hundreds of thousands
 # of rows each, regenerated whenever the generator reruns. Seeds are meant
 # for small, dbt-managed reference data checked into the project; this is
@@ -65,6 +65,24 @@ sources:
       # SE and AM-Commercial/AM-Enterprise reps carry no row at all.
       - name: company_territory
       - name: rep_territory
+      # Scoring/testing infrastructure (generators/lead_scoring.py,
+      # generators/run_batch11.py). Point-in-time re-application of
+      # firmographics.py's compute_fit_score() to the leads.csv population
+      # over time -- not a new methodology. model_version is a real,
+      # dateable model change (lead_fit_v2_region_aware from
+      # MODEL_CUTOVER_DATE adds the region term; lead_fit_v1_preregion is
+      # the identical employee-band/industry coefficients without it), and
+      # every scoring event on a converting lead lands strictly before that
+      # lead's converted_date -- no outcome leakage.
+      - name: lead_scoring_history
+      # Experiments registry (generators/experiments.py). Catalogs the one
+      # real, already-running randomized experiment in this data -- the
+      # paid/community marketing holdout program (dim_campaign.is_holdout)
+      # -- rather than a fabricated one. experiment_assignment traces each
+      # lead's arm to the real is_holdout flag of its real first-touch
+      # campaign.
+      - name: experiments_registry
+      - name: experiment_assignment
 
   - name: analytics
     description: >

@@ -684,3 +684,136 @@ models:
       - name: event_date
         description: Date part of event_timestamp; also the incremental filter key.
         tests: [not_null]
+
+  - name: fact_lead_scoring_history
+    description: >
+      Grain: one row per score_id -- one point-in-time scoring event on one
+      lead. A re-application of firmographics.py's compute_fit_score() to
+      the leads.csv population over time (build spec's market_universe.
+      icp_fit_score framing), not a new methodology, and distinct from
+      fact_leads.lead_score, which is the lead's TERMINAL, outcome-aware
+      composite. Every scoring event on a converting lead lands strictly
+      before that lead's converted_date -- no outcome leakage, load-bearing
+      for the model-validation/drift-detection artifact this table feeds.
+    columns:
+      - name: score_id
+        tests: [not_null, unique]
+      - name: lead_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fact_leads')
+                field: lead_id
+      - name: scored_at
+        tests: [not_null]
+      - name: model_version
+        description: >
+          lead_fit_v2_region_aware (from MODEL_CUTOVER_DATE, 2024-07-01) is
+          compute_fit_score() exactly, region term included;
+          lead_fit_v1_preregion is the identical employee-band/industry
+          coefficients with no region term computed at all.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['lead_fit_v1_preregion', 'lead_fit_v2_region_aware']
+      - name: predicted_segment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: predicted_fit_score
+        tests: [not_null]
+      - name: employee_band_component
+        tests: [not_null]
+      - name: industry_component
+        tests: [not_null]
+      - name: region_component
+        description: >
+          NULL wherever model_version = 'lead_fit_v1_preregion' -- that
+          model version never computed a region term at all. A real "not
+          computed" null, not a coincidental zero.
+      - name: noise_component
+        tests: [not_null]
+
+  - name: fact_experiment_assignment
+    description: >
+      Grain: one row per (experiment_id, lead_id) -- one lead's assignment
+      to one experiment's arm. Currently 1:1 with lead_id/assignment_id
+      since only one experiment exists in this data, but the grain is
+      stated as the compound pair, not just lead_id, since a future second
+      experiment could assign the same lead again. arm's assignment is not
+      an independent random draw: it traces back to the real is_holdout
+      flag of the lead's real first-touch campaign (dim_campaign.
+      is_holdout), fixed at that first touch per the registry's
+      intention-to-treat assignment_mechanism.
+    columns:
+      - name: assignment_id
+        description: Primary key.
+        tests: [not_null, unique]
+      - name: experiment_id
+        description: Foreign key to dim_experiment.experiment_id.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_experiment')
+                field: experiment_id
+      - name: lead_id
+        description: Foreign key to fact_leads.lead_id.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('fact_leads')
+                field: lead_id
+      - name: account_id
+        description: >
+          Soft/nullable reference into dim_accounts, populated only for
+          converting leads -- mirrors fact_leads.account_id's nullability.
+          A relationships test here should be scoped the same way
+          fact_leads.account_id's is (`where: "account_id is not null"`),
+          not left unqualified against the non-converting population's
+          legitimate nulls.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+              config:
+                where: "account_id is not null"
+      - name: company_id
+        description: Foreign key to dim_market_universe.company_id.
+      - name: channel
+        description: >
+          organic / paid / community, same domain as dim_campaign.channel --
+          but this table is scoped to the two holdout-eligible sub-channels
+          only (config.HOLDOUT_CHANNELS), never organic.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['paid', 'community']
+      - name: cell_quarter
+        description: A single quarter label (e.g. "2023Q3").
+      - name: first_touch_campaign_id
+        description: Foreign key to dim_campaign.campaign_id.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_campaign')
+                field: campaign_id
+      - name: arm
+        description: >
+          'treatment' or 'control' -- traces back to the real is_holdout
+          flag of the lead's real first-touch campaign, not an independent
+          random draw.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['treatment', 'control']
+      - name: assigned_date
