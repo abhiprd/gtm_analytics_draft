@@ -1,0 +1,113 @@
+# Proxy-metric health / analytics investment prioritization -- as of 2025-12-31
+
+**Headline finding**: no genuine drift/decay claim is possible yet for anything in this project. Every model with any logged checkpoint has between 1 and 3 real checkpoints (18 models total) -- see 'Checkpoint depth by model' below. This artifact is a governance catalog and framework, not a time-series drift tool; it becomes more useful as `drift-monitor` actually runs on a recurring cadence.
+
+This module's own correctness checks: 3 of 3 pass (ALL PASS).
+
+## Correctness checks
+- Hooks trace to real doc text: 29 of 29
+- Cited data-gap node keys are live in variance_diagnostic.py's `_TREE`: 21 of 21
+- Checkpoint counts reconcile against an independent CSV parse: PASS (18 models checked)
+- `pipeline_generated` stale-marking cross-reference confirmed live: True
+
+## Checkpoint depth by model (as of 2025-12-31)
+| Model | n_checkpoints | as_of_dates |
+|---|---|---|
+| account_health_score | 1 | 2025-12-31 |
+| automated_playbook_triggers | 3 | 2025-06-30, 2025-11-30, 2025-12-31 |
+| capacity_planning | 2 | 2025-06-30, 2025-12-31 |
+| data_quality_governance | 2 | 2025-06-30, 2025-12-31 |
+| deal_diagnostics | 2 | 2025-06-30, 2025-11-30 |
+| forecast | 2 | 2025-08-15, 2025-11-14 |
+| marketing_attribution | 2 | 2025-06-30, 2025-12-31 |
+| mmm_incrementality | 2 | 2025-06-30, 2025-12-31 |
+| pricing_packaging_analytics | 2 | 2025-06-30, 2025-11-30 |
+| proxy_metric_health | 2 | 2025-06-30, 2025-12-31 |
+| rep_productivity | 2 | 2025-06-30, 2025-12-31 |
+| retention_expansion_cohort_analytics | 2 | 2025-06-30, 2025-12-31 |
+| scenario_planning | 3 | 2025-06-30, 2025-11-30, 2025-12-31 |
+| segment_migration_analysis | 1 | 2025-12-31 |
+| tam_icp_opportunity_sizing | 2 | 2025-06-30, 2025-12-31 |
+| territory_coverage_routing | 2 | 2025-06-30, 2025-12-31 |
+| variance_diagnostic_engine | 2 | 2025-11-30, 2025-12-31 |
+| weekly_executive_readout | 3 | 2025-06-30, 2025-11-30, 2025-12-31 |
+
+## Drift-monitor hook catalog -- reading counts
+26 hooks catalogued across 15 artifacts; 3 have zero persisted readings today.
+
+| Hook | Artifact | Rule family | Persisted metric(s) | Reading count |
+|---|---|---|---|---|
+| health_score_auc | account_health_score | model_calibration_accuracy_drift | `auc_holdout` | 1 |
+| segment_migration_firmographic_rescore_share | segment_migration_analysis | grounding_or_apparatus_integrity | `pct_firmographic_rescore_overall`, `pct_firmographic_rescore_smb_to_commercial`, `pct_firmographic_rescore_commercial_to_enterprise` | 1 |
+| marketing_mix_shift_tvd | marketing_attribution | grounding_or_apparatus_integrity | `first_to_last_mix_shift_tvd` | 2 |
+| marketing_channel_switch_share | marketing_attribution | grounding_or_apparatus_integrity | `channel_switch_share` | 2 |
+| marketing_measured_incremental_share_pooled | marketing_attribution | grounding_or_apparatus_integrity | `measured_incremental_share_pooled` | 2 |
+| forecast_ml_calibration_gap | forecast | model_calibration_accuracy_drift | `ml_calibration_gap` | 2 |
+| forecast_ml_auc_ratio_vs_leak_proof_baseline | forecast | model_calibration_accuracy_drift | `ml_auc_ratio_vs_leak_proof_baseline` | 2 |
+| capacity_empirical_ramp_ratio_pooled | capacity_planning | grounding_or_apparatus_integrity | `empirical_ramp_ratio_pooled` | 2 |
+| capacity_ramped_baseline_attainment_pooled | capacity_planning | grounding_or_apparatus_integrity | `ramped_baseline_attainment_pooled` | 2 |
+| dq_governance_metric_tree_edges_not_computable | data_quality_governance | grounding_or_apparatus_integrity | `metric_tree_edges_not_computable` | 2 |
+| dq_governance_not_independently_random_spot_checks | data_quality_governance | grounding_or_apparatus_integrity | *(none logged)* | 0 |
+| playbook_triggers_firing_counts | automated_playbook_triggers | firing_rate_or_reuse_integrity | `triggers_fired_ingestion_without_completion`, `triggers_fired_poc_pass_rate_below_threshold`, `triggers_fired_post_close_underutilization` | 3 |
+| deal_diagnostics_flag_firing_counts | deal_diagnostics | firing_rate_or_reuse_integrity | *(none logged)* | 0 |
+| deal_diagnostics_ml_auc | deal_diagnostics | model_calibration_accuracy_drift | `auc_holdout_out_of_time` | 2 |
+| deal_diagnostics_calibration_gap | deal_diagnostics | model_calibration_accuracy_drift | `calibration_gap` | 2 |
+| rep_productivity_cohort_recovery | rep_productivity | grounding_or_apparatus_integrity | *(none logged)* | 0 |
+| rep_productivity_flag_firing_counts | rep_productivity | firing_rate_or_reuse_integrity | `reps_flagged_volume_constrained`, `reps_flagged_volume_and_quality_constrained`, `reps_flagged_engagement_quality_constrained`, `reps_flagged_ramp_explained_on_par`, `reps_flagged_on_par` | 2 |
+| pricing_deal_size_drift | pricing_packaging_analytics | grounding_or_apparatus_integrity | `deal_size_pct_change_smb`, `deal_size_pct_change_commercial`, `deal_size_pct_change_enterprise` | 2 |
+| pricing_packaging_calibration | pricing_packaging_analytics | grounding_or_apparatus_integrity | `packaging_median_utilization_commercial`, `packaging_median_utilization_enterprise` | 2 |
+| tam_icp_non_vacuousness_floors | tam_icp_opportunity_sizing | grounding_or_apparatus_integrity | `tier_acv_separation_ratio_tier1_tier2`, `tier_acv_separation_ratio_tier2_tier3`, `entry_tier_explained_share`, `entry_tier_downgrade_anomaly_share` | 2 |
+| territory_coverage_index_whitespace | territory_coverage_routing | grounding_or_apparatus_integrity | `coverage_index_whitespace_apac`, `coverage_index_whitespace_emea`, `coverage_index_whitespace_latam`, `coverage_index_whitespace_na_east`, `coverage_index_whitespace_na_west` | 2 |
+| mmm_checks_passed | mmm_incrementality | grounding_or_apparatus_integrity | `checks_passed` | 2 |
+| mmm_vif_log_spend_with_trend | mmm_incrementality | grounding_or_apparatus_integrity | `vif_log_spend_with_trend` | 2 |
+| mmm_gap_vs_holdout | mmm_incrementality | grounding_or_apparatus_integrity | `gap_vs_holdout_paid`, `gap_vs_holdout_community` | 2 |
+| retention_cohort_annualized_logo_retention_benchmark | retention_expansion_cohort_analytics | grounding_or_apparatus_integrity | `implied_annual_logo_retention_smb`, `implied_annual_logo_retention_commercial`, `implied_annual_logo_retention_enterprise` | 2 |
+| scenario_planning_baseline_self_check | scenario_planning | firing_rate_or_reuse_integrity | `baseline_self_check_nodes_passed` | 3 |
+
+## Data-gap / investment-prioritization ranking
+Ranked cheapest-to-close first, then by live count of downstream tree nodes blocked.
+
+| Node | Layer | Tier | Blocks full Layer-1? | Nodes blocked |
+|---|---|---|---|---|
+| Pipeline generated (`pipeline_generated`) | 2 | A_already_computed_elsewhere_wiring_only | False | 4 |
+| Workflow chain under-utilization (`workflow_chain_underutilization`) | 2 | B_phase2_mart_exposure_only | False | 4 |
+| Renewal win rate (`renewal_win_rate`) | 2 | B_phase2_mart_exposure_only | False | 3 |
+| Discount rate vs. list (`discount_rate_vs_list`) | 3 | B_phase2_mart_exposure_only | False | 1 |
+| Deal-size trend within segment band (`deal_size_trend_within_band`) | 3 | B_phase2_mart_exposure_only | False | 1 |
+| Loss-reason mix (`loss_reason_mix`) | 3 | B_phase2_mart_exposure_only | False | 1 |
+| Stage-to-stage conversion (`stage_to_stage_conversion`) | 3 | B_phase2_mart_exposure_only | False | 1 |
+| POC pass rate (Enterprise) (`poc_pass_rate`) | 3 | B_phase2_mart_exposure_only | False | 1 |
+| Churn reason category (loud vs. silent) (`churn_reason_category`) | 2 | B_phase2_mart_exposure_only | False | 1 |
+| Overage realization (`overage_realization`) | 2 | B_phase2_mart_exposure_only | False | 1 |
+| Rep capacity / ramp mix (`rep_capacity_ramp_mix`) | 3 | B_phase2_mart_exposure_only | False | 1 |
+| Account health score (`account_health_score`) | 2 | C_phase4_code_or_design_fix | False | 5 |
+| Magic number (blended) (`magic_number`) | 1 | D_genuine_new_phase1_data | True | 5 |
+| Marketing-sales handoff quality (`marketing_sales_handoff_quality`) | 2 | D_genuine_new_phase1_data | False | 4 |
+| Brand & awareness (`brand_awareness`) | 2 | D_genuine_new_phase1_data | False | 4 |
+| Wallet share progression (`wallet_share_progression`) | 2 | D_genuine_new_phase1_data | False | 4 |
+| AM efficiency (blended) (`am_efficiency`) | 1 | D_genuine_new_phase1_data | True | 3 |
+| Time-to-first-integration / first successful run (`time_to_first_integration`) | 2 | D_genuine_new_phase1_data | False | 1 |
+| Quickstart/docs content engagement rate (`quickstart_docs_engagement_rate`) | 2 | D_genuine_new_phase1_data | False | 1 |
+| Cohort comparison (same account type, same period last cycle) (`cohort_comparison`) | 3 | D_genuine_new_phase1_data | False | 1 |
+| Account-specific baseline deviation (`account_specific_baseline_deviation`) | 3 | E_not_a_real_gap | False | 1 |
+
+## Validation-maturity summary (self-proposed vs. independently confirmed thresholds)
+1 artifact section(s) carry a threshold CONFIRMED by `analytics-model-validator`; 14 carry at least one threshold still PROPOSED, not yet confirmed.
+
+| Artifact section | PROPOSED mentions | CONFIRMED mentions |
+|---|---|---|
+| Segment/segmentation migration analysis | 0 | 1 |
+| Marketing attribution & channel mix | 1 | 0 |
+| Forecast (sales bottoms-up / ML / CRO overlay reconciliation) | 1 | 0 |
+| Variance-diagnostic engine | 1 | 0 |
+| Weekly executive readout | 1 | 0 |
+| Capacity planning | 1 | 0 |
+| Data quality / metric governance | 1 | 0 |
+| Automated playbook triggers | 3 | 0 |
+| Deal-level diagnostics | 1 | 0 |
+| Rep productivity & coaching diagnostics | 1 | 0 |
+| Pricing / packaging analytics | 2 | 0 |
+| TAM / ICP / opportunity-sizing model | 1 | 0 |
+| Territory / account coverage & routing | 1 | 0 |
+| MMM / incrementality-based measurement | 1 | 0 |
+| Retention / expansion cohort analytics | 1 | 0 |

@@ -526,6 +526,47 @@ models:
               arguments:
                 values: ['NA-East', 'NA-West', 'EMEA', 'APAC', 'LATAM']
 
+  # --- Scoring/testing infrastructure (generators/lead_scoring.py) ---
+
+  - name: stg_lead_scoring_history
+    description: >
+      One row per score_id -- one point-in-time scoring event on one lead.
+      A re-application of firmographics.py's compute_fit_score() to the
+      leads.csv population over time, not a new scoring methodology.
+    columns:
+      - name: score_id
+        tests: [not_null, unique]
+      - name: lead_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_leads')
+                field: lead_id
+      - name: model_version
+        description: >
+          lead_fit_v2_region_aware (from MODEL_CUTOVER_DATE, 2024-07-01) is
+          compute_fit_score() exactly, region term included;
+          lead_fit_v1_preregion is the identical employee-band/industry
+          coefficients with no region term computed at all -- no new
+          weights were invented for the earlier version.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['lead_fit_v1_preregion', 'lead_fit_v2_region_aware']
+      - name: predicted_segment
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: region_component
+        description: >
+          NULL wherever model_version = 'lead_fit_v1_preregion' -- that
+          model version never computed a region term at all. A real "not
+          computed" null, not a coincidental zero.
+
   - name: stg_rep_territory
     description: >
       One row per rep_id -- account-owning reps only (rep_type ISR/AE). SE
@@ -549,3 +590,106 @@ models:
           - accepted_values:
               arguments:
                 values: ['NA-East', 'NA-West', 'EMEA', 'APAC', 'LATAM']
+
+  # --- Experiments registry (generators/experiments.py) ---
+  # Catalogs the one real, already-running randomized experiment in this
+  # data -- the paid/community marketing holdout program
+  # (dim_campaign.is_holdout) -- rather than a fabricated one.
+
+  - name: stg_experiments_registry
+    description: >
+      One row per experiment_id -- a logged, randomized experiment (design,
+      population/treatment/control definitions, target + guardrail metrics,
+      a logged result once resolved).
+    columns:
+      - name: experiment_id
+        description: Primary key.
+        tests: [not_null, unique]
+      - name: experiment_name
+      - name: hypothesis
+      - name: population_definition
+      - name: treatment_definition
+      - name: control_definition
+      - name: assignment_mechanism
+      - name: cell_quarters
+        description: >
+          Semicolon-separated list of quarter labels (e.g. "2023Q3; 2024Q2;
+          2025Q1"), left as raw text -- splitting it into an array is
+          business logic that doesn't belong in staging.
+      - name: start_date
+      - name: end_date
+      - name: target_metric
+      - name: guardrail_metrics
+      - name: designed_effect_size
+      - name: status
+      - name: result_metric
+      - name: result_value
+      - name: result_se
+      - name: result_z
+      - name: result_significant
+      - name: result_as_of_date
+      - name: result_detail
+      - name: result_source
+
+  - name: stg_experiment_assignment
+    description: >
+      One row per lead_id assigned to an experiment (currently: one
+      experiment, so also one row per assignment_id). account_id is
+      populated only for converting leads, mirroring stg_leads.account_id's
+      nullability.
+    columns:
+      - name: assignment_id
+        description: Primary key.
+        tests: [not_null, unique]
+      - name: experiment_id
+        description: Foreign key to stg_experiments_registry.experiment_id.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_experiments_registry')
+                field: experiment_id
+      - name: lead_id
+        description: Foreign key to stg_leads.lead_id.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_leads')
+                field: lead_id
+      - name: account_id
+        description: >
+          Populated only for converting leads -- mirrors
+          fact_leads.account_id's nullability. Not missing data where null.
+      - name: company_id
+      - name: channel
+        description: >
+          Scoped to the two holdout-eligible sub-channels only (see
+          config.HOLDOUT_CHANNELS) -- not the full organic/paid/community
+          taxonomy, since organic has no suppressible holdout cell.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['paid', 'community']
+      - name: cell_quarter
+        description: A single quarter label (e.g. "2023Q3").
+      - name: first_touch_campaign_id
+        description: Foreign key to stg_campaigns.campaign_id.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_campaigns')
+                field: campaign_id
+      - name: arm
+        description: >
+          'treatment' or 'control' -- traces back to the real is_holdout
+          flag of the lead's real first-touch campaign, not an independent
+          random draw.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['treatment', 'control']
+      - name: assigned_date

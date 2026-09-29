@@ -1,0 +1,314 @@
+{
+  "as_of_date": "2025-12-31",
+  "summary": {
+    "checks_total": 3,
+    "checks_passed": 3,
+    "all_checks_pass": true,
+    "experiments_registered": 1,
+    "experiments_registry_complete": 1,
+    "reproduction_check_applicable": true,
+    "reproduces_marketing_attribution_result": true,
+    "recomputed_incremental_share_pooled": 0.6818607943674906,
+    "recomputed_z_stat": 4.428916586154637,
+    "abs_diff_incremental_share": 3.920563250936482e-05,
+    "abs_diff_z": 0.0010834138453628128,
+    "n_cells_total": 6,
+    "n_cells_resolved": 5,
+    "n_control_resolved": 1168,
+    "n_treatment_resolved": 4751,
+    "achieved_power_at_designed_effect": 0.9970080186936877,
+    "mde_at_80pct_power_incremental_share": 0.5146717009922096,
+    "adequately_powered": true,
+    "guardrails_total": 2,
+    "guardrails_passed": 2,
+    "synthetic_completeness_checks_total": 5,
+    "synthetic_completeness_checks_passed": 5
+  },
+  "evaluation": {
+    "experiment_id": "EXP-0001",
+    "as_of_date": "2025-12-31",
+    "evaluable": true,
+    "target_metric": "lead_to_pql_rate (resolved-population lead-to-conversion rate) -- the metric tree's Pipeline-generated leaf, scoped to leads whose channel-specific resolution horizon has elapsed as of the analysis date, same point-in-time-safe scoping analytics/marketing_attribution.py's build_lead_panel() applies throughout that module.",
+    "hypothesis": "Multi-touch attribution credit for the paid and community sub-channels overstates their true incremental contribution to inbound conversion, because attribution answers 'who gets credit for a conversion that happened' rather than 'which conversions would not have happened without this channel.' A randomized budget/touch holdout in selected channel-quarters will convert measurably worse than its treated peers, and the resulting incremental share will read below what first-touch or linear attribution implies for the same channels.",
+    "treatment_arm_value": "treatment",
+    "control_arm_value": "control",
+    "n_cells_total": 6,
+    "n_cells_resolved": 5,
+    "cell_results": [
+      {
+        "channel": "community",
+        "cell_quarter": "2023Q3",
+        "n_treatment": 137,
+        "k_treatment": 13,
+        "rate_treatment": 0.0948905109489051,
+        "n_control": 20,
+        "k_control": 0,
+        "rate_control": 0.0,
+        "absolute_lift_pp": 9.48905109489051,
+        "relative_lift": NaN,
+        "z_stat": 1.4384506624112634,
+        "p_value_two_sided": 0.1503062267163744,
+        "incremental_share": 1.0,
+        "incremental_share_se": NaN,
+        "significant_95pct": false,
+        "leads_open_treatment": 0,
+        "leads_open_control": 0,
+        "cell_fully_resolved": true
+      },
+      {
+        "channel": "community",
+        "cell_quarter": "2024Q2",
+        "n_treatment": 234,
+        "k_treatment": 20,
+        "rate_treatment": 0.08547008547008547,
+        "n_control": 41,
+        "k_control": 1,
+        "rate_control": 0.024390243902439025,
+        "absolute_lift_pp": 6.107984156764645,
+        "relative_lift": 2.5042735042735043,
+        "z_stat": 1.3584310512507773,
+        "p_value_two_sided": 0.1743269469421933,
+        "incremental_share": 0.7146341463414634,
+        "incremental_share_se": 0.2883941048870592,
+        "significant_95pct": false,
+        "leads_open_treatment": 0,
+        "leads_open_control": 0,
+        "cell_fully_resolved": true
+      },
+      {
+        "channel": "community",
+        "cell_quarter": "2025Q1",
+        "n_treatment": 164,
+        "k_treatment": 22,
+        "rate_treatment": 0.13414634146341464,
+        "n_control": 45,
+        "k_control": 2,
+        "rate_control": 0.044444444444444446,
+        "absolute_lift_pp": 8.970189701897018,
+        "relative_lift": 2.0182926829268295,
+        "z_stat": 1.671904499335653,
+        "p_value_two_sided": 0.09454315543170266,
+        "incremental_share": 0.6686868686868688,
+        "incremental_share_se": 0.2382541726245505,
+        "significant_95pct": false,
+        "leads_open_treatment": 111,
+        "leads_open_control": 26,
+        "cell_fully_resolved": false
+      },
+      {
+        "channel": "paid",
+        "cell_quarter": "2023Q3",
+        "n_treatment": 1095,
+        "k_treatment": 34,
+        "rate_treatment": 0.031050228310502283,
+        "n_control": 347,
+        "k_control": 4,
+        "rate_control": 0.011527377521613832,
+        "absolute_lift_pp": 1.9522850788888448,
+        "relative_lift": 1.693607305936073,
+        "z_stat": 1.9784373851732189,
+        "p_value_two_sided": 0.047879385741206315,
+        "incremental_share": 0.6287506357009662,
+        "incremental_share_se": 0.19490297393024453,
+        "significant_95pct": true,
+        "leads_open_treatment": 0,
+        "leads_open_control": 0,
+        "cell_fully_resolved": true
+      },
+      {
+        "channel": "paid",
+        "cell_quarter": "2024Q2",
+        "n_treatment": 1692,
+        "k_treatment": 55,
+        "rate_treatment": 0.03250591016548463,
+        "n_control": 413,
+        "k_control": 5,
+        "rate_control": 0.012106537530266344,
+        "absolute_lift_pp": 2.0399372635218285,
+        "relative_lift": 1.6849881796690305,
+        "z_stat": 2.2335505461999126,
+        "p_value_two_sided": 0.02551266096894067,
+        "incremental_share": 0.6275588817961699,
+        "incremental_share_se": 0.17276189984663368,
+        "significant_95pct": true,
+        "leads_open_treatment": 0,
+        "leads_open_control": 0,
+        "cell_fully_resolved": true
+      },
+      {
+        "channel": "paid",
+        "cell_quarter": "2025Q1",
+        "n_treatment": 1593,
+        "k_treatment": 57,
+        "rate_treatment": 0.035781544256120526,
+        "n_control": 347,
+        "k_control": 4,
+        "rate_control": 0.011527377521613832,
+        "absolute_lift_pp": 2.4254166734506692,
+        "relative_lift": 2.104048964218456,
+        "z_stat": 2.346019088722188,
+        "p_value_two_sided": 0.01897513563997766,
+        "incremental_share": 0.6778401334748976,
+        "incremental_share_se": 0.16553947951358775,
+        "significant_95pct": true,
+        "leads_open_treatment": 0,
+        "leads_open_control": 0,
+        "cell_fully_resolved": true
+      }
+    ],
+    "pooled_group_results": [
+      {
+        "channel": "community",
+        "scope": "pooled_group",
+        "n_treatment": 371,
+        "k_treatment": 33,
+        "rate_treatment": 0.0889487870619946,
+        "n_control": 61,
+        "k_control": 1,
+        "rate_control": 0.01639344262295082,
+        "absolute_lift_pp": 7.255534443904378,
+        "relative_lift": 4.42587601078167,
+        "z_stat": 1.9502135039626327,
+        "p_value_two_sided": 0.05115067692823527,
+        "incremental_share": 0.8156979632389468,
+        "incremental_share_se": 0.18533255289558948,
+        "significant_95pct": false
+      },
+      {
+        "channel": "paid",
+        "scope": "pooled_group",
+        "n_treatment": 4380,
+        "k_treatment": 146,
+        "rate_treatment": 0.03333333333333333,
+        "n_control": 1107,
+        "k_control": 13,
+        "rate_control": 0.011743450767841012,
+        "absolute_lift_pp": 2.158988256549232,
+        "relative_lift": 1.8384615384615381,
+        "z_stat": 3.826026340415665,
+        "p_value_two_sided": 0.00013022836139153782,
+        "incremental_share": 0.6476964769647696,
+        "incremental_share_se": 0.10127775888451684,
+        "significant_95pct": true
+      }
+    ],
+    "pooled_all": {
+      "channel": NaN,
+      "scope": "pooled_all",
+      "n_treatment": 4751,
+      "k_treatment": 179,
+      "rate_treatment": 0.03767627867817302,
+      "n_control": 1168,
+      "k_control": 14,
+      "rate_control": 0.011986301369863013,
+      "absolute_lift_pp": 2.5689977308310006,
+      "relative_lift": 2.1432781068647206,
+      "z_stat": 4.428916586154637,
+      "p_value_two_sided": 9.470764054553271e-06,
+      "incremental_share": 0.6818607943674906,
+      "incremental_share_se": 0.0876752154975219,
+      "significant_95pct": true
+    },
+    "power_context": {
+      "n_treatment_resolved": 4751,
+      "n_control_resolved": 1168,
+      "control_rate_observed": 0.011986301369863013,
+      "designed_effect_size": 0.65,
+      "implied_treatment_rate_at_design": 0.03424657534246575,
+      "achieved_power_at_designed_effect": 0.9970080186936877,
+      "mde_at_80pct_power": 0.012711004339216628,
+      "mde_implied_incremental_share": 0.5146717009922096,
+      "adequately_powered": true
+    },
+    "guardrails": [
+      {
+        "guardrail_metric": "resolved_control_cell_lead_volume",
+        "description": "QA plan Test D power floor -- an incrementality test on a handful of leads is not a test.",
+        "observed_value": 1168,
+        "threshold": ">= 300",
+        "passes": true
+      },
+      {
+        "guardrail_metric": "control_arm_crossover_rate",
+        "description": "A control-assigned lead that later picks up a non-holdout touch is no longer a clean control. Threshold is this artifact's own proposal (see methods doc) -- the registry row states 'stays low' without a numeric bar.",
+        "observed_value": 0.0105,
+        "threshold": "<= 0.05 (PROPOSED, not yet confirmed)",
+        "passes": true,
+        "detail": "13 of 1239 assigned-control leads picked up a non-holdout touch; 38 of 5026 assigned-treatment leads picked up a holdout touch (reported for completeness -- only the control-arm figure is gated, since crossover only threatens the control arm's cleanliness as a control)."
+      }
+    ],
+    "registry_published_result": {
+      "result_metric": "measured_incremental_share_pooled",
+      "result_value": 0.6819,
+      "result_se": 0.0877,
+      "result_z": 4.43,
+      "result_significant": true,
+      "result_as_of_date": "2025-12-31T00:00:00"
+    },
+    "recomputed_result": {
+      "measured_incremental_share_pooled": 0.6818607943674906,
+      "measured_incremental_share_se": 0.0876752154975219,
+      "measured_z_stat": 4.428916586154637
+    },
+    "reproduction_check": {
+      "applicable": true,
+      "abs_diff_incremental_share": 3.920563250936482e-05,
+      "abs_diff_z": 0.0010834138453628128,
+      "share_tolerance": 0.0002,
+      "z_tolerance": 0.02,
+      "reproduces_published_result": true
+    }
+  },
+  "registry_completeness": [
+    {
+      "experiment_id": "EXP-0001",
+      "missing_fields": [],
+      "arm_counts": {
+        "treatment": 5026,
+        "control": 1239
+      },
+      "is_complete": true
+    }
+  ],
+  "synthetic_completeness_test": {
+    "results": [
+      {
+        "scenario": "clean_synthetic_registration_passes",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": "Hand-built registration: every required field filled, a real two-armed population."
+      },
+      {
+        "scenario": "broken_synthetic_registration_flagged_incomplete",
+        "expected_pass": false,
+        "actual_pass": false,
+        "matches_expectation": true,
+        "detail": "missing_fields=['control_definition', 'guardrail_metrics', 'real_treatment_and_control_population']"
+      },
+      {
+        "scenario": "broken_flags_missing_control_definition",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": ""
+      },
+      {
+        "scenario": "broken_flags_missing_guardrail_metrics",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": ""
+      },
+      {
+        "scenario": "broken_flags_no_real_control_population",
+        "expected_pass": true,
+        "actual_pass": true,
+        "matches_expectation": true,
+        "detail": ""
+      }
+    ],
+    "all_pass": true,
+    "n_scenarios": 5
+  }
+}

@@ -169,3 +169,48 @@ models:
           so a holdout there would have no operational meaning. Enforced by
           tests/assert_holdout_only_on_suppressible_channels.sql.
         tests: [not_null]
+
+  - name: dim_experiment
+    description: >
+      Grain: one row per experiment_id. SHAPE: a dimension, not a fact --
+      same call dim_campaign already makes for this project's other
+      not-quite-typical "is this a dim or a fact" table. An experiment is a
+      durable, descriptive registry entry (hypothesis, population/treatment/
+      control definitions, target + guardrail metrics, a logged result once
+      resolved), not an event stream -- fact_experiment_assignment.
+      experiment_id is a foreign key into it, the same way
+      fact_campaign_engagement_events.campaign_id is a foreign key into
+      dim_campaign. Currently catalogs the one real, already-running
+      randomized experiment in this data -- the paid/community marketing
+      holdout program (dim_campaign.is_holdout) -- rather than a fabricated
+      one.
+    columns:
+      - name: experiment_id
+        description: Primary key.
+        tests: [not_null, unique]
+      - name: experiment_name
+      - name: hypothesis
+      - name: population_definition
+      - name: treatment_definition
+      - name: control_definition
+      - name: assignment_mechanism
+      - name: cell_quarters
+        description: >
+          Semicolon-separated list of quarter labels (e.g. "2023Q3; 2024Q2;
+          2025Q1"), passed through as raw text -- splitting it into an
+          array/table is left for a consumer that actually needs it, not
+          invented here.
+      - name: start_date
+      - name: end_date
+      - name: target_metric
+      - name: guardrail_metrics
+      - name: designed_effect_size
+      - name: status
+      - name: result_metric
+      - name: result_value
+      - name: result_se
+      - name: result_z
+      - name: result_significant
+      - name: result_as_of_date
+      - name: result_detail
+      - name: result_source
