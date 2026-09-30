@@ -1,0 +1,28 @@
+# Root environment: Phase 1 generators, the pytest suite, dbt (Phase 2) and
+# the analytics/ artifacts (Phase 4). Pinned to the versions the repo was
+# built and validated against on CPython 3.9.6; also installs on 3.10-3.12
+# (every pin below ships wheels there).
+#
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+#
+# Only direct imports and the dbt toolchain are pinned; transitive
+# dependencies (jinja2, protobuf, mashumaro, ...) resolve to whatever
+# dbt-core 1.10.23 allows.
+#
+# duckdb is pinned to 1.4.3 here but 1.5.5 in semantic/requirements.txt.
+# The database file is always WRITTEN by dbt under this environment's 1.4.3;
+# the semantic and dashboard virtualenvs only open it read-only, and a newer
+# DuckDB reads an older file. The reverse fails, so never run `dbt build`
+# from those virtualenvs.
+#
+# semantic/ and dashboard/ need Python >=3.10 (the MCP SDK) and keep their
+# own virtualenvs and requirements files; see their READMEs.
+
+numpy==2.0.2
+pandas==2.3.3
+scipy==1.13.1
+scikit-learn==1.6.1
+duckdb==1.4.3
+pytest==8.4.2
+dbt-core==1.10.23
+dbt-duckdb==1.10.0

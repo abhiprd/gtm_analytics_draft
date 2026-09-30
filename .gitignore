@@ -13,6 +13,9 @@ logs/
 # DuckDB
 *.duckdb
 
+# Orchestration run manifests and per-node logs (wall-clock timestamps, per-machine paths)
+pipeline/runs/
+
 # Node
 node_modules/
 

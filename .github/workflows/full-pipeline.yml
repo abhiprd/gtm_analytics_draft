@@ -1,0 +1,74 @@
+name: full-pipeline
+
+# The whole DAG: every analytics artifact refreshed against a fresh dbt
+# build, plus the semantic-layer and dashboard smoke checks, which need the
+# Python 3.12 virtualenvs. Runs weekly and on demand. Optionally rebuilds
+# the raw data from the generators first (regenerated files are compared to
+# the tracked ones and the job fails if they differ).
+#
+# Weekly cadence matches the intended operating cadence of the weekly
+# readout and the playbook triggers (pipeline/freshness_contract.json).
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      rebuild_data:
+        description: "Regenerate data/raw from the generators and require it to match the tracked files"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  full:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # Both interpreters are installed: 3.9 runs the pipeline, generators,
+      # dbt and analytics; 3.12 builds the two virtualenvs.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: |
+            3.9
+            3.12
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            semantic/requirements.txt
+            dashboard/requirements.txt
+
+      - name: Install root dependencies (Python 3.9)
+        run: python3.9 -m pip install -r requirements.txt
+
+      - name: Build the semantic and dashboard virtualenvs (Python 3.12)
+        run: |
+          python3.12 -m venv semantic/.venv
+          semantic/.venv/bin/pip install -r semantic/requirements.txt
+          python3.12 -m venv dashboard/.venv
+          dashboard/.venv/bin/pip install -r dashboard/requirements.txt
+
+      - name: Full pipeline
+        run: |
+          flags="--strict"
+          if [ "${{ inputs.rebuild_data }}" = "true" ]; then flags="$flags --with-generators"; fi
+          python3.9 -m pipeline run $flags
+
+      # Only meaningful after a rebuild: the generators are seeded, so the
+      # regenerated CSVs must be byte-identical to the tracked ones.
+      - name: Regenerated raw data matches the tracked files
+        if: ${{ inputs.rebuild_data }}
+        run: git diff --exit-code --stat -- data/raw
+
+      - name: Upload run manifest and node logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-run
+          path: pipeline/runs/
+          if-no-files-found: ignore
+          retention-days: 30
