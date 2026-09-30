@@ -5,18 +5,15 @@ generators.run_batch7 have produced data/raw/{market_universe,leads}.csv):
 
     python3 -m generators.run_batch11
 
-Uses a seed offset from the prior batches' (config.SEED + 10000) so this
-batch is independently reproducible without depending on any prior batch
-having just run in the same process -- it reads market_universe.csv and
-leads.csv's *output CSVs*, not their in-memory state, same pattern as
-run_batch2.py through run_batch9.py.
+Uses its own seed offset (config.SEED + 10000) so this batch is
+independently reproducible without depending on any prior batch having just
+run in the same process -- it reads market_universe.csv and leads.csv's
+*output CSVs*, not their in-memory state, same pattern as run_batch2.py
+through run_batch9.py.
 
-Batch number note: this was originally staged as run_batch10.py. A sibling
-batch built concurrently on this branch claimed batch 10 first for
-experiments_registry/experiment_assignment (generators/experiments.py) --
-this batch was renumbered to the next free slot rather than overwriting
-that work, per this project's established concurrent-batch etiquette (each
-batch adds its own entries/files rather than contesting a shared name).
+Depends on run_foundation (market_universe.csv) and run_batch7 (leads.csv);
+it does not read or depend on run_batch12. Batch numbering runs 9, 11, 12;
+there is no batch 10.
 
 Fills the data gap Wave 7's "Lead/segmentation scoring -- model validation &
 drift detection" artifact (build spec Section 8, item #11) is blocked on --

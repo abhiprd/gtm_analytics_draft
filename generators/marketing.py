@@ -12,7 +12,7 @@ channel here is the same 3-value taxonomy already on accounts.channel
 (inbound_marketing / outbound_sdr / self_serve), not the finer organic/
 paid/community sub-channel split the design brief's "Pipeline generated"
 Layer 2 node describes -- that finer split needs leads/campaigns data this
-batch doesn't produce, same deferral logic as config.py notes for rep cost.
+batch doesn't produce, same deferral logic as the rest of this batch.
 No geo/segment breakdown either -- Wave 1's Efficiency-pillar metrics only
 need CAC by channel, not by channel x region, so that dimension is left for
 whichever later artifact (territory/channel-mix analytics) actually needs it.

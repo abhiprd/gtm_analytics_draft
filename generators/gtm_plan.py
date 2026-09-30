@@ -176,9 +176,9 @@ PLAN_ENTRY_RAMP_FIRST_MONTH_FRACTION = 0.10
 # modelling tension, not resolved.
 
 # Fully-loaded annual AM cost, for the AM-efficiency denominator. Own
-# resolved decision -- no comp or cost data exists anywhere in the raw
-# sources (the same gap mart_efficiency flags when it leaves am_cost and
-# magic_number null), so a plan for this metric has to assume one.
+# resolved decision, set top-down and deliberately independent of
+# users.csv's realized fully_loaded_annual_cost_usd: a plan that read the
+# realized cost it is compared against would make the variance circular.
 PLAN_AM_FULLY_LOADED_COST_ANNUAL = 180_000
 
 # Expansion share of base used by the AM-efficiency numerator ONLY. This is

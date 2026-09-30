@@ -15,11 +15,12 @@ in-memory state, same pattern as run_batch2.py.
 
 Unblocks the account health score (support_tickets, am_activity) and part
 of the Efficiency pillar (marketing_spend_by_channel_month, for Consumption
-Payback's CAC-by-channel line). Still open after this batch: rep cost/comp
-data, needed for Magic Number and AM Efficiency's S&M/AM cost inputs, and
-the finer organic/paid/community channel split leads/campaigns data would
-give the Growth pillar's "Pipeline generated" Layer 2 node -- both flagged
-in config.py's comments rather than silently assumed away.
+Payback's CAC-by-channel line). Still open after this batch: the finer
+organic/paid/community channel split leads/campaigns data would give the
+Growth pillar's "Pipeline generated" Layer 2 node -- flagged in config.py's
+comments rather than silently assumed away. Rep cost/comp (Magic Number and
+AM Efficiency's S&M/AM cost inputs) is carried on users.csv by
+generators/reps.py, not by this batch.
 """
 import os
 

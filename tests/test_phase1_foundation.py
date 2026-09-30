@@ -138,6 +138,80 @@ class TestDistributionalRealism:
 
 
 # =====================================================================
+# Rep compensation (QA plan, "Rep compensation and fully-loaded cost"):
+# annual_ote_usd / fully_loaded_annual_cost_usd on users.csv
+# =====================================================================
+
+class TestRepCompensation:
+    def test_comp_columns_present_and_positive(self, users):
+        assert {"annual_ote_usd", "fully_loaded_annual_cost_usd"} <= set(users.columns)
+        assert users["annual_ote_usd"].notna().all() and (users["annual_ote_usd"] > 0).all()
+        assert users["fully_loaded_annual_cost_usd"].notna().all()
+
+    def test_ote_inside_rep_type_band(self, users):
+        from generators import config
+        for rep_type, (lo, hi) in config.REP_OTE_BAND.items():
+            ote = users.loc[users["rep_type"] == rep_type, "annual_ote_usd"]
+            assert len(ote) > 0 and ote.between(lo, hi).all(), rep_type
+
+    def test_fully_loaded_cost_is_ote_times_documented_loading(self, users):
+        from generators import config
+        load = 1 + config.REP_LOADING_BENEFITS_TAX + config.REP_LOADING_MANAGEMENT_OPS \
+            + users["rep_type"].map(config.REP_LOADING_TOOLING_TE)
+        assert ((users["fully_loaded_annual_cost_usd"] - users["annual_ote_usd"] * load).abs() <= 1.0).all()
+
+    def test_role_ordering_reflects_real_comp_structure(self, users):
+        mean = users.groupby("rep_type")["annual_ote_usd"].mean()
+        assert mean["AE"] > mean["SE"] > mean["ISR"]
+        assert mean["AM-Enterprise"] > mean["AM-Commercial"]
+        assert mean["AE"] > mean["AM-Enterprise"]
+
+    def test_ote_is_a_function_of_seniority_not_independent_noise(self, users):
+        """Within a rep_type, OTE rises with tenure (the band-position driver).
+        Pooled Spearman across the roles that have tenure spread must be
+        clearly positive; a column drawn independently of tenure would sit
+        near zero."""
+        from generators import config
+        u = users.copy()
+        u["tenure_years"] = (pd.Timestamp(config.SIM_END) - pd.to_datetime(u["hire_date"])).dt.days / 365.25
+        u["ote_position"] = u.groupby("rep_type")["annual_ote_usd"].transform(
+            lambda s: (s - s.mean()) / s.std(ddof=0))
+        rho = u["tenure_years"].rank().corr(u["ote_position"].rank())
+        assert rho > 0.4, rho
+
+    def test_am_ote_rises_with_book_size(self, users):
+        am = users[users["rep_type"] == "AM-Enterprise"]
+        assert am["book_size"].corr(am["annual_ote_usd"], method="spearman") > 0
+
+    def test_comp_uses_independent_rng_stream(self):
+        """Adding compensation must not consume a single draw from the shared
+        generator: the state after generate_reps is identical whether or not
+        _generate_rep_compensation runs."""
+        import numpy as np
+        from generators import reps as reps_mod
+
+        def next_draw(patch_comp):
+            rng = np.random.default_rng(42)
+            original = reps_mod._generate_rep_compensation
+            if patch_comp:
+                reps_mod._generate_rep_compensation = lambda users_df, quota_df: users_df
+            try:
+                reps_mod.generate_reps(rng, 5, 10)
+            finally:
+                reps_mod._generate_rep_compensation = original
+            return rng.random()
+
+        assert next_draw(False) == next_draw(True)
+
+    def test_comp_generation_is_deterministic(self):
+        import numpy as np
+        from generators import reps as reps_mod
+        a = reps_mod.generate_reps(np.random.default_rng(42), 5, 10)[0]
+        b = reps_mod.generate_reps(np.random.default_rng(42), 5, 10)[0]
+        pd.testing.assert_frame_equal(a, b)
+
+
+# =====================================================================
 # E. Edge-case existence (QA plan Test E, the checks applicable pre-usage/
 # billing)
 # =====================================================================

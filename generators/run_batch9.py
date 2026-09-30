@@ -1,16 +1,18 @@
 """Orchestrator for the ninth Phase 1 generator batch: the territory
 dimension (company_territory.csv, rep_territory.csv).
 
-Run from the repo root (after generators.run_foundation and
-generators.run_batch2 have produced data/raw/{market_universe,users}.csv):
+Run from the repo root (after generators.run_foundation has produced
+data/raw/{market_universe,users}.csv):
 
     python3 -m generators.run_batch9
 
+Depends on run_foundation only; it does not read any batch 2 output.
+
 Uses a seed offset from the prior batches' (config.SEED + 8000) so this
 batch is independently reproducible without depending on any prior batch
-having just run in the same process -- it reads run_foundation's and
-run_batch2's *output CSVs*, not their in-memory state, same pattern as
-run_batch2.py through run_batch8.py.
+having just run in the same process -- it reads run_foundation's *output
+CSVs*, not their in-memory state, same pattern as run_batch2.py through
+run_batch8.py.
 
 Fills the data gap Wave 5's "Territory / account coverage & routing" (build
 spec Section 8, item #21) is blocked on -- the same situation Wave 2 was in
