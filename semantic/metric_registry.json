@@ -1,6 +1,6 @@
 {
-  "content_sha256": "b3abb5aa9356f0ba8625dfb40f09bd8bca81d939209c689c84e213e040d13324",
-  "generated_at": "2026-09-30T06:22:10.345602+00:00",
+  "content_sha256": "9f5437278bcaab59031be284c56c9fe36299a28f517273db7fdad589af1d074d",
+  "generated_at": "2026-09-30T07:16:52.915827+00:00",
   "metric_order": [
     "new_logo_consumption_revenue",
     "pipeline_generated",
@@ -181,7 +181,7 @@
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "NULL for every row -- no AM comp data in the raw sources.",
+      "gap_note": "Fully-loaded cost (OTE x loading factor, accrued from hire to departure) of the segment's AM-Commercial / AM-Enterprise reps. A real 0 for SMB, which has no AM.",
       "key": "am_cost_by_segment",
       "layer": 2,
       "name": "AM cost by segment (comp, ramp status, book size)",
@@ -192,7 +192,7 @@
       "parent": "am_efficiency",
       "pillar": "Efficiency",
       "query": {
-        "aggregation": "avg",
+        "aggregation": "sum",
         "column": "am_cost"
       },
       "queryable_dimensions": [
@@ -216,7 +216,7 @@
       "detail": [],
       "formula": "Expansion consumption revenue \u00f7 AM cost",
       "formula_note": "(numerator covered under Growth; AM cost expanded below)",
-      "gap_note": "NULL for every row -- same raw-data gap as magic_number (no AM comp data).",
+      "gap_note": "Ratio of summed monthly expansion MRR movement (am_expansion_arr / 12) to summed AM cost, over rows where an AM exists. SMB has no AM, so it returns NULL by design rather than a gap. Month grain is seasonal; use grain=year for a stable read.",
       "key": "am_efficiency",
       "layer": 1,
       "name": "AM efficiency",
@@ -227,8 +227,9 @@
       "parent": null,
       "pillar": "Efficiency",
       "query": {
-        "aggregation": "avg",
-        "column": "am_efficiency"
+        "aggregation": "ratio",
+        "denominator": "am_cost",
+        "numerator": "case when am_cost > 0 then am_expansion_arr / 12.0 end"
       },
       "queryable_dimensions": [
         "segment"
@@ -551,7 +552,7 @@
       ],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No mart_* table exposes leads, campaign touches, or PQL signals -- fact_leads and fact_campaign_engagement_events exist but no mart_* rollup surfaces the organic/paid/community pipeline breakdown this leaf needs.",
+      "gap_note": "Computed and validated by analytics/marketing_attribution.py from fact_leads and fact_campaign_engagement_events (the variance-diagnostic engine reads that computation), but it rests on point-in-time lead-resolution logic rather than a SQL aggregation over a mart_* table, and no mart_* rollup of it exists, so query_metric cannot serve it. Company-wide only: no segment cut.",
       "key": "community_events",
       "layer": 3,
       "name": "Community/events",
@@ -652,7 +653,7 @@
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No rep-cost/comp data exists anywhere in the raw sources, so the cost denominator this leaf needs is undefined.",
+      "gap_note": "Cost per channel activity (cost/MQL, cost/SDR meeting) needs channel spend joined to per-channel lead and meeting counts. The cost side exists (mart_efficiency.sm_cost), and fact_leads / fact_sales_activities exist, but no mart_* table joins channel cost to those counts.",
       "key": "cost_per_channel_activity",
       "layer": 3,
       "name": "Cost per channel activity (cost/MQL, cost/SDR meeting)",
@@ -968,7 +969,7 @@
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No mart_* table exposes leads, campaign touches, or PQL signals -- fact_leads and fact_campaign_engagement_events exist but no mart_* rollup surfaces the organic/paid/community pipeline breakdown this leaf needs.",
+      "gap_note": "Needs lead status history (a lead returning to nurture and re-qualifying). fact_leads has one row per lead with no status changes, and fact_lead_scoring_history's re-scores are not a re-qualification event.",
       "key": "lead_recycling_nurture_re_qualification_rate",
       "layer": 3,
       "name": "Lead recycling / nurture re-qualification rate",
@@ -1085,7 +1086,7 @@
       "cross_reference": false,
       "detail": [],
       "formula": "Cumulative margin-adjusted revenue over a modeled retention-weighted horizon, by segment \u00d7 acquisition channel",
-      "formula_note": "\u2014 5-year horizon, flat 10% annual discount rate, same ~80% gross margin assumption as Consumption payback (reused, not re-derived). Built from a retention-curve input (GRR/logo retention by segment, extended forward past the observed window \u2014 `retention_cohorts.py` already tested acquisition channel as a retention driver and found no comparable differentiation, so this node's channel split is expected to carry signal mainly through CAC and segment-mix differences by channel, not through differential retention; state that plainly rather than imply an open channel-retention question this project has already checked), an expansion-trajectory input (wallet share progression and overage realization \u2014 same Growth-lineage drivers Expansion already uses, referenced not duplicated), and the LTV : CAC ratio by channel as the decision-grade output, which inherits Consumption payback's existing `level_comparability: caveated` status \u2014 CAC here is marketing-spend-only (no sales headcount cost), the same fully-loaded-cost gap that already caveats payback and leaves Magic Number/AM efficiency structurally NULL. Don't present this ratio as more trustworthy than the payback figure it extends; it closes when rep cost lands, not before.",
+      "formula_note": "\u2014 5-year horizon, flat 10% annual discount rate, same ~80% gross margin assumption as Consumption payback (reused, not re-derived). Built from a retention-curve input (GRR/logo retention by segment, extended forward past the observed window \u2014 `retention_cohorts.py` already tested acquisition channel as a retention driver and found no comparable differentiation, so this node's channel split is expected to carry signal mainly through CAC and segment-mix differences by channel, not through differential retention; state that plainly rather than imply an open channel-retention question this project has already checked), an expansion-trajectory input (wallet share progression and overage realization \u2014 same Growth-lineage drivers Expansion already uses, referenced not duplicated), and the LTV : CAC ratio by channel as the decision-grade output, which inherits Consumption payback's existing `level_comparability: caveated` status \u2014 CAC here is marketing-spend-only (no sales headcount cost), the same fully-loaded-cost gap that already caveats payback (Magic Number and AM efficiency, which read the rep fully-loaded cost directly, are computed). Don't present this ratio as more trustworthy than the payback figure it extends; it closes when Consumption payback's CAC carries rep fully-loaded cost.",
       "gap_note": "Not registered as computable in semantic/build_registry.py's _SOURCE_MART_MAP -- no mart_* table has been identified for this leaf yet.",
       "key": "ltv_by_segment_acquisition_channel",
       "layer": 2,
@@ -1115,7 +1116,7 @@
       "detail": [],
       "formula": "Net new ARR \u00f7 prior-period S&M cost",
       "formula_note": "(numerator covered under Growth; S&M cost expanded below)",
-      "gap_note": "NULL for every row -- no rep-cost/comp data exists anywhere in the raw sources, so mart_efficiency leaves the S&M-cost denominator (and this ratio) NULL by design, not an execution bug.",
+      "gap_note": "Ratio of summed net new ARR to summed PRIOR-period S&M cost, over rows where a prior-period cost exists (first month: 2023-02). At month grain a single month is noisy and can be negative (net new ARR carries the raw data's Q4 seasonality); use grain=year for a stable read. SMB carries no rep cost, so its ratio reflects program spend only and is not comparable to Commercial/Enterprise. S&M cost is the tree's three-part definition (rep fully-loaded cost + marketing spend); marketing-team headcount is not in the raw data, so the ratio is a ceiling.",
       "key": "magic_number",
       "layer": 1,
       "name": "Magic number",
@@ -1126,8 +1127,9 @@
       "parent": null,
       "pillar": "Efficiency",
       "query": {
-        "aggregation": "avg",
-        "column": "magic_number"
+        "aggregation": "ratio",
+        "denominator": "magic_number_sm_cost",
+        "numerator": "case when magic_number_sm_cost is not null then net_new_arr end"
       },
       "queryable_dimensions": [
         "segment"
@@ -1151,7 +1153,7 @@
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No mart_* table exposes leads, campaign touches, or PQL signals -- fact_leads and fact_campaign_engagement_events exist but no mart_* rollup surfaces the organic/paid/community pipeline breakdown this leaf needs.",
+      "gap_note": "No MQL or SAL lifecycle stage exists in the lead funnel: fact_leads carries ids, channel, created_date, converted_date, is_converted, lead_score and days_to_conversion, and the raw leads source has no stage or status field. Leads and campaign touches measure conversion to signup, not the marketing-to-sales handoff.",
       "key": "marketing_sales_handoff_quality",
       "layer": 2,
       "name": "Marketing\u2013sales handoff quality",
@@ -1173,13 +1175,13 @@
         "channel"
       ],
       "children": [],
-      "computability": "not_computable",
-      "computable": false,
+      "computability": "partial",
+      "computable": true,
       "cross_reference": false,
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "fact_marketing_spend exists but no mart_* table exposes spend by channel.",
+      "gap_note": "mart_efficiency exposes channel spend summed over channels and attributed to segment (by each segment's share of the channel-month's new accounts) -- the tree's per-channel split is not exposed by any mart_* table, so `channel` is listed in allowed_dimensions per the tree but is NOT in queryable_dimensions.",
       "key": "marketing_spend_allocation_by_channel",
       "layer": 3,
       "name": "Marketing spend allocation by channel",
@@ -1189,10 +1191,15 @@
       "owner": null,
       "parent": "s_m_cost",
       "pillar": "Efficiency",
-      "query": null,
-      "queryable_dimensions": [],
+      "query": {
+        "aggregation": "sum",
+        "column": "marketing_spend_allocated"
+      },
+      "queryable_dimensions": [
+        "segment"
+      ],
       "scope_note": null,
-      "source_mart": null
+      "source_mart": "mart_efficiency"
     },
     "mid_chain_workflow_abandonment": {
       "additive": true,
@@ -1233,7 +1240,7 @@
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No mart_* table exposes leads, campaign touches, or PQL signals -- fact_leads and fact_campaign_engagement_events exist but no mart_* rollup surfaces the organic/paid/community pipeline breakdown this leaf needs.",
+      "gap_note": "Needs a per-lead MQL timestamp and the first sales touch on that lead. Neither exists: fact_sales_activities is keyed to opportunity_id with no lead_id, and the only lifecycle timestamp on a lead is the signup (converted_date). days_to_conversion is lead-to-signup time, not time-to-first-sales-touch.",
       "key": "mql_response_sla",
       "layer": 3,
       "name": "MQL response SLA (time to first sales touch)",
@@ -1260,7 +1267,7 @@
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No mart_* table exposes leads, campaign touches, or PQL signals -- fact_leads and fact_campaign_engagement_events exist but no mart_* rollup surfaces the organic/paid/community pipeline breakdown this leaf needs.",
+      "gap_note": "Needs an MQL and SAL stage, or an accept/reject disposition, per lead. fact_leads records only convert vs. not, which is the lead-to-PQL rate inside Pipeline generated.",
       "key": "mql_sal_acceptance_rate",
       "layer": 3,
       "name": "MQL \u2192 SAL acceptance rate",
@@ -1435,7 +1442,7 @@
       ],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No mart_* table exposes leads, campaign touches, or PQL signals -- fact_leads and fact_campaign_engagement_events exist but no mart_* rollup surfaces the organic/paid/community pipeline breakdown this leaf needs.",
+      "gap_note": "Computed and validated by analytics/marketing_attribution.py from fact_leads and fact_campaign_engagement_events (the variance-diagnostic engine reads that computation), but it rests on point-in-time lead-resolution logic rather than a SQL aggregation over a mart_* table, and no mart_* rollup of it exists, so query_metric cannot serve it. Company-wide only: no segment cut.",
       "key": "organic_content",
       "layer": 3,
       "name": "Organic/content",
@@ -1520,7 +1527,7 @@
       ],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No mart_* table exposes leads, campaign touches, or PQL signals -- fact_leads and fact_campaign_engagement_events exist but no mart_* rollup surfaces the organic/paid/community pipeline breakdown this leaf needs.",
+      "gap_note": "Computed and validated by analytics/marketing_attribution.py from fact_leads and fact_campaign_engagement_events (the variance-diagnostic engine reads that computation), but it rests on point-in-time lead-resolution logic rather than a SQL aggregation over a mart_* table, and no mart_* rollup of it exists, so query_metric cannot serve it. Company-wide only: no segment cut.",
       "key": "paid",
       "layer": 3,
       "name": "Paid",
@@ -1553,7 +1560,7 @@
       "detail": [],
       "formula": "\u03a3 over channels (channel volume \u00d7 channel-to-lead rate \u00d7 lead-to-PQL rate)",
       "formula_note": null,
-      "gap_note": "No mart_* table exposes leads, campaign touches, or PQL signals -- fact_leads and fact_campaign_engagement_events exist but no mart_* rollup surfaces the organic/paid/community pipeline breakdown this leaf needs.",
+      "gap_note": "Computed and validated by analytics/marketing_attribution.py from fact_leads and fact_campaign_engagement_events (the variance-diagnostic engine reads that computation), but it rests on point-in-time lead-resolution logic rather than a SQL aggregation over a mart_* table, and no mart_* rollup of it exists, so query_metric cannot serve it. Company-wide only: no segment cut.",
       "key": "pipeline_generated",
       "layer": 2,
       "name": "Pipeline generated",
@@ -1686,13 +1693,13 @@
         "segment"
       ],
       "children": [],
-      "computability": "not_computable",
-      "computable": false,
+      "computability": "full",
+      "computable": true,
       "cross_reference": false,
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No rep-cost/comp data exists anywhere in the raw sources, so the cost denominator this leaf needs is undefined.",
+      "gap_note": "All rep types of the segment (ISR, AE, SE, AM-Commercial, AM-Enterprise), accruing from hire date so ramping reps are included; mart_efficiency.rep_ramp_cost isolates the ramp-window share. A real 0 for SMB.",
       "key": "rep_fully_loaded_cost_incl_ramp",
       "layer": 3,
       "name": "Rep fully-loaded cost, incl. ramp",
@@ -1702,10 +1709,15 @@
       "owner": null,
       "parent": "s_m_cost",
       "pillar": "Efficiency",
-      "query": null,
-      "queryable_dimensions": [],
+      "query": {
+        "aggregation": "sum",
+        "column": "rep_fully_loaded_cost"
+      },
+      "queryable_dimensions": [
+        "segment"
+      ],
       "scope_note": null,
-      "source_mart": null
+      "source_mart": "mart_efficiency"
     },
     "s_m_cost": {
       "additive": true,
@@ -1717,13 +1729,13 @@
         "rep_fully_loaded_cost_incl_ramp",
         "marketing_spend_allocation_by_channel"
       ],
-      "computability": "not_computable",
-      "computable": false,
+      "computability": "full",
+      "computable": true,
       "cross_reference": false,
       "detail": [],
       "formula": null,
       "formula_note": null,
-      "gap_note": "No rep-cost/comp data exists anywhere in the raw sources, so the cost denominator this leaf needs is undefined.",
+      "gap_note": "Rep fully-loaded cost + marketing spend allocated to the segment. NULL before 2023-01, when marketing spend begins. Marketing-team headcount is not in the raw data, so this is a floor.",
       "key": "s_m_cost",
       "layer": 2,
       "name": "S&M cost",
@@ -1733,10 +1745,15 @@
       "owner": null,
       "parent": "magic_number",
       "pillar": "Efficiency",
-      "query": null,
-      "queryable_dimensions": [],
+      "query": {
+        "aggregation": "sum",
+        "column": "sm_cost"
+      },
+      "queryable_dimensions": [
+        "segment"
+      ],
       "scope_note": null,
-      "source_mart": null
+      "source_mart": "mart_efficiency"
     },
     "see_growth_contraction_churn_drivers": {
       "additive": true,
@@ -2188,7 +2205,7 @@
       "tagline": "consumption revenue growth"
     }
   },
-  "registry_version": 2,
+  "registry_version": 4,
   "source_tree_file": "docs/acme-corp-gtm-metric-tree.md",
-  "source_tree_sha256": "c254f9167cb6d7c79ac4ef7eae908834df3da5342a4d0edd34925370cd06df52"
+  "source_tree_sha256": "299f75581423dc7633f632cb8a5e4168648b8cbb961596ae230b644ee4a036ee"
 }

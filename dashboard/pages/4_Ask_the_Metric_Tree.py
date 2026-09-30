@@ -235,8 +235,8 @@ if question:
                 st.info("Query returned no rows for this filter/date range.")
             elif all_null:
                 # Every row resolved but every value is NULL -- a genuine
-                # structural gap (e.g. Magic Number: no rep-cost data
-                # anywhere in the raw sources), not "no data yet." Lead
+                # structural gap (e.g. AM efficiency for SMB, which has no
+                # AM to divide by), not "no data yet." Lead
                 # with the honest-gap message per Section 7, the same
                 # pattern Digest and Segment Efficiency both already use
                 # for this identical gap -- never plot an empty chart or a

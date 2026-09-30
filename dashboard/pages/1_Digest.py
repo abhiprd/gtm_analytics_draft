@@ -218,11 +218,10 @@ for pillar in ["growth", "efficiency", "durability"]:
             # + trailing-baseline comparison, both real engine-computed
             # fields already on the row) so a row of cards fills evenly
             # without padding any card with invented content (Section 5.2
-            # -- uneven card-fill bug). Not-computable cards (magic
-            # number, AM efficiency) legitimately stay shorter here --
-            # they have no trailing_baseline because there's truly
-            # nothing to show, which is the honest state, not a layout
-            # bug to paper over.
+            # -- uneven card-fill bug). Not-computable cards (Activation)
+            # legitimately stay shorter here -- they have no
+            # trailing_baseline because there's truly nothing to show,
+            # which is the honest state, not a layout bug to paper over.
             st.caption(row["unit_label"])
             baseline = row.get("trailing_baseline")
             # rows_df round-trips the JSON's `null` through pandas as NaN,

@@ -1,9 +1,9 @@
 """Segment efficiency -- Growth, Efficiency, and Durability by segment
 (SMB / Commercial / Enterprise), read straight from mart_growth_bridge,
-mart_efficiency, mart_durability, and mart_segment_migration. Known
-raw-data gaps (Magic Number, AM Efficiency -- no rep-cost/comp data
-anywhere in the raw sources) are shown as gaps, never backfilled with a
-fabricated number.
+mart_efficiency, mart_durability, and mart_segment_migration. A metric
+with no defined value for a segment/month (AM Efficiency for SMB, which has
+no AM; Magic Number before a prior-period S&M cost exists) is shown as a
+gap, never backfilled with a fabricated number.
 
 Audience: functional owner / analyst (dashboard-design-conventions.md
 Section 4.1's own named example for this page). Layer-2/3 detail is
@@ -322,10 +322,11 @@ with tab_efficiency:
 
             metric_card("Magic Number", "magic_number", row["magic_number"], None, "efficiency",
                         lambda v: num(v, 2), layer_note=LAYER_LABEL["magic_number"],
-                        gap_note="No rep-cost data" if pd.isna(row["magic_number"]) else None)
+                        gap_note="No prior-period S&M cost" if pd.isna(row["magic_number"]) else None)
             metric_card("AM Efficiency", "am_efficiency", row["am_efficiency"], None, "efficiency",
                         lambda v: num(v, 2), layer_note=LAYER_LABEL["am_efficiency"],
-                        gap_note="No AM-comp data" if pd.isna(row["am_efficiency"]) else None)
+                        gap_note=("No AM (SMB is no-touch)" if seg == "SMB" else "No AM cost yet")
+                        if pd.isna(row["am_efficiency"]) else None)
 
     st.caption(
         "Consumption payback is colored for favorable/unfavorable direction (fewer months = "
@@ -336,11 +337,12 @@ with tab_efficiency:
         "diffs against; see the report for this call."
     )
     st.caption(
-        "Magic Number and AM Efficiency are null by design, not a missing-data bug: no "
-        "rep-cost or AM-comp field exists anywhere in the raw sources, so the cost "
-        "denominator -- and therefore the ratio -- is undefined rather than fabricated. "
-        "mart_efficiency's artifact status is built_and_validated; this gap is a real data "
-        "limitation the artifact correctly reports as null, not an unbuilt component."
+        "Magic Number is net new ARR over the prior month's S&M cost (rep fully-loaded cost "
+        "including ramp, plus marketing spend); AM Efficiency is monthly expansion MRR over "
+        "AM cost. Both are single-month ratios, so they are seasonal and can go negative in a "
+        "month of net contraction -- the Digest's scorecard reads them on a trailing-twelve-month "
+        "basis. SMB has no reps, so its Magic Number reflects program spend only and its AM "
+        "Efficiency is undefined."
     )
 
     st.markdown("**Consumption payback by segment -- snapshot**")
