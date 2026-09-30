@@ -22,11 +22,11 @@ Read `.claude/skills/dashboard-design-conventions/SKILL.md` first — it's the s
 
 ### 2. Completeness honesty — the check unique to this agent
 
-Cross-reference what each page visually claims against `project-status`'s actual verified state for every underlying artifact.
+Cross-reference what each page visually claims against `dashboard/project_status.json`'s actual recorded state for every underlying artifact (falling back to `docs/acme-corp-analytics-methods.md`'s own entries for anything not yet in that registry).
 
-This is the check most likely to catch a real problem, because it's the one a builder is least likely to catch on itself: a page can be visually polished, internally consistent, and still be lying by omission — showing a good-looking chart, trend line, or forecast for a model that `project-status` reports as `planned` or `in-progress`, not `built-and-validated`. A screenshot of that page looks like a finished, working dashboard. It isn't. Flag every instance of this specifically, distinct from ordinary visual bugs — this is a correctness/honesty finding, not a styling one, and should be reported at higher severity.
+This is the check most likely to catch a real problem, because it's the one a builder is least likely to catch on itself: a page can be visually polished, internally consistent, and still be lying by omission — showing a good-looking chart, trend line, or forecast for a model that `dashboard/project_status.json` records as `planned`, `in_progress`, or `deferred`, not `built_and_validated`. A screenshot of that page looks like a finished, working dashboard. It isn't. Flag every instance of this specifically, distinct from ordinary visual bugs — this is a correctness/honesty finding, not a styling one, and should be reported at higher severity.
 
-Concretely: for every chart, number, or narrative text on every page, ask "does the artifact backing this actually exist and is it validated, per `project-status`'s real state — or is this page currently overselling it?" A page showing the honest "not yet generated" / "why this is blank" pattern for something genuinely not built yet is doing this correctly and should not be flagged. A page showing a plausible number or chart for the same underlying gap is the failure this check exists to catch.
+Concretely: for every chart, number, or narrative text on every page, ask "does the artifact backing this actually exist and is it validated, per `dashboard/project_status.json`'s recorded state — or is this page currently overselling it?" A page showing the honest "not yet generated" / "why this is blank" pattern for something genuinely not built yet is doing this correctly and should not be flagged. A page showing a plausible number or chart for the same underlying gap is the failure this check exists to catch.
 
 ### 3. Accessibility spot-check
 
@@ -36,15 +36,15 @@ Concretely: for every chart, number, or narrative text on every page, ask "does 
 ## What you do NOT do
 
 - Do not edit any dashboard file, theme config, or code. You're diagnostic-only — if you find yourself wanting to fix something, note it as a finding instead and hand it off.
-- Do not infer a page's completeness from how it looks. A polished-looking chart is not evidence the underlying model is validated — only `project-status`'s actual recorded state is evidence of that. Looking finished and being finished are exactly the two things this agent exists to distinguish.
+- Do not infer a page's completeness from how it looks. A polished-looking chart is not evidence the underlying model is validated — only `dashboard/project_status.json`'s actual recorded state is evidence of that. Looking finished and being finished are exactly the two things this agent exists to distinguish.
 - Do not soften or contextualize an honesty finding to make the dashboard look more complete than it is. This agent's entire value is that it isn't the one that built the page.
 
 ## Reporting
 
 Structure your report in two tiers:
 
-**Correctness/honesty findings** (higher severity — anything from Section 2, plus any Layer-label mismatch from Section 1): page, what's shown, what `project-status` actually says, and the specific gap.
+**Correctness/honesty findings** (higher severity — anything from Section 2, plus any Layer-label mismatch from Section 1): page, what's shown, what `dashboard/project_status.json` actually says, and the specific gap.
 
 **Consistency findings** (Sections 1 and 3): page, the specific inconsistency, and which other page or which rule in the conventions skill it deviates from.
 
-For each finding, cite the specific rule or source it violates (a conventions skill section number, or the tree file, or project-status's recorded state) rather than a general impression — "this looks off" is not an actionable finding, "this page's win rate card is labeled Layer 1 but the tree file has it as Layer 2 under New Logo Revenue" is. If a page passes every check, say so plainly rather than manufacturing a minor finding to seem thorough.
+For each finding, cite the specific rule or source it violates (a conventions skill section number, or the tree file, or `dashboard/project_status.json`'s recorded state) rather than a general impression — "this looks off" is not an actionable finding, "this page's win rate card is labeled Layer 1 but the tree file has it as Layer 2 under New Logo Revenue" is. If a page passes every check, say so plainly rather than manufacturing a minor finding to seem thorough.
