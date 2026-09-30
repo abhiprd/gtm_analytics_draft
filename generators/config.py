@@ -89,6 +89,70 @@ ENTERPRISE_BOOK_SIZE = 20
 # chance.
 EARLIEST_POSSIBLE_ACCOUNT_DATE = SIM_START - timedelta(days=365 * 3)
 
+# --- Rep compensation and fully-loaded cost (users.csv) ---------------------
+# Feeds the Efficiency pillar's cost side: "Rep fully-loaded cost, incl.
+# ramp" under S&M cost (Magic Number) and "AM cost by segment (comp, ramp
+# status, book size)" (AM Efficiency). Grounding table and rationale:
+# docs/acme-corp-phase1-data-qa-plan.md, "Rep compensation" section.
+#
+# Independent RNG stream. reps.py draws the OTE noise from a generator seeded
+# with [SEED, REP_COMP_SEED_OFFSET], never from the shared `rng` the
+# foundation batch threads through reps -> market_universe -> accounts.
+# Consuming even one draw from that shared stream would shift every column
+# generated after it.
+REP_COMP_SEED_OFFSET = 9_100
+
+# Annual OTE (base + variable at 100% of target), USD, by rep_type: the
+# (low, high) band a rep's individual OTE is drawn inside. Approximate US
+# SaaS comp-survey ranges (The Bridge Group SaaS AE/SDR reports, Pavilion and
+# Carta compensation summaries are the family of public sources these are
+# consistent with; they are reasoned estimates in that range, not a lookup of
+# exact published figures -- same caveat as the QA plan's benchmark table).
+# Segment is encoded by rep_type (ISR/AM-Commercial -> Commercial;
+# AE/SE/AM-Enterprise -> Enterprise), so a per-segment band is implicit.
+REP_OTE_BAND = {
+    "ISR": (105_000, 145_000),
+    "AE": (240_000, 340_000),
+    "SE": (170_000, 230_000),
+    "AM-Commercial": (95_000, 135_000),
+    "AM-Enterprise": (150_000, 210_000),
+}
+
+# Fully-loaded cost = OTE x (1 + payroll tax/benefits + tooling/T&E/
+# enablement + management/sales-ops allocation). Components, own resolved
+# decisions grounded in the ranges commonly used when SaaS finance teams
+# burden a quota-carrying rep:
+#   - employer payroll tax + benefits: 0.22 flat (employer FICA is 7.65% but
+#     capped by the Social Security wage base, so it shrinks as a share of
+#     high OTE; health/retirement/other benefits carry the rest).
+#   - tooling / T&E / enablement: role-specific -- field roles travel more,
+#     inside/AM roles less.
+#   - management + sales-ops allocation: 0.15 flat -- roughly one frontline
+#     manager per 6-8 reps plus a share of RevOps/enablement, spread over the
+#     team's OTE. No manager or ops headcount exists in the raw data, so the
+#     allocation is carried in the loading factor rather than as separate
+#     rows.
+REP_LOADING_BENEFITS_TAX = 0.22
+REP_LOADING_TOOLING_TE = {
+    "ISR": 0.06,
+    "AE": 0.12,
+    "SE": 0.10,
+    "AM-Commercial": 0.05,
+    "AM-Enterprise": 0.08,
+}
+REP_LOADING_MANAGEMENT_OPS = 0.15
+
+# OTE position inside its band = seniority (tenure at SIM_END, centred on
+# REP_OTE_TENURE_MIDPOINT_YEARS and saturating at +/-REP_OTE_TENURE_SPAN_YEARS)
+# and, for the roles that have one, scope (quota carried for ISR/AE; book size
+# for AMs), plus a small residual for offer-to-offer variance. Weights are the
+# share of the band's half-width each driver can move OTE by.
+REP_OTE_TENURE_MIDPOINT_YEARS = 3.0
+REP_OTE_TENURE_SPAN_YEARS = 3.0
+REP_OTE_SENIORITY_WEIGHT = 0.55
+REP_OTE_SCOPE_WEIGHT = 0.35
+REP_OTE_RESIDUAL_SIGMA = 0.03  # multiplicative, 1-sigma
+
 # --- Opportunities (batch 2) ---------------------------------------------
 # Win-rate targets, QA plan benchmark reference table: Commercial ~25-35%,
 # Enterprise ~20-30%. Picked near the middle of each range; lost-pipeline
@@ -264,9 +328,10 @@ SENTIMENT_SIGMA = 0.6
 # margin ~= payback months), since neither doc states CAC in dollars
 # directly. self_serve is product-led with near-zero paid acquisition cost;
 # outbound_sdr's channel spend here covers tooling/data enrichment only, NOT
-# rep headcount cost -- no rep-cost source exists yet, so outbound_sdr's true
-# CAC (and Magic Number / AM Efficiency generally) stay genuinely incomplete
-# after this batch. Flagged here rather than silently assumed away.
+# rep headcount cost, so this CAC is marketing-spend-only. Rep headcount cost
+# lives in users.csv (annual_ote_usd / fully_loaded_annual_cost_usd, see the
+# "Rep compensation" block above) and feeds Magic Number and AM Efficiency;
+# it is deliberately not folded into this per-channel CAC.
 TARGET_CAC_BY_CHANNEL = {"inbound_marketing": 1_400, "outbound_sdr": 600, "self_serve": 60}
 MARKETING_SPEND_NOISE_SIGMA = 0.15  # month-to-month noise around the target-CAC-implied spend -- own decision
 

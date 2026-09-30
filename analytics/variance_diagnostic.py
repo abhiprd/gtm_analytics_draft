@@ -2,8 +2,11 @@
 evaluation month (company-wide/blended, matching what the Layer-1
 scorecard displays); source marts: mart_gtm_plan (plan side),
 mart_growth_bridge / mart_efficiency / mart_durability (actuals side, all
-segment x month, blended here), and mart_account_health (Layer-2 evidence
-and the watchlist population).
+segment x month, blended here), mart_account_health (Layer-2 evidence
+and the watchlist population), and, for Pipeline generated and its channel
+legs, fact_leads / fact_campaign_engagement_events read through
+analytics/marketing_attribution.py's validated lead panel (never a second
+copy of that logic).
 
 WHAT THIS IS
 ------------
@@ -76,6 +79,7 @@ import duckdb
 import numpy as np
 import pandas as pd
 
+from . import marketing_attribution as ma
 from .model_performance import log_performance
 
 _DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "acme_gtm.duckdb")
@@ -134,9 +138,12 @@ _USAGE_DIP_WINDOW_MONTHS = 3
 # at conversion, immediately Closed Won... no Closed Lost record... SMB
 # has no win-rate concept to true up." Including SMB would pin blended
 # win rate near 1.0 and swamp avg initial commitment with 6,500 no-touch
-# conversions. Both legs of the New-logo decomposition use the same
+# conversions. Both of these legs of the New-logo decomposition use the same
 # population so the tree's multiplicative identity is not broken by
-# mixing scopes.
+# mixing scopes. Pipeline generated is deliberately NOT forced onto this
+# scope: it counts converted inbound leads company-wide (see
+# PIPELINE_GENERATED_SCOPE_NOTE), so it competes with these two legs in the
+# sibling ranking but is never multiplied with them.
 _REP_SOLD_SEGMENTS = ("Commercial", "Enterprise")
 
 # Segments mart_gtm_plan's consumption-payback anchor was blended over.
@@ -146,6 +153,11 @@ _REP_SOLD_SEGMENTS = ("Commercial", "Enterprise")
 # blended over the same two segments so plan and actual describe the same
 # population.
 _PAYBACK_BLEND_SEGMENTS = ("Commercial", "Enterprise")
+
+# Segments Magic number and AM efficiency are blended over: the ones with rep
+# cost and an AM (SMB is no-touch; the benchmark table marks it n/a for
+# magic number, and AM efficiency has no denominator there).
+_COST_BLEND_SEGMENTS = ("Commercial", "Enterprise")
 
 
 # =====================================================================
@@ -260,22 +272,63 @@ def _l1(key, label, pillar, favorable_direction, plan_comparability,
 
 
 def _child(key, label, parent_key, computability=NOT_COMPUTABLE, gap_note=None,
-           is_ranking_sibling=True, cross_reference_to=None):
+           is_ranking_sibling=True, cross_reference_to=None,
+           sibling_comparison_basis="relative_deviation"):
     parent = _TREE[parent_key]
     return _register(MetricNode(
         key=key, label=label, layer=parent.layer + 1, pillar=parent.pillar,
         parent_key=parent_key, computability=computability, gap_note=gap_note,
         is_ranking_sibling=is_ranking_sibling, cross_reference_to=cross_reference_to,
+        sibling_comparison_basis=sibling_comparison_basis,
     ))
 
 
-_NO_LEADS_DATA = (
-    "No mart_* table exposes leads, campaign touches or PQL signals -- "
-    "mart_growth_bridge's own header records that the organic/paid/community "
-    "pipeline breakdown was not built because that raw data does not exist. "
-    "A closed-new-business opportunity count is available but is a different "
-    "quantity (deals that closed, not pipeline generated), so it is not "
-    "substituted in as a proxy."
+# Pipeline generated is computed by analytics/marketing_attribution.py from
+# fact_leads / fact_campaign_engagement_events (its validated lead panel);
+# this engine reads that computation rather than re-deriving it. The scope
+# note travels with every drill-down that ranks the node, because its
+# population is not the one Win rate and Avg initial commitment use.
+PIPELINE_GENERATED_SCOPE_NOTE = (
+    "Pipeline generated is read from analytics/marketing_attribution.py as a monthly "
+    "flow: leads that converted to a PQL (this funnel's signup) in the month, by the "
+    "lead's sourcing sub-channel (organic / paid / community), company-wide. It "
+    "covers inbound-marketing-sourced accounts only, across all three segments (SMB "
+    "included), and is indexed by conversion month rather than lead-creation month so "
+    "the latest month is not right-censored. Win rate and Avg initial commitment are "
+    "measured on rep-sold Commercial/Enterprise opportunities, a different population "
+    "and unit, so this engine ranks Pipeline generated against its own trailing "
+    "baseline like any sibling but does not multiply the three legs into a New logo "
+    "figure (the governance module's New-logo product edge stays NOT_COMPUTABLE for "
+    "the same reason)."
+)
+_NO_MQL_SAL_LIFECYCLE = (
+    "No MQL or SAL lifecycle stage exists anywhere in the lead funnel: fact_leads "
+    "carries lead_id, account_id, company_id, channel, created_date, converted_date, "
+    "is_converted, lead_score and days_to_conversion, and the raw leads source has no "
+    "stage or status field either, so the marketing-to-sales handoff is not an "
+    "observable event. Leads and campaign touches are available (they feed Pipeline "
+    "generated) but measure conversion to signup, not handoff."
+)
+_NO_MQL_RESPONSE_SLA = (
+    "Needs a per-lead MQL timestamp and the timestamp of the first sales touch on that "
+    "lead. Neither exists: the only lifecycle timestamp on a lead is converted_date "
+    "(the signup), and fact_sales_activities is keyed to opportunity_id and contact_ref "
+    "with no lead_id, so a sales touch cannot be tied to the lead that sourced it "
+    "(lost new-business opportunities also carry no account_id). days_to_conversion is "
+    "lead-to-signup time, not time-to-first-sales-touch, and is not substituted."
+)
+_NO_MQL_SAL_ACCEPTANCE = (
+    "Needs an MQL and an SAL stage, or an accept/reject disposition, per lead. "
+    "fact_leads has one row per lead with a converted flag and no stage history or "
+    "disposition; the only outcome it records is convert vs. not, which is the "
+    "lead-to-PQL rate already inside Pipeline generated, not an MQL-to-SAL acceptance rate."
+)
+_NO_LEAD_RECYCLING_HISTORY = (
+    "Needs lead status history (a lead returning to nurture and re-qualifying). "
+    "fact_leads has one row per lead with a single created_date and no status changes; "
+    "fact_lead_scoring_history re-scores leads over time but records no recycling or "
+    "nurture disposition, so a re-score is not a re-qualification event and is not used "
+    "as a proxy."
 )
 _NO_OPPORTUNITY_MART = (
     "Needs opportunity-level detail (stage history, loss_reason, list_price, "
@@ -285,21 +338,37 @@ _NO_OPPORTUNITY_MART = (
     "(.claude/skills/analytics-engineering-conventions). Closing this is a "
     "Phase 2 mart change, not a Phase 4 workaround."
 )
-_NO_COST_DATA = (
-    "No rep-cost/comp data exists anywhere in the raw sources, so the "
-    "denominator is undefined -- mart_efficiency leaves magic_number and "
-    "am_efficiency NULL on purpose for the same reason."
+_NO_CHANNEL_ACTIVITY_MART = (
+    "Cost per channel activity (cost/MQL, cost/SDR meeting) needs channel "
+    "spend joined to per-channel lead and meeting counts. The rep and "
+    "marketing cost sides exist (mart_efficiency.sm_cost); leads "
+    "(fact_leads) and rep meetings (fact_sales_activities) exist too, but no "
+    "mart joins channel cost to those counts. A Phase 2 mart gap, not a "
+    "missing cost source."
+)
+_NO_UPSTREAM_EXPANSION_DRIVERS = (
+    "Defined by reference in the tree ('See Growth -- expansion revenue "
+    "drivers'): the drivers are Wallet share progression and Overage "
+    "realization, neither of which is computable from any mart (see their "
+    "own gap notes). AM cost, the other side of the ratio, is now a real "
+    "input, but this node is the Growth-side driver breakdown, so it stays "
+    "blocked on those upstream nodes."
 )
 
 # ---------------------------------------------------------------- Growth
 
 _l1("new_logo_consumption_revenue", "New logo consumption revenue", "growth",
     "higher", COMPARABLE)
+# Pipeline generated and its three channel legs are the tree's own sum of
+# channels, all in one unit (converted leads), so the legs are additive
+# components of the parent: compared by absolute deviation, the same basis
+# NRR/GRR/S&M cost use for the same reason. Computed by
+# analytics/marketing_attribution.py; see PIPELINE_GENERATED_SCOPE_NOTE.
 _child("pipeline_generated", "Pipeline generated", "new_logo_consumption_revenue",
-       NOT_COMPUTABLE, _NO_LEADS_DATA)
-_child("organic_content", "Organic/content", "pipeline_generated", NOT_COMPUTABLE, _NO_LEADS_DATA)
-_child("paid", "Paid", "pipeline_generated", NOT_COMPUTABLE, _NO_LEADS_DATA)
-_child("community_events", "Community/events", "pipeline_generated", NOT_COMPUTABLE, _NO_LEADS_DATA)
+       COMPUTABLE, sibling_comparison_basis="additive_share")
+_child("organic_content", "Organic/content", "pipeline_generated", COMPUTABLE)
+_child("paid", "Paid", "pipeline_generated", COMPUTABLE)
+_child("community_events", "Community/events", "pipeline_generated", COMPUTABLE)
 
 _child("win_rate", "Win rate", "new_logo_consumption_revenue", COMPUTABLE)
 _child("stage_to_stage_conversion", "Stage-to-stage conversion", "win_rate",
@@ -321,16 +390,16 @@ _child("deal_size_trend_within_band", "Deal-size trend within segment band",
 
 _child("marketing_sales_handoff_quality", "Marketing-sales handoff quality",
        "new_logo_consumption_revenue", NOT_COMPUTABLE,
-       "No leads/MQL/SAL data in any mart. Excluded from sibling ranking "
-       "regardless: the tree calls it 'a diagnostic overlay on the above "
-       "three, not a fourth multiplicative factor'.",
+       _NO_MQL_SAL_LIFECYCLE + " Excluded from sibling ranking regardless: the "
+       "tree calls it 'a diagnostic overlay on the above three, not a fourth "
+       "multiplicative factor'.",
        is_ranking_sibling=False)
 _child("mql_response_sla", "MQL response SLA", "marketing_sales_handoff_quality",
-       NOT_COMPUTABLE, _NO_LEADS_DATA)
+       NOT_COMPUTABLE, _NO_MQL_RESPONSE_SLA)
 _child("mql_to_sal_acceptance_rate", "MQL -> SAL acceptance rate",
-       "marketing_sales_handoff_quality", NOT_COMPUTABLE, _NO_LEADS_DATA)
+       "marketing_sales_handoff_quality", NOT_COMPUTABLE, _NO_MQL_SAL_ACCEPTANCE)
 _child("lead_recycling_rate", "Lead recycling / nurture re-qualification rate",
-       "marketing_sales_handoff_quality", NOT_COMPUTABLE, _NO_LEADS_DATA)
+       "marketing_sales_handoff_quality", NOT_COMPUTABLE, _NO_LEAD_RECYCLING_HISTORY)
 
 _child("brand_awareness", "Brand & awareness", "new_logo_consumption_revenue",
        NOT_COMPUTABLE,
@@ -473,23 +542,47 @@ _child("loud_vs_silent_churn_mix", "Loud vs. silent churn mix", "renewal_win_rat
 
 # ------------------------------------------------------------ Efficiency
 
-_l1("magic_number", "Magic number (blended)", "efficiency", "higher", NOT_COMPUTABLE,
-    computability=NOT_COMPUTABLE, gap_note=_NO_COST_DATA,
+_l1("magic_number", "Magic number (blended)", "efficiency", "higher", CAVEATED,
+    computability=COMPUTABLE,
     plan_comparability_note=(
-        "mart_gtm_plan carries a plan value (a top-down target does not need "
-        "cost data the way a computed ratio does), but mart_efficiency leaves "
-        "magic_number NULL by design. Variance from plan is therefore "
-        "STRUCTURALLY NOT COMPUTABLE -- a genuine data gap, not a bug. An "
-        "actual is never fabricated to close it."))
-_child("sm_cost", "S&M cost", "magic_number", NOT_COMPUTABLE, _NO_COST_DATA)
+        "Both sides exist and the variance IS computed, but the LEVELS are not "
+        "on the same footing and the readout must not present the gap as a "
+        "business finding on its own. (1) SCOPE OF S&M COST. mart_gtm_plan's "
+        "anchor is the QA plan's benchmark Magic Number band (Commercial and "
+        "Enterprise ~0.7-0.9), a figure for a fully scoped S&M line. The "
+        "actual's S&M cost is the metric tree's three-part definition: rep "
+        "fully-loaded cost (incl. ramp, with a management/ops allocation in the "
+        "loading factor) plus marketing program spend. Marketing-team "
+        "headcount, which the raw data does not carry, is outside it, so the "
+        "denominator is a floor and the actual a ceiling against the "
+        "benchmark. (2) BASIS. The actual is a trailing-twelve-month ratio of "
+        "net new ARR (new logo + expansion - contraction - churn, so it "
+        "includes usage-driven expansion) to the prior-month S&M cost over the "
+        "same twelve months, blended over Commercial and Enterprise only (SMB "
+        "carries no rep cost and is 'n/a' in the benchmark table), the same "
+        "population the plan blend uses. (3) TREND. Net new ARR compounds with "
+        "a revenue base growing ~88% a year while quota-carrying and AM "
+        "headcount is close to flat, so the actual climbs through the window "
+        "(roughly 0.9 to 2.5) against a plan that moves ~3% a year: the gap "
+        "widens with scale rather than tracking any one month. Read the sign, "
+        "the trend and the Layer-2 drill-down, not the level."))
+# S&M cost = rep fully-loaded cost + marketing spend, two additive USD
+# components of one identity, so its children are compared by absolute dollar
+# deviation (a small component's large % swing must not outrank the one that
+# actually moved the total) -- the same basis NRR/GRR use for the same reason.
+_child("sm_cost", "S&M cost", "magic_number", COMPUTABLE,
+       sibling_comparison_basis="additive_share")
 _child("cost_per_channel_activity", "Cost per channel activity", "sm_cost",
-       NOT_COMPUTABLE, _NO_COST_DATA)
-_child("rep_fully_loaded_cost", "Rep fully-loaded cost, incl. ramp", "sm_cost",
-       NOT_COMPUTABLE, _NO_COST_DATA)
+       NOT_COMPUTABLE, _NO_CHANNEL_ACTIVITY_MART)
+_child("rep_fully_loaded_cost", "Rep fully-loaded cost, incl. ramp", "sm_cost", COMPUTABLE)
 _child("marketing_spend_allocation_by_channel", "Marketing spend allocation by channel",
-       "sm_cost", NOT_COMPUTABLE,
-       "fact_marketing_spend exists but is a fact_* table; no mart exposes "
-       "spend by channel. Phase 2 mart gap.")
+       "sm_cost", PARTIAL,
+       "mart_efficiency.marketing_spend_allocated carries channel spend "
+       "attributed to segment (by each segment's share of the channel-month's "
+       "new accounts), summed over channels. The per-channel split the tree "
+       "names is not exposed by any mart_* table, so the leg is ranked in its "
+       "channel-summed form: enough to say marketing spend moved, not which "
+       "channel moved it.")
 
 _l1("consumption_payback", "Consumption payback (blended)", "efficiency", "lower", CAVEATED,
     plan_comparability_note=(
@@ -526,21 +619,31 @@ _child("am_touchpoint_volume", "AM touchpoint volume", "onboarding_cs_efficiency
 _child("automated_action_volume", "Automated Action volume delivered",
        "onboarding_cs_efficiency", COMPUTABLE)
 
-_l1("am_efficiency", "AM efficiency (blended)", "efficiency", "higher", NOT_COMPUTABLE,
-    computability=NOT_COMPUTABLE, gap_note=_NO_COST_DATA,
+_l1("am_efficiency", "AM efficiency (blended)", "efficiency", "higher", CAVEATED,
+    computability=COMPUTABLE,
     plan_comparability_note=(
-        "Same structural gap as magic number: mart_gtm_plan carries a plan "
-        "value, mart_efficiency leaves am_efficiency NULL because no AM comp "
-        "data exists. Variance from plan is not computable and no actual is "
-        "fabricated."))
+        "Both sides exist and the variance IS computed; three differences in "
+        "footing are stated rather than applied silently. (1) UNITS AND BASIS: "
+        "the tree defines the ratio as Expansion consumption revenue / AM cost; "
+        "both are read as monthly flows (monthly expansion MRR movement over "
+        "the same month's AM cost), the basis generators/gtm_plan.py's anchor "
+        "uses, and the actual is a trailing-twelve-month aggregate of them "
+        "because a single month carries the raw data's Q4 seasonality. (2) "
+        "POPULATION: the plan anchor's numerator is built on the company-wide "
+        "revenue base (SMB included; see generators/gtm_plan.py's KNOWN "
+        "DIVERGENCE note), while the actual is blended over Commercial and "
+        "Enterprise, the only segments with an AM, so the actual sits below a "
+        "like-for-like plan by roughly SMB's share of expansion. (3) SCOPE OF "
+        "EXPANSION: int_revenue_movements buckets any month-on-month usage "
+        "increase as expansion, the same gross-bucket definition that caveats "
+        "NRR/GRR. The actual rises through the window (roughly 0.8 to 2.6) "
+        "toward a plan that is nearly flat, so the negative gap narrows over "
+        "time. Read the sign, the trend and the Layer-2 drill-down, not the "
+        "level."))
 _child("expansion_revenue_drivers", "Expansion revenue drivers", "am_efficiency",
-       NOT_COMPUTABLE,
-       "Defined by reference in the tree ('See Growth -- expansion revenue "
-       "drivers'); with am_efficiency's own actual undefined there is nothing "
-       "to drill into here.",
+       NOT_COMPUTABLE, _NO_UPSTREAM_EXPANSION_DRIVERS,
        cross_reference_to="expansion_consumption_revenue")
-_child("am_cost_by_segment", "AM cost by segment", "am_efficiency",
-       NOT_COMPUTABLE, _NO_COST_DATA)
+_child("am_cost_by_segment", "AM cost by segment", "am_efficiency", COMPUTABLE)
 
 # ------------------------------------------------------------ Durability
 
@@ -806,9 +909,16 @@ def blend_layer1_actuals(as_of_date: date, con=None) -> pd.DataFrame:
       * Logo retention -- identical, on account counts rather than
         dollars (logo-weighted), mirroring gtm_plan's use of
         _final_logo_mix() for this one metric.
-      * Magic number / AM efficiency -- left NaN. mart_efficiency leaves
-        both NULL because no rep-cost/comp data exists anywhere in the
-        raw sources. Never imputed.
+      * Magic number / AM efficiency -- trailing-twelve-month aggregate
+        ratios over Commercial and Enterprise, the segments that carry rep
+        cost and an AM (SMB has neither and is 'n/a' in the benchmark
+        table, the same population gtm_plan._blend uses). Magic number =
+        12 months of net new ARR over the same 12 months' PRIOR-month S&M
+        cost; AM efficiency = 12 months of monthly expansion MRR over 12
+        months of AM cost. Trailing twelve months rather than one month
+        because a single month's net new ARR carries the raw data's Q4
+        seasonality and can be negative. NaN until twelve months of cost
+        exist (2024-01 for magic number), never imputed.
     """
     owns = con is None
     con = con or _connect()
@@ -863,8 +973,26 @@ def blend_layer1_actuals(as_of_date: date, con=None) -> pd.DataFrame:
     out["grr"] = grr_m.rolling(_ANNUALISATION_MONTHS).apply(np.prod, raw=True)
     out["logo_retention"] = lr_m.rolling(_ANNUALISATION_MONTHS).apply(np.prod, raw=True)
 
-    out["magic_number"] = np.nan
-    out["am_efficiency"] = np.nan
+    ce = eff[eff["segment"].isin(_COST_BLEND_SEGMENTS)]
+    by_month = ce.groupby("month").agg(
+        net_new_arr=("net_new_arr", "sum"),
+        sm_cost_prior=("magic_number_sm_cost", lambda s: s.sum(min_count=1)),
+        exp_arr=("am_expansion_arr", "sum"), am_cost=("am_cost", "sum"))
+    # Trailing-twelve-month aggregate ratios (sum over sum). A single month's
+    # net new ARR carries the raw data's Q4 seasonality and can be negative,
+    # so a monthly ratio is not a stable statistic -- the same reason NRR/GRR
+    # are annualised here. A month with no prior-period S&M cost (before
+    # 2023-02) contributes NaN, so the window is only defined once all twelve
+    # months carry cost.
+    nn_window = by_month["net_new_arr"].where(by_month["sm_cost_prior"].notna())
+    out["magic_number"] = (
+        nn_window.rolling(_ANNUALISATION_MONTHS, min_periods=_ANNUALISATION_MONTHS).sum()
+        / by_month["sm_cost_prior"].rolling(_ANNUALISATION_MONTHS, min_periods=_ANNUALISATION_MONTHS).sum()
+    ).replace([np.inf, -np.inf], np.nan)
+    out["am_efficiency"] = (
+        (by_month["exp_arr"] / 12.0).rolling(_ANNUALISATION_MONTHS, min_periods=_ANNUALISATION_MONTHS).sum()
+        / by_month["am_cost"].rolling(_ANNUALISATION_MONTHS, min_periods=_ANNUALISATION_MONTHS).sum()
+    ).replace([np.inf, -np.inf], np.nan)
 
     out["nrr_monthly"] = nrr_m
     out["grr_monthly"] = grr_m
@@ -901,9 +1029,14 @@ def _build_child_series(parent_key: str, as_of_date: date, con) -> Dict[str, pd.
             bookings=("new_logo_bookings_amount", "sum"))
         closed = (rep["won"] + rep["lost"]).replace(0, np.nan)
         return {
+            "pipeline_generated": _pipeline_generated_series(as_of_date, con)["pipeline_generated"],
             "win_rate": rep["won"] / closed,
             "avg_initial_commitment": rep["bookings"] / rep["won"].replace(0, np.nan),
         }
+
+    if parent_key == "pipeline_generated":
+        series = _pipeline_generated_series(as_of_date, con)
+        return {k: v for k, v in series.items() if k != "pipeline_generated"}
 
     if parent_key == "activation":
         gb = load_growth_bridge(as_of_date, con=con)
@@ -964,10 +1097,95 @@ def _build_child_series(parent_key: str, as_of_date: date, con) -> Dict[str, pd.
     if parent_key == "logo_retention":
         return {"tenure_at_churn": _tenure_at_churn_series(as_of_date, con)}
 
-    # magic_number / am_efficiency and every Layer-2 node: no computable
-    # children exist in any mart. Returning {} is the honest answer; the
-    # tree's gap notes carry the reason.
+    if parent_key == "magic_number":
+        ce = load_efficiency(as_of_date, con=con)
+        ce = ce[ce["segment"].isin(_COST_BLEND_SEGMENTS)]
+        return {"sm_cost": ce.dropna(subset=["sm_cost"]).groupby("month")["sm_cost"].sum()}
+
+    if parent_key == "sm_cost":
+        ce = load_efficiency(as_of_date, con=con)
+        ce = ce[ce["segment"].isin(_COST_BLEND_SEGMENTS)]
+        return {
+            "rep_fully_loaded_cost": ce.groupby("month")["rep_fully_loaded_cost"].sum(),
+            "marketing_spend_allocation_by_channel":
+                ce.dropna(subset=["marketing_spend_allocated"])
+                  .groupby("month")["marketing_spend_allocated"].sum(),
+        }
+
+    if parent_key == "am_efficiency":
+        ce = load_efficiency(as_of_date, con=con)
+        ce = ce[ce["segment"].isin(_COST_BLEND_SEGMENTS)]
+        return {"am_cost_by_segment": ce.groupby("month")["am_cost"].sum()}
+
+    # Every other Layer-2 node: no computable children exist in any mart.
+    # Returning {} is the honest answer; the tree's gap notes carry the
+    # reason.
     return {}
+
+
+def _pipeline_generated_series(as_of_date: date, con) -> Dict[str, pd.Series]:
+    """Monthly Pipeline-generated flow (converted leads) for the parent and
+    each channel leg, keyed by tree key, complete months only. Grain: one
+    value per month <= the evaluation month. Source: analytics/
+    marketing_attribution.py's compute_pipeline_generated_flow() (marts
+    fact_leads, fact_campaign_engagement_events) -- called, not re-derived.
+    The month-start index matches the growth-bridge series it is ranked
+    against; a channel-month with no conversions is a real 0 there."""
+    flow = ma.compute_pipeline_generated_flow(as_of_date, con=con)
+    month = _evaluation_month(as_of_date)
+    out = {}
+    for channel, key in ma.PIPELINE_CHANNEL_TO_TREE_KEY.items():
+        if flow.empty:
+            out[key] = pd.Series(dtype=float, name=key)
+            continue
+        s = flow[flow["channel"] == channel].set_index("period")["pipeline_generated_flow"]
+        out[key] = s[s.index <= month].astype(float).rename(key)
+    return out
+
+
+def reconcile_pipeline_generated_branch(as_of_date: date, con=None) -> dict:
+    """Children-sum-to-parent reconciliation for the Pipeline-generated
+    branch, on the exact series this engine ranks. Grain: one check per
+    month <= the evaluation month. The three channel legs (built by
+    _build_child_series('pipeline_generated')) must sum to the parent
+    (built by _build_child_series('new_logo_consumption_revenue')) with zero
+    difference, and marketing_attribution's independent recounts of the
+    flow (straight from fact_leads, channel-agnostic) must agree with it --
+    so a converted lead whose channel fell outside the three legs breaks the
+    check instead of silently dropping out of the ranking. New logo's own
+    three legs are NOT reconciled arithmetically: they sit on different
+    populations and units (see PIPELINE_GENERATED_SCOPE_NOTE)."""
+    owns = con is None
+    con = con or _connect()
+    try:
+        parent = _build_child_series("new_logo_consumption_revenue", as_of_date, con)["pipeline_generated"]
+        kids = _build_child_series("pipeline_generated", as_of_date, con)
+        attribution = ma.reconcile_pipeline_generated_flow(as_of_date, con=con)
+    finally:
+        if owns:
+            con.close()
+    kid_sum = pd.concat(list(kids.values()), axis=1).sum(axis=1) if kids else pd.Series(dtype=float)
+    diff = (parent - kid_sum.reindex(parent.index)).abs()
+    return {
+        "months_checked": int(len(parent)),
+        "max_abs_diff_children_to_parent": float(diff.max()) if len(diff) else float("nan"),
+        "attribution_tie_out": attribution,
+        "reconciles": bool(len(diff) > 0 and diff.max() <= 1e-9 and attribution["reconciles"]),
+    }
+
+
+def stale_markings_against_attribution() -> List[str]:
+    """Cross-artifact consistency guard. Returns the keys of any tree node
+    that marketing_attribution.py computes and validates
+    (PIPELINE_CHANNEL_TO_TREE_KEY) but that this tree marks NOT_COMPUTABLE
+    or does not carry at all. Empty means the engine's markings agree with
+    the artifact that owns the computation."""
+    stale = []
+    for key in ma.PIPELINE_CHANNEL_TO_TREE_KEY.values():
+        node = _TREE.get(key)
+        if node is None or node.computability == NOT_COMPUTABLE:
+            stale.append(key)
+    return stale
 
 
 def _usage_dip_breadth_series(as_of_date: date, con) -> pd.Series:
@@ -1219,12 +1437,14 @@ def compute_layer1_scorecard(as_of_date: date, threshold: float = _VARIANCE_THRE
 
     Three variance mechanisms live side by side, each flagged in the
     `mechanism` column rather than blended into one number:
-      * plan_diff -- the 8 metrics where both sides exist.
+      * plan_diff -- the 10 metrics where both sides exist.
       * trailing_baseline -- Activation only, which has no plan row by
         design (mart_gtm_plan's header; design brief's '2.4d last month').
-      * not_computable -- magic number and AM efficiency, whose actuals
-        are undefined for want of any rep-cost/comp source. The plan value
-        is still reported; the actual and the variance are None.
+      * not_computable -- a Layer-1 node whose plan_comparability is
+        NOT_COMPUTABLE. No Layer-1 node is in that state in the current
+        tree (magic number and AM efficiency became caveated plan_diff
+        nodes once rep-cost data existed); the branch is retained for
+        any node whose actual a future data change makes undefined again.
     """
     owns = con is None
     con = con or _connect()
@@ -1417,6 +1637,8 @@ def _build_drilldown(scorecard_row, as_of_date, month, baseline_months, con) -> 
     notes = []
     if scorecard_row["plan_comparability"] == CAVEATED:
         notes.append(scorecard_row["plan_comparability_note"])
+    if not ranked.empty and "pipeline_generated" in set(ranked["metric_key"]):
+        notes.append(PIPELINE_GENERATED_SCOPE_NOTE)
 
     if l1_key in ("nrr", "grr"):
         notes.append(
@@ -1780,6 +2002,8 @@ def run_build_time_validation(as_of_date: date, threshold: float = _VARIANCE_THR
     result = run_diagnostic(as_of_date, threshold=threshold)
     selectivity = measure_threshold_selectivity(as_of_date)
     coverage = result["coverage"]
+    pipeline_recon = reconcile_pipeline_generated_branch(as_of_date)
+    stale_markings = stale_markings_against_attribution()
 
     if log:
         log_performance(_MODEL_NAME, as_of_date, "synthetic_scenarios_total", float(len(scenarios)))
@@ -1800,9 +2024,15 @@ def run_build_time_validation(as_of_date: date, threshold: float = _VARIANCE_THR
         log_performance(_MODEL_NAME, as_of_date, "drilldowns_with_genuine_sibling_comparison",
                         float(sum(d.sibling_coverage["is_genuine_sibling_comparison"]
                                   for d in result["drilldowns"])))
+        log_performance(_MODEL_NAME, as_of_date, "pipeline_generated_children_max_abs_diff",
+                        float(pipeline_recon["max_abs_diff_children_to_parent"]))
+        log_performance(_MODEL_NAME, as_of_date, "nodes_marked_not_computable_but_covered_by_attribution",
+                        float(len(stale_markings)))
 
     return {"synthetic_scenarios": scenarios, "diagnostic": result,
-            "threshold_selectivity": selectivity, "coverage": coverage}
+            "threshold_selectivity": selectivity, "coverage": coverage,
+            "pipeline_generated_reconciliation": pipeline_recon,
+            "stale_markings": stale_markings}
 
 
 if __name__ == "__main__":
@@ -1841,6 +2071,14 @@ if __name__ == "__main__":
               f"({dd.layer3_status}, branch depth {dd.branch_max_depth_in_tree})")
         for n in dd.notes:
             print(f"     note: {n[:160]}")
+
+    print("\n=== Pipeline-generated branch reconciliation ===")
+    pr = out["pipeline_generated_reconciliation"]
+    print(f"children sum to parent: max abs diff {pr['max_abs_diff_children_to_parent']:.1e} over "
+          f"{pr['months_checked']} months; attribution tie-out reconciles: "
+          f"{pr['attribution_tie_out']['reconciles']}; overall: {pr['reconciles']}")
+    print(f"tree nodes marked NOT_COMPUTABLE while marketing_attribution covers them: "
+          f"{out['stale_markings'] or 'none'}")
 
     print("\n=== Branch coverage ===")
     print(out["coverage"].to_string(index=False))

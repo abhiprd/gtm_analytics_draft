@@ -1,0 +1,716 @@
+{
+  "version": 1,
+  "description": "Freshness contract for every analytics artifact, the dbt marts, the semantic registry and the dashboard's inputs. Evaluated by `python3 -m pipeline check-freshness`; documented in pipeline/README.md.",
+  "artifacts": [
+    {
+      "name": "health_score",
+      "kind": "analytics",
+      "node": "health_score",
+      "module": "analytics.health_score",
+      "owner": "CS / Account Management",
+      "cadence": "monthly",
+      "basis": "horizon",
+      "max_staleness_days": 35,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "account_health_score",
+          "label": "performance_log/account_health_score"
+        }
+      ],
+      "fresh_means": "Scores exist for the latest month and held-out validation was logged at the reference date.",
+      "sla_rationale": "Its usage-trend input is monthly, which bottlenecks the whole composite (dashboard grain table), so it refreshes at month close: one month plus a 4-day close window."
+    },
+    {
+      "name": "segment_migration",
+      "kind": "analytics",
+      "node": "segment_migration",
+      "module": "analytics.segment_migration",
+      "owner": "RevOps",
+      "cadence": "monthly",
+      "basis": "horizon",
+      "max_staleness_days": 35,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "segment_migration_analysis",
+          "label": "performance_log/segment_migration_analysis"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date covering all migration events to that date.",
+      "sla_rationale": "Migration events are evaluated against monthly usage and periodic firmographic rescoring; the monthly ARR bridge it reconciles to is monthly-only. One month plus a 4-day close window."
+    },
+    {
+      "name": "marketing_attribution",
+      "kind": "analytics",
+      "node": "marketing_attribution",
+      "module": "analytics.marketing_attribution",
+      "owner": "Marketing Ops",
+      "cadence": "monthly",
+      "basis": "horizon",
+      "max_staleness_days": 35,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "marketing_attribution",
+          "label": "performance_log/marketing_attribution"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date with current holdout and pipeline-generated estimates.",
+      "sla_rationale": "Pipeline generated is weekly-capable but the holdout-based incrementality estimates need a month of matured lead outcomes before they move, so the artifact is refreshed at month close: one month plus a 4-day close window."
+    },
+    {
+      "name": "capacity_planning",
+      "kind": "analytics",
+      "node": "capacity_planning",
+      "module": "analytics.capacity_planning",
+      "owner": "Sales Ops",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "capacity_planning",
+          "label": "performance_log/capacity_planning"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date covering every complete quarter of attainment.",
+      "sla_rationale": "Quota and attainment are quarter-grain (rep-quarters), so nothing new exists between quarter closes. A 92-day quarter plus a 7-day close window."
+    },
+    {
+      "name": "forecast",
+      "kind": "analytics",
+      "node": "forecast",
+      "module": "analytics.forecast",
+      "owner": "Sales Ops / Finance",
+      "cadence": "weekly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 21,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-11-14"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "forecast",
+          "label": "performance_log/forecast"
+        }
+      ],
+      "fresh_means": "A validated forecast checkpoint exists within three weekly submission cycles of the last complete month end.",
+      "sla_rationale": "Submissions are weekly Friday snapshots, so the operating cadence is weekly. The validated checkpoint is mid-quarter (2025-11-14), the last point with a large enough open Commercial/Enterprise population to score; it sits 16 days behind the last complete month. 21 days = three submission cycles. Owner review item: a tighter SLA needs a later canonical checkpoint."
+    },
+    {
+      "name": "data_quality_governance",
+      "kind": "analytics",
+      "node": "data_quality_governance",
+      "module": "analytics.data_quality_governance",
+      "owner": "Analytics Engineering",
+      "cadence": "weekly",
+      "basis": "horizon",
+      "max_staleness_days": 10,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "output_files",
+          "glob": "analytics/outputs/data_quality_governance_*.json",
+          "label": "outputs/data_quality_governance"
+        },
+        {
+          "type": "perf_log",
+          "model_name": "data_quality_governance",
+          "label": "performance_log/data_quality_governance"
+        }
+      ],
+      "fresh_means": "The governance report and logged check counts exist for the reference date, and every computed check passed.",
+      "sla_rationale": "Runs on every data rebuild so a dbt defect is caught while it is cheap to localize; checked weekly at minimum. One week plus a 3-day slip."
+    },
+    {
+      "name": "deal_diagnostics",
+      "kind": "analytics",
+      "node": "deal_diagnostics",
+      "module": "analytics.deal_diagnostics",
+      "owner": "Sales Ops",
+      "cadence": "weekly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 10,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-11-30"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "deal_diagnostics",
+          "label": "performance_log/deal_diagnostics"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged for the last complete month, when open Commercial/Enterprise pipeline still exists to score.",
+      "sla_rationale": "Sourced from opportunity and stage-history events, which the grain table marks weekly-capable, so the cadence is weekly (one week plus a 3-day slip). The open population is empty at the dataset's final date, which is why the canonical checkpoint is the last complete month."
+    },
+    {
+      "name": "rep_productivity",
+      "kind": "analytics",
+      "node": "rep_productivity",
+      "module": "analytics.rep_productivity",
+      "owner": "Sales Ops / Enablement",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "rep_productivity",
+          "label": "performance_log/rep_productivity"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date over the full trailing window.",
+      "sla_rationale": "Peer benchmarks condition on ramp status and deal outcomes that need a quarter of closed deals to stabilize (methods doc). A 92-day quarter plus a 7-day close window."
+    },
+    {
+      "name": "territory_coverage",
+      "kind": "analytics",
+      "node": "territory_coverage",
+      "module": "analytics.territory_coverage",
+      "owner": "Sales Ops",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "territory_coverage_routing",
+          "label": "performance_log/territory_coverage_routing"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date against the current territory assignment.",
+      "sla_rationale": "Strategic and market-facing (build spec Wave 5, not part of the weekly cadence); territory assignments and market universe change at planning cycles. A 92-day quarter plus a 7-day close window."
+    },
+    {
+      "name": "tam_icp_sizing",
+      "kind": "analytics",
+      "node": "tam_icp_sizing",
+      "module": "analytics.tam_icp_sizing",
+      "owner": "Strategy / Sales Ops",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "tam_icp_opportunity_sizing",
+          "label": "performance_log/tam_icp_opportunity_sizing"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date against the current market universe.",
+      "sla_rationale": "Strategic and market-facing (build spec Wave 5); runs off the static market universe, refreshed with planning. A 92-day quarter plus a 7-day close window."
+    },
+    {
+      "name": "pricing_packaging",
+      "kind": "analytics",
+      "node": "pricing_packaging",
+      "module": "analytics.pricing_packaging",
+      "owner": "Finance / Pricing",
+      "cadence": "quarterly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-11-30"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "pricing_packaging_analytics",
+          "label": "performance_log/pricing_packaging_analytics"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged for the last complete month over the trailing 12-month windows it compares.",
+      "sla_rationale": "Strategic (build spec Wave 5); its trailing-12-versus-prior-12-month comparisons move slowly. A 92-day quarter plus a 7-day close window, anchored to the last complete month because its canonical checkpoint is month-end."
+    },
+    {
+      "name": "retention_cohorts",
+      "kind": "analytics",
+      "node": "retention_cohorts",
+      "module": "analytics.retention_cohorts",
+      "owner": "CS / Finance",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "retention_expansion_cohort_analytics",
+          "label": "performance_log/retention_expansion_cohort_analytics"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date covering every acquisition vintage.",
+      "sla_rationale": "Cohorts are quarterly acquisition vintages; a vintage's curve only changes as months age, and renewal cliffs land on contract anniversaries. A 92-day quarter plus a 7-day close window."
+    },
+    {
+      "name": "lead_scoring_validation",
+      "kind": "analytics",
+      "node": "lead_scoring_validation",
+      "module": "analytics.lead_scoring_validation",
+      "owner": "Marketing Ops",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "lead_scoring_model",
+          "label": "performance_log/lead_scoring_model"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date against matured lead-conversion outcomes.",
+      "sla_rationale": "Validating discrimination needs matured conversion outcomes (a lead's outcome is not knowable for months), so a quarterly refresh captures everything new. A 92-day quarter plus a 7-day close window."
+    },
+    {
+      "name": "experimentation_platform",
+      "kind": "analytics",
+      "node": "experimentation_platform",
+      "module": "analytics.experimentation_platform",
+      "owner": "Marketing Ops / Analytics Engineering",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-06-30",
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "output_files",
+          "glob": "analytics/outputs/experimentation_platform_*.json",
+          "label": "outputs/experimentation_platform"
+        },
+        {
+          "type": "perf_log",
+          "model_name": "experimentation_platform",
+          "label": "performance_log/experimentation_platform"
+        }
+      ],
+      "fresh_means": "Reports and logged checkpoints exist for the reference date and the prior checkpoint, and the platform reproduces the published holdout result.",
+      "sla_rationale": "Experiments read out when their assignment cohorts mature; the registered holdout program is evaluated quarterly. A 92-day quarter plus a 7-day close window."
+    },
+    {
+      "name": "mmm_incrementality",
+      "kind": "analytics",
+      "node": "mmm_incrementality",
+      "module": "analytics.mmm_incrementality",
+      "owner": "Marketing Ops / Finance",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts",
+        "marketing_attribution"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "mmm_incrementality",
+          "label": "performance_log/mmm_incrementality"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged at the reference date over the full monthly spend series.",
+      "sla_rationale": "A monthly time series only adds a point per month and the regression is underpowered at 36 months (methods doc), so refitting more often than quarterly would change nothing. A 92-day quarter plus a 7-day close window."
+    },
+    {
+      "name": "variance_diagnostic",
+      "kind": "analytics",
+      "node": "variance_diagnostic",
+      "module": "analytics.variance_diagnostic",
+      "owner": "RevOps",
+      "cadence": "monthly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 35,
+      "depends_on": [
+        "dbt_marts",
+        "marketing_attribution"
+      ],
+      "entrypoint_as_of": [
+        "2025-11-30"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "variance_diagnostic_engine",
+          "label": "performance_log/variance_diagnostic_engine"
+        }
+      ],
+      "fresh_means": "A validation checkpoint is logged for the last complete month.",
+      "sla_rationale": "Every dollar and ARR node it walks is monthly-only (dashboard grain table), so it cannot be fresher than a month close. One month plus a 4-day close window. The final simulated month is truncated, so its canonical checkpoint is the last complete month."
+    },
+    {
+      "name": "scenario_planning",
+      "kind": "analytics",
+      "node": "scenario_planning",
+      "module": "analytics.scenario_planning",
+      "owner": "Finance / RevOps",
+      "cadence": "monthly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 35,
+      "depends_on": [
+        "dbt_marts",
+        "variance_diagnostic"
+      ],
+      "entrypoint_as_of": [
+        "2025-11-30"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "scenario_planning",
+          "label": "performance_log/scenario_planning"
+        }
+      ],
+      "fresh_means": "A checkpoint is logged for the last complete month's metric-tree baseline.",
+      "sla_rationale": "Propagates hypothetical input changes through the monthly tree equations, so its baseline is the last month close. One month plus a 4-day close window."
+    },
+    {
+      "name": "playbook_triggers",
+      "kind": "analytics",
+      "node": "playbook_triggers",
+      "module": "analytics.playbook_triggers",
+      "owner": "RevOps",
+      "cadence": "weekly",
+      "basis": "horizon",
+      "max_staleness_days": 10,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "entrypoint_as_of": [
+        "2025-11-30",
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "automated_playbook_triggers",
+          "label": "performance_log/automated_playbook_triggers"
+        },
+        {
+          "type": "csv_max",
+          "path": "data/playbook_triggers.csv",
+          "column": "outcome_evaluated_as_of",
+          "label": "playbook_trigger_log"
+        }
+      ],
+      "fresh_means": "The trigger log has been evaluated through the reference week, so every fired trigger carries an outcome knowable by then.",
+      "sla_rationale": "Trigger rules read weekly-capable event sources (activity, stage history, workflow chains), and an unworked trigger is only useful inside its SLA clock. One week plus a 3-day slip."
+    },
+    {
+      "name": "weekly_readout",
+      "kind": "analytics",
+      "node": "weekly_readout",
+      "module": "analytics.weekly_readout",
+      "owner": "RevOps",
+      "cadence": "weekly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 10,
+      "depends_on": [
+        "dbt_marts",
+        "variance_diagnostic",
+        "playbook_triggers",
+        "health_score"
+      ],
+      "entrypoint_as_of": [
+        "2025-11-30"
+      ],
+      "evidence": [
+        {
+          "type": "output_files",
+          "glob": "analytics/outputs/weekly_readout_*.json",
+          "label": "outputs/weekly_readout"
+        },
+        {
+          "type": "perf_log",
+          "model_name": "weekly_executive_readout",
+          "label": "performance_log/weekly_executive_readout"
+        }
+      ],
+      "fresh_means": "A readout JSON/Markdown pair exists for the last complete month, and its trigger section was built from the current playbook log.",
+      "sla_rationale": "Weekly operating cadence (build spec Section 8, Wave 1). One week plus a 3-day slip. The scorecard inside it is monthly-only (dashboard grain table), so it is anchored to the last complete month rather than the truncated final month."
+    },
+    {
+      "name": "proxy_metric_health",
+      "kind": "analytics",
+      "node": "proxy_metric_health",
+      "module": "analytics.proxy_metric_health",
+      "owner": "Analytics Engineering",
+      "cadence": "monthly",
+      "basis": "horizon",
+      "max_staleness_days": 35,
+      "depends_on": [
+        "dbt_marts",
+        "health_score",
+        "segment_migration",
+        "marketing_attribution",
+        "capacity_planning",
+        "forecast",
+        "data_quality_governance",
+        "deal_diagnostics",
+        "rep_productivity",
+        "territory_coverage",
+        "tam_icp_sizing",
+        "pricing_packaging",
+        "retention_cohorts",
+        "lead_scoring_validation",
+        "experimentation_platform",
+        "mmm_incrementality",
+        "variance_diagnostic",
+        "scenario_planning",
+        "playbook_triggers",
+        "weekly_readout"
+      ],
+      "entrypoint_as_of": [
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "output_files",
+          "glob": "analytics/outputs/proxy_metric_health_*.json",
+          "label": "outputs/proxy_metric_health"
+        },
+        {
+          "type": "perf_log",
+          "model_name": "proxy_metric_health",
+          "label": "performance_log/proxy_metric_health"
+        }
+      ],
+      "fresh_means": "Reports and logged checkpoints exist for the reference date, counted after every other artifact's checkpoint was written.",
+      "sla_rationale": "A governance catalog over the performance log; the drift-monitor cadence it feeds is monthly (agent definition). Runs last so it counts every other artifact's checkpoints. One month plus a 4-day close window."
+    },
+    {
+      "name": "raw_data",
+      "kind": "raw_data",
+      "node": "gen_foundation",
+      "owner": "Analytics Engineering",
+      "cadence": "monthly",
+      "basis": "horizon",
+      "max_staleness_days": 35,
+      "depends_on": [],
+      "evidence": [
+        {
+          "type": "csv_max",
+          "path": "data/raw/mrr_by_account_month.csv",
+          "column": "month",
+          "label": "raw/mrr_by_account_month"
+        },
+        {
+          "type": "csv_max",
+          "path": "data/raw/opportunities.csv",
+          "column": "close_date",
+          "label": "raw/opportunities"
+        },
+        {
+          "type": "csv_max",
+          "path": "data/raw/leads.csv",
+          "column": "created_date",
+          "label": "raw/leads"
+        }
+      ],
+      "fresh_means": "The monthly-grain billing table reaches the reference month and the event-grain CRM and marketing tables reach within a month of the reference date.",
+      "sla_rationale": "Every dollar and ARR figure downstream is monthly-only (dashboard grain table), so raw data is complete once the month closes; month-start keyed rows are at most one month old, plus a 4-day close window. The committed dataset is a fixed simulation whose horizon is the dbt analysis_as_of_date; regenerating it does not move that horizon."
+    },
+    {
+      "name": "dbt_marts",
+      "kind": "dbt_marts",
+      "node": "dbt_build",
+      "owner": "Analytics Engineering",
+      "cadence": "monthly",
+      "basis": "horizon",
+      "max_staleness_days": 35,
+      "depends_on": [
+        "raw_data"
+      ],
+      "evidence": [
+        {
+          "type": "duckdb_max",
+          "table": "main_marts.mart_growth_bridge",
+          "column": "month",
+          "label": "mart_growth_bridge"
+        },
+        {
+          "type": "duckdb_max",
+          "table": "main_marts.mart_efficiency",
+          "column": "month",
+          "label": "mart_efficiency"
+        },
+        {
+          "type": "duckdb_max",
+          "table": "main_marts.mart_durability",
+          "column": "month",
+          "label": "mart_durability"
+        },
+        {
+          "type": "duckdb_max",
+          "table": "main_marts.fact_opportunities",
+          "column": "close_date",
+          "label": "fact_opportunities"
+        }
+      ],
+      "fresh_means": "data/acme_gtm.duckdb exists and each core mart reaches the reference month; built from the raw data currently on disk by dbt build with all tests passing.",
+      "sla_rationale": "Marts carry the same monthly grain as the raw data they model, so they are as current as the last month close: one month plus a 4-day close window. The database is gitignored and rebuilt from scratch, so a missing file is reported as missing, not stale."
+    },
+    {
+      "name": "model_performance_log",
+      "kind": "log",
+      "node": "proxy_metric_health",
+      "owner": "Analytics Engineering",
+      "cadence": "per_build",
+      "basis": "horizon",
+      "max_staleness_days": 10,
+      "depends_on": [
+        "dbt_marts"
+      ],
+      "evidence": [
+        {
+          "type": "csv_max",
+          "path": "data/model_performance_history.csv",
+          "column": "as_of_date",
+          "label": "data/model_performance_history.csv"
+        }
+      ],
+      "fresh_means": "The append-only checkpoint log has a row at or near the reference date (every analytics run upserts into it).",
+      "sla_rationale": "Written by every artifact run, so it should move with every pipeline run; checked at one week plus a 3-day slip. Staleness here means the pipeline has not been run, not that any one artifact is late."
+    },
+    {
+      "name": "semantic_registry",
+      "kind": "semantic_registry",
+      "node": "registry_check",
+      "owner": "Analytics Engineering",
+      "cadence": "event_driven",
+      "basis": "horizon",
+      "max_staleness_days": 0,
+      "depends_on": [],
+      "evidence": [
+        {
+          "type": "registry_current",
+          "label": "semantic/metric_registry.json"
+        }
+      ],
+      "fresh_means": "Regenerating the registry from docs/acme-corp-gtm-metric-tree.md would produce identical content (tree hash stamped, or parsed content equal).",
+      "sla_rationale": "The registry is a parse of the tree, so it must change in the same commit as the tree; zero tolerance. Measured by content, not by date."
+    },
+    {
+      "name": "dashboard_readout_input",
+      "kind": "dashboard_input",
+      "node": "weekly_readout",
+      "owner": "RevOps",
+      "cadence": "weekly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 10,
+      "depends_on": [
+        "weekly_readout"
+      ],
+      "evidence": [
+        {
+          "type": "output_files",
+          "glob": "analytics/outputs/weekly_readout_*.json",
+          "label": "weekly_readout JSON"
+        }
+      ],
+      "fresh_means": "The Digest page has a readout JSON for the last complete month to render.",
+      "sla_rationale": "The Digest renders the readout verbatim, so it is exactly as current as the weekly readout: one week plus a 3-day slip."
+    },
+    {
+      "name": "dashboard_status_manifest",
+      "kind": "dashboard_input",
+      "node": "dashboard_smoke",
+      "owner": "Analytics Engineering",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [],
+      "evidence": [
+        {
+          "type": "json_field",
+          "path": "dashboard/project_status.json",
+          "field": "_meta.last_reviewed",
+          "label": "dashboard/project_status.json"
+        }
+      ],
+      "fresh_means": "The component-status manifest that gates what each dashboard page may render live was reviewed within the last quarter.",
+      "sla_rationale": "A hand-maintained projection of the build state; it changes when an artifact's status changes, which is rare, so a quarterly review is the backstop. A 92-day quarter plus a 7-day window."
+    }
+  ],
+  "library_modules": {
+    "analytics.model_performance": "Append-only performance-log writer; its freshness is the model_performance_log artifact.",
+    "analytics.__init__": "Package marker."
+  }
+}

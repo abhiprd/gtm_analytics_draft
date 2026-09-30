@@ -1,0 +1,58 @@
+name: ci
+
+# Fast verification on every push to main and every pull request: the QA
+# suites, a from-scratch dbt build against the tracked raw CSVs, the
+# governance gate (metric-tree identities, marts data quality, invariants),
+# the semantic registry check, and the freshness contract against the
+# committed outputs. It does not regenerate data or re-run the analytics
+# artifacts; see full-pipeline.yml for that.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # 3.9 is the interpreter requirements.txt was validated on. The
+      # semantic/ and dashboard/ virtualenvs (Python >=3.10) are not needed
+      # for this job: the registry check is stdlib-only.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Show the execution plan
+        run: python -m pipeline plan --profile ci
+
+      # qa_pipeline -> qa_raw -> dbt_build -> qa_marts -> governance_gate
+      #   -> registry_check -> freshness_check. Fails fast; the failing node
+      # and its log tail are printed, and the exit code is nonzero when any
+      # metric-tree identity check fails or the registry is stale.
+      - name: Verify
+        run: python -m pipeline run --profile ci
+
+      - name: Upload run manifest and node logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-run
+          path: pipeline/runs/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -812,6 +812,145 @@ def compute_pipeline_generated(as_of_date: date, panel: pd.DataFrame = None,
     return out.sort_values(["period", "channel"]).reset_index(drop=True)
 
 
+# The metric-tree nodes whose actual this module computes and validates,
+# keyed by the `channel` value compute_pipeline_generated() /
+# compute_pipeline_generated_flow() emit. This is the one declaration of
+# "which tree nodes does marketing attribution cover", read by
+# analytics/variance_diagnostic.py to wire its loaders and by
+# analytics/proxy_metric_health.py and the cross-artifact consistency test to
+# catch any tree node marked NOT_COMPUTABLE while this module covers it.
+PIPELINE_CHANNEL_TO_TREE_KEY = {
+    "All": "pipeline_generated",
+    "organic": "organic_content",
+    "paid": "paid",
+    "community": "community_events",
+}
+
+
+def compute_pipeline_generated_flow(as_of_date: date, panel: pd.DataFrame = None,
+                                    con=None) -> pd.DataFrame:
+    """Grain: one row per (conversion month, sub-channel), plus an 'All'
+    roll-up per month, zero-filled so a month with no conversions on a
+    channel is a real 0 and not a gap. Source marts: fact_leads,
+    fact_campaign_engagement_events (via build_lead_panel).
+
+    Pipeline generated as a MONTHLY FLOW: the leads that converted to a PQL
+    (this funnel's signup -- see compute_pipeline_generated's TERMINOLOGY
+    note) in each calendar month, by the lead's sourcing sub-channel. It is
+    the same population compute_pipeline_generated() counts in
+    `leads_converted`, re-indexed from lead-creation month to conversion
+    month; reconcile_pipeline_generated_flow() ties the two out exactly.
+
+    WHY A SECOND INDEXING EXISTS. compute_pipeline_generated() keys on
+    creation month so the volume, lead-rate and PQL-rate legs share one
+    cohort. That is the right basis for the tree's three-factor formula and
+    the wrong one for a month-over-month variance read: the most recent
+    creation-month cohorts are dominated by unresolved leads, so a point
+    estimate for the latest month is right-censored (its own bounds run from
+    ~1% to 100%). A conversion that lands in month M is fully observed at the
+    end of M, so the flow has no censored tail and can be compared with its
+    own trailing baseline at the latest complete month.
+
+    NO SEGMENT CUT. build_lead_panel()'s `segment` comes from won-deal
+    bookings and is missing for converted leads that have no won new-business
+    opportunity, and dim_accounts.segment is the account's CURRENT segment,
+    which would import later migrations into a historical month. The flow is
+    therefore company-wide, matching the grain of the Layer-1 scorecard."""
+    panel = build_lead_panel(as_of_date, con=con) if panel is None else panel
+    if panel.empty:
+        return pd.DataFrame(columns=["period", "channel", "pipeline_generated_flow", "period_grain"])
+
+    converted = panel[panel["is_converted_as_of"]]
+    if converted.empty:
+        return pd.DataFrame(columns=["period", "channel", "pipeline_generated_flow", "period_grain"])
+    converted = converted.assign(
+        period=converted["converted_date_as_of"].dt.to_period("M").dt.start_time)
+    counts = converted.groupby(["period", "source_channel"]).size().unstack(fill_value=0)
+    counts = counts.reindex(columns=list(SUB_CHANNELS), fill_value=0)
+    last_month = pd.Timestamp(as_of_date).to_period("M").start_time
+    counts = counts.reindex(pd.date_range(counts.index.min(), last_month, freq="MS"), fill_value=0)
+    counts["All"] = counts[list(SUB_CHANNELS)].sum(axis=1)
+
+    out = counts.rename_axis("period").reset_index().melt(
+        id_vars="period", var_name="channel", value_name="pipeline_generated_flow")
+    out["period_grain"] = "month"
+    return out.sort_values(["period", "channel"]).reset_index(drop=True)
+
+
+def reconcile_pipeline_generated_flow(as_of_date: date, flow: pd.DataFrame = None,
+                                      pipeline: pd.DataFrame = None,
+                                      panel: pd.DataFrame = None, con=None) -> dict:
+    """Structural tie-out for compute_pipeline_generated_flow(), against
+    sources the flow's own aggregation never touches.
+
+      1. Independent recount: a fresh SQL count of converted leads by
+         conversion month and channel straight from fact_leads (converted_date
+         <= as_of_date) must equal the flow row for row.
+      2. Children sum to parent: the three sub-channel rows sum to the 'All'
+         row every month, and 'All' equals an independent channel-agnostic SQL
+         count -- so a converted lead whose channel fell outside the three
+         sub-channels would break the reconciliation instead of vanishing.
+      3. Cohort tie-out: summed over every month, each channel's flow equals
+         that channel's `leads_converted` summed over every creation period in
+         compute_pipeline_generated() -- the same converted leads, indexed by
+         conversion month instead of creation month."""
+    panel = build_lead_panel(as_of_date, con=con) if panel is None else panel
+    flow = compute_pipeline_generated_flow(as_of_date, panel=panel, con=con) if flow is None else flow
+    if pipeline is None:
+        pipeline = compute_pipeline_generated(as_of_date, panel=panel, period_grain="quarter", con=con)
+    if flow.empty or pipeline.empty:
+        return {"reconciles": False, "max_abs_diff_source": np.nan,
+                "max_abs_diff_children_to_parent": np.nan, "max_abs_diff_cohort": np.nan,
+                "rows_checked": 0}
+
+    owns = con is None
+    con = con or _connect()
+    try:
+        src = con.execute(
+            "select date_trunc('month', converted_date) as period, channel, count(*) as n "
+            "from main_marts.fact_leads "
+            "where is_converted and converted_date <= ? group by 1, 2",
+            [as_of_date]).df()
+        src_total = con.execute(
+            "select date_trunc('month', converted_date) as period, count(*) as n "
+            "from main_marts.fact_leads "
+            "where is_converted and converted_date <= ? group by 1",
+            [as_of_date]).df()
+    finally:
+        if owns:
+            con.close()
+    src["period"] = pd.to_datetime(src["period"])
+    src_total["period"] = pd.to_datetime(src_total["period"])
+
+    subs = flow[flow["channel"].isin(SUB_CHANNELS)]
+    check = subs.merge(src, on=["period", "channel"], how="outer")
+    check["pipeline_generated_flow"] = check["pipeline_generated_flow"].fillna(0)
+    check["n"] = check["n"].fillna(0)
+    source_diff = (check["pipeline_generated_flow"] - check["n"]).abs()
+
+    parent = flow[flow["channel"] == "All"].set_index("period")["pipeline_generated_flow"]
+    children = subs.groupby("period")["pipeline_generated_flow"].sum()
+    truth = src_total.set_index("period")["n"].reindex(parent.index).fillna(0)
+    children_diff = pd.concat([(parent - children.reindex(parent.index).fillna(0)).abs(),
+                               (parent - truth).abs()])
+
+    cohort = pipeline[pipeline["channel"].isin(SUB_CHANNELS)].groupby("channel")["leads_converted"].sum()
+    flow_totals = subs.groupby("channel")["pipeline_generated_flow"].sum()
+    cohort_diff = (flow_totals.reindex(list(SUB_CHANNELS)).fillna(0)
+                   - cohort.reindex(list(SUB_CHANNELS)).fillna(0)).abs()
+
+    return {
+        "rows_checked": int(len(check)),
+        "max_abs_diff_source": float(source_diff.max()),
+        "max_abs_diff_children_to_parent": float(children_diff.max()),
+        "max_abs_diff_cohort": float(cohort_diff.max()),
+        "tolerance": _CREDIT_TOLERANCE,
+        "reconciles": bool(source_diff.max() <= _CREDIT_TOLERANCE
+                           and children_diff.max() <= _CREDIT_TOLERANCE
+                           and cohort_diff.max() <= _CREDIT_TOLERANCE),
+    }
+
+
 # --------------------------------------------------------------------------
 # 6. Layer-3 diagnostics -- the tree's leaves under each sub-channel
 # --------------------------------------------------------------------------

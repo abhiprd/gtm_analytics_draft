@@ -8,14 +8,14 @@
     "hooks_with_zero_persisted_readings": 7,
     "not_drift_monitored_artifacts": 2,
     "not_yet_built_artifacts": 1,
-    "models_with_any_checkpoint": 14,
+    "models_with_any_checkpoint": 15,
     "min_checkpoints_across_models": 1,
     "max_checkpoints_across_models": 1,
-    "data_gap_roots_cataloged": 21,
-    "data_gap_roots_live_confirmed": 21,
-    "pipeline_generated_stale_marking_confirmed": true,
+    "data_gap_roots_cataloged": 20,
+    "data_gap_roots_live_confirmed": 20,
+    "pipeline_generated_stale_marking_confirmed": false,
     "artifacts_with_confirmed_threshold": 1,
-    "artifacts_with_proposed_not_confirmed_threshold": 14
+    "artifacts_with_proposed_not_confirmed_threshold": 16
   },
   "doc_trace_check": {
     "passed": true,
@@ -229,14 +229,9 @@
   },
   "data_gap_keys_live_check": {
     "passed": true,
-    "n_total": 21,
-    "n_passed": 21,
+    "n_total": 20,
+    "n_passed": 20,
     "results": [
-      {
-        "node_key": "pipeline_generated",
-        "exists_live": true,
-        "still_not_computable": true
-      },
       {
         "node_key": "discount_rate_vs_list",
         "exists_live": true,
@@ -288,12 +283,12 @@
         "still_not_computable": true
       },
       {
-        "node_key": "magic_number",
+        "node_key": "cost_per_channel_activity",
         "exists_live": true,
         "still_not_computable": true
       },
       {
-        "node_key": "am_efficiency",
+        "node_key": "expansion_revenue_drivers",
         "exists_live": true,
         "still_not_computable": true
       },
@@ -341,18 +336,15 @@
   },
   "checkpoint_reconciliation_check": {
     "passed": true,
-    "n_models_checked": 14,
+    "n_models_checked": 15,
     "mismatches": []
   },
   "pipeline_generated_staleness": {
-    "vd_node_computability": "not_computable",
-    "vd_children_still_not_computable": [
-      "organic_content",
-      "paid",
-      "community_events"
-    ],
+    "vd_node_computability": "computable",
+    "vd_children_still_not_computable": [],
     "dqg_edge_status": "VALIDATED_ELSEWHERE",
-    "is_stale_marking": true
+    "stale_nodes": [],
+    "is_stale_marking": false
   },
   "checkpoint_counts_by_model": {
     "automated_playbook_triggers": {
@@ -374,6 +366,12 @@
       ]
     },
     "deal_diagnostics": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "experimentation_platform": {
       "n_checkpoints": 1,
       "as_of_dates": [
         "2025-06-30"
@@ -938,16 +936,6 @@
   ],
   "data_gap_ranking": [
     {
-      "node_key": "pipeline_generated",
-      "label": "Pipeline generated",
-      "layer": 2,
-      "parent_key": "new_logo_consumption_revenue",
-      "tier": "A_already_computed_elsewhere_wiring_only",
-      "blocked_node_count": 4,
-      "blocks_full_layer1_metric": false,
-      "rationale": "STALE marking, not a real gap. analytics/marketing_attribution.py already computes this exact formula from marts (fact_leads, dim_campaign, fact_campaign_engagement_events) and validates it (reconcile_pipeline_generated_identity, <=1e-9 tolerance, passing at both checkpoints) -- analytics/data_quality_governance.py's own governance-edge table already marks the identical formula VALIDATED_ELSEWHERE (edge_id pipeline_generated_channel_formula). Closing this needs no new data and no new mart -- only wiring analytics/variance_diagnostic.py's pipeline_generated/organic_content/paid/community_events nodes to call into marketing_attribution.py's already-validated functions, the same reuse pattern analytics/mmm_incrementality.py and analytics/scenario_planning.py already establish for borrowing another Phase 4 module's logic. Restores New Logo's first-ever real Layer-3 evidence anywhere in the tree -- today 0 of 32 Layer-3 leaves are computable from any mart."
-    },
-    {
       "node_key": "workflow_chain_underutilization",
       "label": "Workflow chain under-utilization",
       "layer": 2,
@@ -955,7 +943,7 @@
       "tier": "B_phase2_mart_exposure_only",
       "blocked_node_count": 4,
       "blocks_full_layer1_metric": false,
-      "rationale": "fact_workflow_chain_events already exists but is not exposed through any mart_* table. Closing this one mart gap would also close its three Layer-3 children (ingestion_without_completion_rate, mid_chain_abandonment, full_vs_partial_chain_share) -- notably, analytics/playbook_triggers.py's own ingestion_without_completion rule already computes a version of this signal for its own purpose, a second real precedent (alongside pipeline_generated) that this project's own other artifacts have already done some of this work."
+      "rationale": "fact_workflow_chain_events already exists but is not exposed through any mart_* table. Closing this one mart gap would also close its three Layer-3 children (ingestion_without_completion_rate, mid_chain_abandonment, full_vs_partial_chain_share) -- notably, analytics/playbook_triggers.py's own ingestion_without_completion rule already computes a version of this signal for its own purpose, so this project's own other artifacts have already done some of this work."
     },
     {
       "node_key": "renewal_win_rate",
@@ -1038,6 +1026,16 @@
       "rationale": "fact_committed_vs_utilized_monthly already exists and mart_efficiency already consumes it internally (exposing only a derived utilisation-haircut margin) -- realised overage billing itself just needs its own mart exposure, not new raw data."
     },
     {
+      "node_key": "cost_per_channel_activity",
+      "label": "Cost per channel activity",
+      "layer": 3,
+      "parent_key": "sm_cost",
+      "tier": "B_phase2_mart_exposure_only",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "The cost side now exists (mart_efficiency.sm_cost, from fact_rep_monthly_cost and fact_marketing_spend), and so do the activity counts it divides by (fact_leads for cost/MQL, fact_sales_activities for cost/SDR meeting). What is missing is a mart that joins channel-level cost to per-channel lead and meeting counts -- a Phase 2 mart change, not new raw data. It is the one node left blocked under Magic number."
+    },
+    {
       "node_key": "rep_capacity_ramp_mix",
       "label": "Rep capacity / ramp mix",
       "layer": 3,
@@ -1058,16 +1056,6 @@
       "rationale": "No new data and no new mart needed -- mart_account_health already carries everything. analytics/health_score.py's score_accounts() defines its scored population by customer_status = 'Active' (a final-status field), which biases a historical trailing series. Gating the population on churn_month > month instead (a code change to health_score.py, out of the variance-diagnostic engine's own scope per that entry's explicit note) would close this node and its four Layer-3 children -- the single largest node count closed by a pure code fix with zero new data anywhere in this catalog."
     },
     {
-      "node_key": "magic_number",
-      "label": "Magic number (blended)",
-      "layer": 1,
-      "parent_key": null,
-      "tier": "D_genuine_new_phase1_data",
-      "blocked_node_count": 5,
-      "blocks_full_layer1_metric": true,
-      "rationale": "No rep-cost/comp data exists anywhere in the raw sources. This is the single highest-node-count gap in the whole tree (5 nodes) and the only gap that blocks an entire Layer-1 metric outright, alongside am_efficiency below -- together the only two of the tree's 11 Layer-1 nodes with zero computable actual. Needs a genuine new Phase 1 generator (rep comp/cost by role/segment/month), the most expensive tier in this catalog."
-    },
-    {
       "node_key": "marketing_sales_handoff_quality",
       "label": "Marketing-sales handoff quality",
       "layer": 2,
@@ -1075,7 +1063,7 @@
       "tier": "D_genuine_new_phase1_data",
       "blocked_node_count": 4,
       "blocks_full_layer1_metric": false,
-      "rationale": "Needs an MQL/SAL lifecycle-stage field on the lead funnel. Verified directly against dbt/models/marts/facts/fact_leads.sql: the mart carries lead_id/account_id/channel/created_date/converted_date/is_converted/lead_score/days_to_conversion and nothing else -- no stage/status field of any kind, so this is a genuine gap and NOT the same stale-marking case pipeline_generated is (marketing_attribution.py computes Pipeline generated from exactly these columns; it does not and structurally cannot compute an MQL->SAL acceptance rate from them)."
+      "rationale": "Needs an MQL/SAL lifecycle-stage field on the lead funnel. Verified directly against dbt/models/marts/facts/fact_leads.sql: the mart carries lead_id/account_id/channel/created_date/converted_date/is_converted/lead_score/days_to_conversion and nothing else -- no stage/status field of any kind, and the raw leads source has none either. Leads and campaign touches are computable and feed Pipeline generated (analytics/marketing_attribution.py), but they measure conversion to signup; they cannot yield an MQL response SLA, an MQL->SAL acceptance rate or a recycling rate, so this is a genuine gap and its three children stay blocked with it."
     },
     {
       "node_key": "brand_awareness",
@@ -1096,16 +1084,6 @@
       "blocked_node_count": 4,
       "blocks_full_layer1_metric": false,
       "rationale": "Needs an estimate of an account's non-Acme workflow footprint (the wallet-share denominator) -- nothing in this project's raw data or marts estimates it. This is Expansion consumption revenue's ONLY Layer-2 driver (0 of 2 computable per the variance-diagnostic engine's own coverage table, once overage_realization above is also counted) -- closing this is what it would take for the Expansion branch to produce any drill-down evidence at all when it breaches variance, which today it structurally cannot."
-    },
-    {
-      "node_key": "am_efficiency",
-      "label": "AM efficiency (blended)",
-      "layer": 1,
-      "parent_key": null,
-      "tier": "D_genuine_new_phase1_data",
-      "blocked_node_count": 3,
-      "blocks_full_layer1_metric": true,
-      "rationale": "Same rep-cost/comp gap as magic_number -- the other of the tree's two entirely-NOT_COMPUTABLE Layer-1 nodes."
     },
     {
       "node_key": "time_to_first_integration",
@@ -1138,6 +1116,16 @@
       "rationale": "No mart exposes an account-type x usage-cycle cohort baseline; nothing in the raw data currently supports deriving one either."
     },
     {
+      "node_key": "expansion_revenue_drivers",
+      "label": "Expansion revenue drivers",
+      "layer": 2,
+      "parent_key": "am_efficiency",
+      "tier": "E_not_a_real_gap",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Not a gap of its own: the tree defines this node by reference ('See Growth -- expansion revenue drivers'), so it is computable exactly when Expansion consumption revenue's own drivers (wallet_share_progression, overage_realization, both catalogued above) are. AM cost, the other side of AM efficiency, is already a real input. No separate investment closes it."
+    },
+    {
       "node_key": "account_specific_baseline_deviation",
       "label": "Account-specific baseline deviation",
       "layer": 3,
@@ -1166,7 +1154,7 @@
     },
     {
       "artifact_section": "Segment/lead scoring model",
-      "n_proposed_not_confirmed_mentions": 0,
+      "n_proposed_not_confirmed_mentions": 2,
       "n_confirmed_by_validator_mentions": 0
     },
     {
@@ -1236,6 +1224,16 @@
     },
     {
       "artifact_section": "Scenario planning / sensitivity analysis",
+      "n_proposed_not_confirmed_mentions": 0,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Testing / experimentation methodology & platform",
+      "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "LTV by segment \u00d7 acquisition channel",
       "n_proposed_not_confirmed_mentions": 0,
       "n_confirmed_by_validator_mentions": 0
     }

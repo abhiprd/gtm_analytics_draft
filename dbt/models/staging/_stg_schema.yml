@@ -33,6 +33,19 @@ models:
     columns:
       - name: rep_id
         tests: [not_null, unique]
+      - name: annual_ote_usd
+        description: >
+          On-target earnings (base + variable at 100% of target), USD per
+          year. Set by rep_type band, seniority and scope (see the QA plan's
+          Rep compensation section); static per rep.
+        tests: [not_null]
+      - name: fully_loaded_annual_cost_usd
+        description: >
+          annual_ote_usd x the documented loading factor (benefits/tax,
+          tooling/T&E, management/ops allocation), USD per year. The input
+          to the metric tree's "Rep fully-loaded cost, incl. ramp" (S&M
+          cost) and "AM cost by segment" (AM efficiency).
+        tests: [not_null]
       - name: segment
         description: >
           Rep's segment focus -- SMB is self-serve/system-owned with no
@@ -294,7 +307,10 @@ models:
     description: >
       One row per (rule_id, account_id, timestamp) automated-playbook-
       trigger firing, appended to by analytics/playbook_triggers.py. Zero
-      rows until the first build-time run.
+      rows until the first build-time run. The five build-spec columns
+      come first, then the outcome-capture, owner and SLA columns the
+      module appends; columns are typed and blank-normalized here, and
+      nothing is derived.
     columns:
       - name: rule_id
         tests: [not_null]
@@ -306,10 +322,7 @@ models:
         description: >
           Deterministic 1:1 with rule_id -- analytics/playbook_triggers.py's
           RULES dict fixes exactly one resulting_action string per rule_id,
-          never chosen independently. Always populated on a fired trigger
-          (unlike outcome, which starts null/pending until backtesting fills
-          it in -- see fact_playbook_triggers.outcome's own description for
-          why that column intentionally carries no test here).
+          never chosen independently. Always populated on a fired trigger.
         tests:
           - not_null
           - accepted_values:
@@ -318,6 +331,15 @@ models:
                   - Escalate to CS for workflow-chain diagnostic outreach
                   - Escalate to Sales Engineering leadership for POC process review
                   - Trigger AM proactive onboarding check-in
+      - name: outcome
+        description: >
+          resolved / unresolved / pending / not_evaluable -- see
+          fact_playbook_triggers.outcome. Null only on a row logged without
+          being enriched.
+      - name: sla_due_at
+        description: >
+          Timestamp the SLA clock runs out; null only on a row logged
+          without being enriched.
 
   - name: stg_forecast_submissions
     description: >

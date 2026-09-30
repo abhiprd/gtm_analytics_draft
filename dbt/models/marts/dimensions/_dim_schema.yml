@@ -81,6 +81,20 @@ models:
           - accepted_values:
               arguments:
                 values: ['ISR', 'AE', 'SE', 'AM-Commercial', 'AM-Enterprise']
+      - name: annual_ote_usd
+        description: >
+          Rep on-target earnings (base + variable at target), USD per year.
+          Static per rep and repeated on each of the rep's capacity-period
+          rows; monthly accrual is in fact_rep_monthly_cost. Range-checked
+          against the rep_type band by
+          tests/assert_rep_comp_within_band_and_loading.sql.
+        tests: [not_null]
+      - name: fully_loaded_annual_cost_usd
+        description: >
+          annual_ote_usd x the loading factor (benefits/tax, tooling/T&E,
+          management/ops allocation), USD per year -- the metric tree's "Rep
+          fully-loaded cost". Static per rep; see annual_ote_usd.
+        tests: [not_null]
       - name: rep_status
         tests:
           - accepted_values:

@@ -52,16 +52,15 @@ flag real-data firing counts. These are nearer-term, cheaper fixes than
 code, it simply was never passed to `log_performance()`. See
 `find_unpersisted_hooks()`.
 
-A third finding: `analytics/variance_diagnostic.py`'s NOT_COMPUTABLE
-marking on `pipeline_generated` (and its three Layer-3 children) is
-itself STALE, the same failure mode `mart_growth_bridge`'s own header
-comment was already found to have (see the Marketing attribution & channel
-mix entry in the methods doc) -- `analytics/data_quality_governance.py`'s
-own governance-edge table already correctly marks the identical formula
-`VALIDATED_ELSEWHERE`, computed and validated in
-`analytics/marketing_attribution.py`. See `check_pipeline_generated_
-staleness()`: this is a live, self-checking cross-reference, not a
-one-time note that will itself go stale.
+A third, standing check is a cross-artifact consistency guard: every tree
+node whose actual `analytics/marketing_attribution.py` computes and
+validates (Pipeline generated and its organic/paid/community legs,
+declared in that module's `PIPELINE_CHANNEL_TO_TREE_KEY`) must not be
+marked NOT_COMPUTABLE in `analytics/variance_diagnostic.py`'s `_TREE`.
+See `check_pipeline_generated_staleness()`: it re-reads both modules live
+on every run, so a marking that drifts out of agreement with the artifact
+that owns the computation is reported the moment it happens rather than
+sitting unnoticed.
 
 ============================================================================
 SHAPE AND WHAT "as_of_date" MEANS HERE
@@ -472,6 +471,10 @@ def verify_hooks_trace_to_doc(methods_doc_path: str = None) -> dict:
 # `verify_data_gap_keys_are_live()`: if a cited key's computability has
 # changed (closed, renamed, or removed) since this catalog was curated,
 # that check fails loudly rather than silently reporting a stale claim.
+# Tier A is for a node another shipped artifact already computes and
+# validates but that the tree still marks NOT_COMPUTABLE. No root is in it
+# today; check_pipeline_generated_staleness() is the live guard that keeps it
+# empty for the nodes marketing_attribution.py covers.
 TIER_ALREADY_COMPUTED_ELSEWHERE = "A_already_computed_elsewhere_wiring_only"
 TIER_MART_EXPOSURE_ONLY = "B_phase2_mart_exposure_only"
 TIER_PHASE4_CODE_OR_DESIGN_FIX = "C_phase4_code_or_design_fix"
@@ -485,27 +488,6 @@ TIER_NOT_ACTIONABLE = "E_not_a_real_gap"
 # computability or gap_note is hardcoded here beyond the curated `tier`
 # and `rationale` judgment.
 DATA_GAP_ROOTS = [
-    dict(
-        node_key="pipeline_generated",
-        tier=TIER_ALREADY_COMPUTED_ELSEWHERE,
-        rationale=(
-            "STALE marking, not a real gap. analytics/marketing_attribution.py "
-            "already computes this exact formula from marts (fact_leads, "
-            "dim_campaign, fact_campaign_engagement_events) and validates it "
-            "(reconcile_pipeline_generated_identity, <=1e-9 tolerance, passing at "
-            "both checkpoints) -- analytics/data_quality_governance.py's own "
-            "governance-edge table already marks the identical formula "
-            "VALIDATED_ELSEWHERE (edge_id pipeline_generated_channel_formula). "
-            "Closing this needs no new data and no new mart -- only wiring "
-            "analytics/variance_diagnostic.py's pipeline_generated/organic_content/"
-            "paid/community_events nodes to call into marketing_attribution.py's "
-            "already-validated functions, the same reuse pattern "
-            "analytics/mmm_incrementality.py and analytics/scenario_planning.py "
-            "already establish for borrowing another Phase 4 module's logic. "
-            "Restores New Logo's first-ever real Layer-3 evidence anywhere in the "
-            "tree -- today 0 of 32 Layer-3 leaves are computable from any mart."
-        ),
-    ),
     dict(
         node_key="discount_rate_vs_list",
         tier=TIER_MART_EXPOSURE_ONLY,
@@ -579,9 +561,8 @@ DATA_GAP_ROOTS = [
             "Layer-3 children (ingestion_without_completion_rate, mid_chain_"
             "abandonment, full_vs_partial_chain_share) -- notably, "
             "analytics/playbook_triggers.py's own ingestion_without_completion rule "
-            "already computes a version of this signal for its own purpose, a "
-            "second real precedent (alongside pipeline_generated) that this "
-            "project's own other artifacts have already done some of this work."
+            "already computes a version of this signal for its own purpose, so "
+            "this project's own other artifacts have already done some of this work."
         ),
     ),
     dict(
@@ -600,22 +581,29 @@ DATA_GAP_ROOTS = [
         ),
     ),
     dict(
-        node_key="magic_number",
-        tier=TIER_GENUINE_NEW_PHASE1_DATA,
+        node_key="cost_per_channel_activity",
+        tier=TIER_MART_EXPOSURE_ONLY,
         rationale=(
-            "No rep-cost/comp data exists anywhere in the raw sources. This is the "
-            "single highest-node-count gap in the whole tree (5 nodes) and the "
-            "only gap that blocks an entire Layer-1 metric outright, alongside "
-            "am_efficiency below -- together the only two of the tree's 11 Layer-1 "
-            "nodes with zero computable actual. Needs a genuine new Phase 1 "
-            "generator (rep comp/cost by role/segment/month), the most expensive "
-            "tier in this catalog."
+            "The cost side now exists (mart_efficiency.sm_cost, from "
+            "fact_rep_monthly_cost and fact_marketing_spend), and so do the "
+            "activity counts it divides by (fact_leads for cost/MQL, "
+            "fact_sales_activities for cost/SDR meeting). What is missing is a "
+            "mart that joins channel-level cost to per-channel lead and meeting "
+            "counts -- a Phase 2 mart change, not new raw data. It is the one "
+            "node left blocked under Magic number."
         ),
     ),
     dict(
-        node_key="am_efficiency",
-        tier=TIER_GENUINE_NEW_PHASE1_DATA,
-        rationale="Same rep-cost/comp gap as magic_number -- the other of the tree's two entirely-NOT_COMPUTABLE Layer-1 nodes.",
+        node_key="expansion_revenue_drivers",
+        tier=TIER_NOT_ACTIONABLE,
+        rationale=(
+            "Not a gap of its own: the tree defines this node by reference "
+            "('See Growth -- expansion revenue drivers'), so it is computable "
+            "exactly when Expansion consumption revenue's own drivers "
+            "(wallet_share_progression, overage_realization, both catalogued "
+            "above) are. AM cost, the other side of AM efficiency, is already a "
+            "real input. No separate investment closes it."
+        ),
     ),
     dict(
         node_key="marketing_sales_handoff_quality",
@@ -625,10 +613,12 @@ DATA_GAP_ROOTS = [
             "directly against dbt/models/marts/facts/fact_leads.sql: the mart "
             "carries lead_id/account_id/channel/created_date/converted_date/"
             "is_converted/lead_score/days_to_conversion and nothing else -- no "
-            "stage/status field of any kind, so this is a genuine gap and NOT the "
-            "same stale-marking case pipeline_generated is (marketing_attribution.py "
-            "computes Pipeline generated from exactly these columns; it does not "
-            "and structurally cannot compute an MQL->SAL acceptance rate from them)."
+            "stage/status field of any kind, and the raw leads source has none "
+            "either. Leads and campaign touches are computable and feed Pipeline "
+            "generated (analytics/marketing_attribution.py), but they measure "
+            "conversion to signup; they cannot yield an MQL response SLA, an "
+            "MQL->SAL acceptance rate or a recycling rate, so this is a genuine "
+            "gap and its three children stay blocked with it."
         ),
     ),
     dict(
@@ -781,30 +771,29 @@ def rank_data_gap_priorities() -> list:
 
 
 def check_pipeline_generated_staleness() -> dict:
-    """Live, self-checking cross-reference behind this artifact's third
-    headline finding: analytics/variance_diagnostic.py marks
-    `pipeline_generated` (and its 3 Layer-3 children) NOT_COMPUTABLE, while
-    analytics/data_quality_governance.py's own governance-edge table marks
-    the identical formula VALIDATED_ELSEWHERE, computed by
-    analytics/marketing_attribution.py. Both facts are re-checked live each
-    run -- if either module changes (the staleness gets fixed, or the DQ
-    edge status changes), this reports the new, current state rather than
-    a frozen claim."""
+    """Live cross-artifact consistency check: every tree node that
+    analytics/marketing_attribution.py computes and validates
+    (PIPELINE_CHANNEL_TO_TREE_KEY) must be marked computable in
+    analytics/variance_diagnostic.py's `_TREE`. Both modules are re-read on
+    every call, so a marking that falls out of agreement with the artifact
+    that owns the computation is reported the moment it does. Also reports
+    the data-quality governance edge status for the same formula
+    (VALIDATED_ELSEWHERE), the third place the fact is recorded."""
+    stale = vd.stale_markings_against_attribution()
     vd_node = vd._TREE.get("pipeline_generated")
     vd_children = [k for k, n in vd._TREE.items() if n.parent_key == "pipeline_generated"]
     dqg_edge = next(
         (e for e in dqg._METRIC_TREE_EDGES_STATIC if e["edge_id"] == "pipeline_generated_channel_formula"),
         None,
     )
-    vd_says_not_computable = vd_node is not None and vd_node.computability == vd.NOT_COMPUTABLE
-    dqg_says_validated_elsewhere = dqg_edge is not None and dqg_edge["status"] == "VALIDATED_ELSEWHERE"
     return dict(
         vd_node_computability=vd_node.computability if vd_node else None,
         vd_children_still_not_computable=[
             k for k in vd_children if vd._TREE[k].computability == vd.NOT_COMPUTABLE
         ],
         dqg_edge_status=dqg_edge["status"] if dqg_edge else None,
-        is_stale_marking=vd_says_not_computable and dqg_says_validated_elsewhere,
+        stale_nodes=stale,
+        is_stale_marking=bool(stale),
     )
 
 
@@ -983,7 +972,7 @@ def validation_maturity_summary(methods_doc_path: str = None) -> list:
 def run_build_time_validation(as_of_date: date, log: bool = True, write_report: bool = True) -> dict:
     """End-to-end run: the hook catalog with live reading-count
     reconciliation, the live NOT_COMPUTABLE data-gap ranking, the
-    pipeline_generated staleness cross-reference, and the validation-
+    engine-marking vs. attribution consistency check, and the validation-
     maturity summary -- plus this module's own three correctness checks
     (hooks trace to doc text, cited gap keys are live, checkpoint counts
     reconcile against an independent CSV parse). Logs scalar summary
@@ -1094,7 +1083,9 @@ def _write_report(as_of_date: date, result: dict) -> None:
     lines.append(f"- Hooks trace to real doc text: {result['doc_trace_check']['n_passed']} of {result['doc_trace_check']['n_total']}")
     lines.append(f"- Cited data-gap node keys are live in variance_diagnostic.py's `_TREE`: {result['data_gap_keys_live_check']['n_passed']} of {result['data_gap_keys_live_check']['n_total']}")
     lines.append(f"- Checkpoint counts reconcile against an independent CSV parse: {'PASS' if result['checkpoint_reconciliation_check']['passed'] else '**FAIL**'} ({result['checkpoint_reconciliation_check']['n_models_checked']} models checked)")
-    lines.append(f"- `pipeline_generated` stale-marking cross-reference confirmed live: {result['pipeline_generated_staleness']['is_stale_marking']}")
+    stale_nodes = result['pipeline_generated_staleness']['stale_nodes']
+    lines.append("- Variance-engine computability markings agree with `marketing_attribution.py`'s validated coverage: "
+                 + ("PASS" if not stale_nodes else "**FAIL** (stale: " + ", ".join(f"`{k}`" for k in stale_nodes) + ")"))
     lines.append("")
 
     lines.append("## Checkpoint depth by model (as of " + as_of_date.isoformat() + ")")
@@ -1150,6 +1141,6 @@ if __name__ == "__main__":
           f"{s['hooks_with_zero_persisted_readings']} have zero persisted readings")
     print(f"Checkpoint depth: {s['min_checkpoints_across_models']}-{s['max_checkpoints_across_models']} "
           f"across {s['models_with_any_checkpoint']} models")
-    print(f"pipeline_generated stale marking confirmed live: {s['pipeline_generated_stale_marking_confirmed']}")
+    print(f"variance-engine markings stale against marketing_attribution: {s['pipeline_generated_stale_marking_confirmed']}")
     print(f"Threshold maturity: {s['artifacts_with_confirmed_threshold']} confirmed, "
           f"{s['artifacts_with_proposed_not_confirmed_threshold']} proposed-not-confirmed")

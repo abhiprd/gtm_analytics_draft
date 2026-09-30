@@ -413,16 +413,50 @@ def check_durability_growth_cross_mart_consistency(bridge: pd.DataFrame, durabil
     }
 
 
-def check_gap_confirmed_not_computable(df: pd.DataFrame, cols) -> dict:
-    """For the tree edges genuinely not computable from the marts layer
-    (no cost data for Magic number / AM efficiency), confirms the claim is
-    still true of the CURRENT data rather than a stale note -- if a future
-    Phase 1 change ever adds cost data and these columns stop being 100%
-    null, this check starts failing and the NOT_COMPUTABLE status in this
-    module needs updating, the same discipline that caught
-    mart_growth_bridge's own stale Pipeline-generated header comment."""
-    all_null = {c: bool(df[c].isna().all()) if len(df) else False for c in cols}
-    return {"still_all_null": all_null, "confirmed_gap": all(all_null.values())}
+def check_sm_cost_sum(efficiency: pd.DataFrame) -> dict:
+    """Tree: 'S&M cost' = 'Rep fully-loaded cost, incl. ramp' + 'Marketing
+    spend allocation by channel' (Cost per channel activity is a cut of the
+    same spend, not a third additive term). Sum formula. Source:
+    mart_efficiency (sm_cost, rep_fully_loaded_cost,
+    marketing_spend_allocated). Rows before marketing spend exists carry a
+    NULL sm_cost by design and are skipped."""
+    df = efficiency[efficiency["sm_cost"].notna()]
+    expected = df["rep_fully_loaded_cost"] + df["marketing_spend_allocated"].fillna(0.0)
+    return _tie_out(df["sm_cost"], expected)
+
+
+def check_magic_number_ratio(efficiency: pd.DataFrame) -> dict:
+    """Tree: 'Magic number = Net new ARR / prior-period S&M cost.' Ratio
+    formula, plus the definitional identity that the denominator column is
+    the PRIOR month's sm_cost for the same segment. Source: mart_efficiency
+    (magic_number, net_new_arr, magic_number_sm_cost, sm_cost)."""
+    prior = efficiency.assign(month=efficiency["month"] + pd.DateOffset(months=1))[
+        ["segment", "month", "sm_cost"]].rename(columns={"sm_cost": "prior_sm_cost"})
+    merged = efficiency.merge(prior, on=["segment", "month"], how="left")
+    lag_ok = _tie_out(merged["magic_number_sm_cost"], merged["prior_sm_cost"])
+    df = merged[merged["magic_number_sm_cost"] > 0]
+    ratio_ok = _tie_out(df["magic_number"], df["net_new_arr"] / df["magic_number_sm_cost"],
+                        tolerance=_RATIO_TOLERANCE)
+    return {
+        "passed": bool(lag_ok["passed"] and ratio_ok["passed"]),
+        "n_rows_checked": lag_ok["n_rows_checked"] + ratio_ok["n_rows_checked"],
+        "n_rows_skipped_null": lag_ok["n_rows_skipped_null"] + ratio_ok["n_rows_skipped_null"],
+        "max_abs_diff": max(lag_ok["max_abs_diff"], ratio_ok["max_abs_diff"]),
+        "tolerance": _RATIO_TOLERANCE,
+        "detail": {"denominator_is_prior_month_sm_cost": lag_ok, "ratio": ratio_ok},
+    }
+
+
+def check_am_efficiency_ratio(efficiency: pd.DataFrame) -> dict:
+    """Tree: 'AM efficiency = Expansion consumption revenue / AM cost.'
+    Ratio formula, on the monthly-flow basis mart_efficiency states
+    (expansion consumption revenue is the month's expansion MRR movement,
+    am_expansion_arr / 12). Source: mart_efficiency (am_efficiency,
+    am_expansion_arr, am_cost). Rows with no AM (am_cost = 0, i.e. SMB)
+    carry a NULL ratio by design and are skipped."""
+    df = efficiency[efficiency["am_cost"] > 0]
+    expected = (df["am_expansion_arr"] / 12.0) / df["am_cost"]
+    return _tie_out(df["am_efficiency"], expected, tolerance=_RATIO_TOLERANCE)
 
 
 _METRIC_TREE_EDGES_STATIC = [
@@ -443,7 +477,9 @@ _METRIC_TREE_EDGES_STATIC = [
             "'will NOT match exactly... a normal, real bookings-vs-revenue-"
             "recognition gap, not a bug.' Multiplying three marts-derived legs that "
             "don't share a population would manufacture a false tie-out, not a real "
-            "one."
+            "one. analytics/variance_diagnostic.py therefore ranks Pipeline "
+            "generated against its own trailing baseline as a New-logo sibling "
+            "and never multiplies the three legs together."
         ),
     },
     {
@@ -464,7 +500,11 @@ _METRIC_TREE_EDGES_STATIC = [
             "sub-channel) that is non-trivial and already owned by that module -- "
             "re-implementing it here would risk a second, silently-diverging copy "
             "rather than adding governance value. This edge is reported as validated, "
-            "not skipped, with a pointer to where the check actually runs."
+            "not skipped, with a pointer to where the check actually runs. "
+            "analytics/variance_diagnostic.py reads the same computation (the monthly "
+            "conversion-month flow, tied out to it by "
+            "marketing_attribution.reconcile_pipeline_generated_flow) for its "
+            "Pipeline generated and channel nodes."
         ),
     },
     {
@@ -481,34 +521,6 @@ _METRIC_TREE_EDGES_STATIC = [
             "analytics/variance_diagnostic.py's coverage table: 'Expansion consumption "
             "revenue | 0 of 2'), not a scope choice a Phase 4 workaround could close."
         ),
-    },
-    {
-        "edge_id": "magic_number_ratio",
-        "parent": "Magic number (Layer 1, Efficiency)",
-        "formula": "Net new ARR / prior-period S&M cost",
-        "formula_type": "ratio",
-        "status": "NOT_COMPUTABLE",
-        "reason": (
-            "No rep-cost/comp data exists anywhere in the raw sources, so "
-            "mart_efficiency.magic_number_sm_cost and .magic_number are NULL by "
-            "design (mart_efficiency's own header). This is the same gap "
-            "analytics/variance_diagnostic.py and analytics/capacity_planning.py "
-            "both name as structurally not-computable."
-        ),
-        "gap_confirmation_cols": ["magic_number_sm_cost", "magic_number"],
-    },
-    {
-        "edge_id": "am_efficiency_ratio",
-        "parent": "AM efficiency (Layer 1, Efficiency)",
-        "formula": "Expansion consumption revenue / AM cost",
-        "formula_type": "ratio",
-        "status": "NOT_COMPUTABLE",
-        "reason": (
-            "No AM comp/cost data exists anywhere in the raw sources, so "
-            "mart_efficiency.am_cost and .am_efficiency are NULL by design "
-            "(mart_efficiency's own header). Same gap as magic_number above."
-        ),
-        "gap_confirmation_cols": ["am_cost", "am_efficiency"],
     },
 ]
 
@@ -593,6 +605,27 @@ def check_metric_tree_integrity(as_of_date: date, con=None) -> dict:
             "result": check_am_expansion_arr_cross_mart(bridge, efficiency),
         },
         {
+            "edge_id": "sm_cost_sum",
+            "parent": "S&M cost (Layer 2, under Magic number)",
+            "formula": "Rep fully-loaded cost (incl. ramp) + Marketing spend allocation by channel",
+            "formula_type": "sum",
+            "result": check_sm_cost_sum(efficiency),
+        },
+        {
+            "edge_id": "magic_number_ratio",
+            "parent": "Magic number (Layer 1, Efficiency)",
+            "formula": "Net new ARR / prior-period S&M cost",
+            "formula_type": "ratio",
+            "result": check_magic_number_ratio(efficiency),
+        },
+        {
+            "edge_id": "am_efficiency_ratio",
+            "parent": "AM efficiency (Layer 1, Efficiency)",
+            "formula": "Expansion consumption revenue / AM cost",
+            "formula_type": "ratio",
+            "result": check_am_efficiency_ratio(efficiency),
+        },
+        {
             "edge_id": "consumption_payback_ratio",
             "parent": "Consumption payback (Layer 1, Efficiency)",
             "formula": "CAC / utilized-Action margin",
@@ -636,14 +669,7 @@ def check_metric_tree_integrity(as_of_date: date, con=None) -> dict:
         },
     ]
 
-    static_edges = []
-    for edge in _METRIC_TREE_EDGES_STATIC:
-        e = dict(edge)
-        if edge["status"] == "NOT_COMPUTABLE" and "gap_confirmation_cols" in edge:
-            e["gap_confirmation"] = check_gap_confirmed_not_computable(
-                efficiency, edge["gap_confirmation_cols"]
-            )
-        static_edges.append(e)
+    static_edges = [dict(edge) for edge in _METRIC_TREE_EDGES_STATIC]
 
     n_pass = sum(1 for e in computed_edges if e["result"]["passed"])
     n_fail = sum(1 for e in computed_edges if not e["result"]["passed"])

@@ -11,6 +11,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - **Expansion opportunities are a discrete AM-initiated event** (renegotiating a higher committed minimum) — metered overage within the existing commitment is billing-only, never spawns an opportunity.
 - **Renewal timing respects actual contract term** — annual for Commercial, multi-year for Enterprise.
 - **Rep ramp is a step function** (50% / 75% / 100% across quarters 1–2), not a hard cliff.
+- **Rep cost accrues from the hire date, not from first production.** A ramping rep costs the same per day as a ramped one for the first two quarters while producing at 50% / 75% of capacity; the metric tree's "Rep fully-loaded cost, incl. ramp" is read that way.
 - **Rep departures trigger explicit account reassignment** to another rep on the same team/segment, logged as a handoff event — no orphaned ownership.
 - **A modest cohort of accounts is seeded with already-established, staggered tenure at simulation start** — avoids an "everyone is new in month 1" artifact.
 - **Currency is USD only.** No FX modeling.
@@ -43,6 +44,15 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - No opportunity or account ownership gap when a rep departs — reassignment must be atomic with the departure event.
 - New hires mid-quarter get a full ramp period starting from hire date, not prorated against the quarter boundary.
 - `quota_history` amounts must be **derived from the opportunity generator's realized deal supply**, never set independently of it. Quota sized against an ACV band alone is the causal-wiring failure grounding requirement 2 forbids, applied to a target instead of a probability: it makes attainment a function of an arbitrary constant rather than of rep productivity, and a structurally unreachable quota leaves every downstream capacity and attainment diagnostic measuring a definitional mismatch instead of capacity. The derivation is opportunities closed per fully-ramped rep-quarter × that segment's realized win rate × average won deal size, measured over the simulation window only (earlier quarters carry a back-dated won-deal tail with no lost pipeline and understate supply).
+
+### Rep compensation and fully-loaded cost
+- `users.csv` carries `annual_ote_usd` (base + variable at 100% of target) and `fully_loaded_annual_cost_usd` (OTE × a documented loading factor) for every rep. They are the input to the metric tree's "Rep fully-loaded cost, incl. ramp" (S&M cost → Magic number) and "AM cost by segment" (AM efficiency).
+- Both are functions of real drivers, never independent draws: `rep_type` sets the OTE band (segment is implied by `rep_type`: ISR / AM-Commercial → Commercial; AE / SE / AM-Enterprise → Enterprise); seniority (tenure at the end of the window; this applies to the 8 departed reps too, a modelling simplification) and scope (the base quota an ISR/AE carries, an AM's `book_size`) move a rep up or down inside that band; a small multiplicative residual (σ = 3%) stands in for offer-to-offer variance.
+- The residual is drawn from an independent seeded stream (`[SEED, REP_COMP_SEED_OFFSET]`), never the shared generator the foundation batch threads through reps → market universe → accounts. Adding these two columns therefore moves no other draw: regenerating every Phase 1 batch leaves every pre-existing column of every raw CSV byte-identical, and `users.csv` differs only by the two appended columns.
+- Comp is a static attribute per rep — there is no comp-history table, no raises, no inflation. Variable pay is counted at 100% of target; realized quota attainment lands at 84–95%, so cost is conservative (slightly high) by that margin.
+- Cost accrues day by day from `hire_date` to the `departed` row in `rep_status_history` (`fact_rep_monthly_cost`), so a rep who departs mid-month costs a prorated month and a rep hired mid-month likewise. The first six months after hire (the two-quarter ramp) are separable (`ramping_days`, `monthly_ramping_cost_usd`).
+- Segment attribution of S&M cost (`mart_efficiency`): rep cost follows the rep's own segment; SMB has no reps, so its rep cost is a real zero, not a gap. Marketing spend is split across segments by each segment's share of the channel-month's new accounts — channel does not imply segment, so no channel is assigned to a segment wholesale. Channel-months with no new accounts (outbound SDR only) fall back to the channel's whole-window segment mix, so allocations always sum to `fact_marketing_spend`.
+- Out of scope, stated rather than modelled: marketing-team headcount, frontline managers and RevOps as rows. The loading factor carries a management/ops allocation for the reps; marketing headcount has no raw source, so S&M cost is a floor and Magic number a ceiling.
 
 ### Health score (product-specific)
 - Login/engagement frequency must be reinterpreted, not taken at face value — weight it higher in an account's first ~90 days, lower afterward, or a fully-automated healthy account gets flagged as at-risk for behaving exactly as the product intends.
@@ -119,7 +129,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
    | Magic number | n/a | ~0.7–0.9 | ~0.7–0.9 | "Good" SaaS range from Efficiency-pillar research |
    | Consumption payback | n/a | ~14–18 mo | ~9–13 mo | Estimated — Enterprise's larger ACV amortizes its higher CAC faster despite costing more to acquire |
 
-   Only the NRR row is backed by cited research; the rest are reasoned estimates for internal consistency, not sourced benchmarks.
+   Only the NRR row is backed by cited research; the rest are reasoned estimates for internal consistency, not sourced benchmarks. The Magic number and AM efficiency plan values in `gtm_plan_targets` are top-down anchors set independently of the realized cost in `users.csv`; the actuals computed from that cost are compared against them under a stated comparability caveat (see the variance-diagnostic entry in the analytics methods doc), not tuned to land inside the benchmark band.
 
    The table above is keyed by segment. The marketing funnel's parameters are keyed by sub-channel instead, so they trace to this companion table rather than to a row above:
 
@@ -132,6 +142,20 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
    | Holdout conversion, as a share of treated | n/a — not held out | ~35% | ~35% | Implies ~65% incremental lift, inside the range paid-media incrementality tests report for mid-funnel programs |
 
    None of these is a sourced benchmark either; same caveat as above.
+
+   Rep compensation is grounded the same way, keyed by `rep_type`:
+
+   | Rep type | Segment | Annual OTE band (USD) | Typical pay mix (context, not modelled) | Loading factor |
+   |---|---|---|---|---|
+   | ISR | Commercial | 105,000 – 145,000 | 60 / 40 | 1.43 |
+   | AE | Enterprise | 240,000 – 340,000 | 50 / 50 | 1.49 |
+   | SE | Enterprise | 170,000 – 230,000 | 70 / 30 | 1.47 |
+   | AM-Commercial | Commercial | 95,000 – 135,000 | 75 / 25 | 1.42 |
+   | AM-Enterprise | Enterprise | 150,000 – 210,000 | 70 / 30 | 1.45 |
+
+   The bands are approximate US SaaS compensation-survey ranges — the family of public sources such as The Bridge Group's SaaS AE/SDR reports and the Pavilion and Carta compensation summaries — chosen as reasoned estimates inside those ranges, not looked up as exact published figures. Ordering follows the real structure: enterprise field sales above inside sales, sales engineering between the two, enterprise account management above commercial. The loading factor is `1 + 0.22 (employer payroll tax and benefits) + role tooling/T&E/enablement (ISR 0.06, AE 0.12, SE 0.10, AM-Commercial 0.05, AM-Enterprise 0.08) + 0.15 (management and sales-ops allocation)`, i.e. 1.42–1.49 — in line with the 1.3–1.5× fully-burdened multiples commonly used in SaaS unit-economics work (itself a reasoned range, not a citation), at the upper end because it carries the management/ops allocation the raw data has no rows for. At generated headcount this is roughly $13.7M of rep cost in 2023, $16.0M in 2024 and $17.3M in 2025, of which the ramp window is roughly 7%, 9% and 4%.
+
+   Same caveat as above: none of this is a sourced benchmark.
 2. **Causal wiring is mandatory, not optional.** Win probability, churn probability, usage growth, and marketing conversion must be generated as actual functions of their real drivers (ramp status, deal characteristics, POC outcome, health-score trajectory, activation speed, touch volume and recency) — independently-random columns produce a dataset with nothing for any diagnostic artifact to find.
 3. **3–5 deliberately injected incidents across the 36 months** — a POC-process regression, a channel's CAC creeping up, a meetings-rise-without-SQO-conversion-rise decoupling period, an underperforming rep cohort. Calibrated to be detectable, not blatant.
 4. **Explicit signal-to-noise targets** — e.g., health-score inputs should predict eventual churn at roughly 65–80% AUC. States the generator's success criterion instead of hoping the output lands somewhere reasonable.
@@ -160,6 +184,8 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - Every `lead_scoring_history.lead_id` resolves to a real `leads.csv` row, every lead carries at least one scoring event, `score_id` is unique, and no lead carries two scoring events sharing a `scored_at` value; `model_version` is one of the two declared values and matches `scored_at`'s position relative to `MODEL_CUTOVER_DATE`; `region_component` is null if and only if `model_version` is the pre-region version; every scoring event falls on or after its lead's `created_date`, and no scoring event on a converting lead falls on or after its `converted_date`
 - `experiments_registry` carries exactly one row, and `experiment_assignment`'s `experiment_id` resolves to it; `experiment_assignment.lead_id` is unique (one assignment per lead) and resolves to a real `leads.csv` row, `first_touch_campaign_id` resolves to a real `campaigns.csv` row, `channel` is scoped to `config.HOLDOUT_CHANNELS` and `cell_quarter` to `config.HOLDOUT_QUARTERS`, `account_id` is populated if and only if the lead converted, and `arm` (`treatment`/`control`) matches the real `is_holdout` flag of that lead's real first-touch campaign — re-derived independently from `campaign_engagement_events`, not trusted from any one code path
 
+- Every `users.annual_ote_usd` and `fully_loaded_annual_cost_usd` is populated and positive; `fact_rep_monthly_cost` resolves every `rep_id` to `dim_reps`; `mart_efficiency`'s marketing allocation sums across segments to `fact_marketing_spend.spend` per month, its rep cost sums to `fact_rep_monthly_cost` per month, and `am_cost` never exceeds `rep_fully_loaded_cost`
+
 ### B. Distributional realism
 - ACV falls within its segment's defined range; flag and investigate outliers
 - Aggregate revenue mix lands near ~65–70% Enterprise ARR (tolerance band, not exact)
@@ -168,6 +194,7 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - NRR/GRR by segment land near the grounding targets (~118% / ~97%)
 - `gtm_plan_targets` values land within a defensible range per metric — the benchmark reference table's ranges (blended to a company-wide figure) for the six metrics it covers, and the generator's own documented resolved-decision range for `new_logo_consumption_revenue`, `am_efficiency` and `onboarding_cs_efficiency`, which the table has no row for. `expansion_consumption_revenue` and `contraction_churned_revenue` are neither: the metric tree defines NRR and GRR as those exact flows, so both lines are *derived* from this table's blended NRR/GRR rows (`contraction_share = 1 − GRR**(1/12)`, `expansion_share = NRR**(1/12) − 1 + contraction_share`) and their band is the envelope that derivation produces against the planned revenue base. A plan whose flow rows and durability rows state the same identity two different ways is a bug, so the reconciliation between them is asserted directly rather than left to the range check
 
+- Every rep's `annual_ote_usd` sits inside its `rep_type`'s band and `fully_loaded_annual_cost_usd` equals OTE × the documented loading factor for that type; mean OTE orders AE > SE > ISR and AM-Enterprise > AM-Commercial
 - Lead-to-customer conversion rate, lead-to-signup gap, touches per lead and CAC each land inside the sub-channel companion table's band, and total campaign budget over the simulation window reconciles with `marketing_spend_by_channel_month`'s `inbound_marketing` total — the two are independently built views of the same money at different grains, so exact agreement isn't expected, but a large divergence means the finer split has drifted from the coarse figure several Efficiency-pillar metrics already read
 - Every value in each sub-channel's event vocabulary actually occurs — an event type that exists only as a schema value and never fires is the same defect flagged above for migration `trigger_reason`
 - Every declared `activity_type` and every declared `outcome` in `fact_sales_activities` actually occurs; Enterprise opportunities carry more touches per opportunity than Commercial, and a higher meeting/demo share, consistent with the build spec's heavier-touch motion for that segment
@@ -192,6 +219,8 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - `lead_scoring_history.predicted_fit_score` (re-derived purely from firmographics, checked without the generator itself ever reading the outcome) runs measurably higher, on average, for leads that eventually convert than for those that don't, without becoming a near-perfect separator — the same real, non-fabricated selection effect `accounts.py`'s "mildly toward higher `icp_fit_score`" conversion tilt already produces
 - `experiment_assignment`'s control arm converts measurably worse than its treatment arm on raw `is_converted`, both pooled and in every one of the 6 individual cells — the whole reason the `arm` column exists is that it correlates with a real outcome gap, not merely carries a label; distinct from and does not re-derive `analytics/marketing_attribution.py`'s own point-in-time-resolved incrementality statistic, which is that module's job
 
+- Within a `rep_type`, OTE rises with tenure (pooled Spearman across roles clearly positive), and AM-Enterprise OTE rises with `book_size` — compensation traces to seniority and scope, not to an independent draw
+
 ### D. Volume/sufficiency for modeling
 - Minimum N of Closed-Won and Closed-Lost per segment per quarter, sufficient to train/validate a win-probability model
 - Churned accounts present in large enough number for reasonable class balance (not a 99.9/0.1 split, which is unlearnable)
@@ -206,6 +235,8 @@ Companion to `acme-corp-gtm-portfolio-build-spec.md`. This document exists so Ph
 - `experiment_assignment`'s total control-arm volume clears the registry's own stated guardrail floor (≥ 300 leads), and every individual cell's control volume is non-trivial (≥ 15 leads) on its own — the same "an incrementality test on a handful of leads is not a test" bar the holdout cell bullet above already sets, checked per cell rather than only pooled
 
 ### E. Edge-case-specific existence checks
+- Adding the compensation columns consumes no draw from the shared generator: the state of the shared stream after `generate_reps` is identical with and without the compensation step, and the compensation generation is deterministic for a fixed seed
+- Magic number is defined (non-null, positive prior-period S&M cost) for Commercial and Enterprise in every month from 2023-02, and AM efficiency for both in every month from 2023-01 (rep cost and AM efficiency are NULL for the four Enterprise months 2020-03 to 2020-06, when reps were on payroll before any Enterprise revenue-bridge row existed, and the dbt test checks 2023-01 onward); SMB carries a real zero for rep cost and AM cost and an undefined (null) AM efficiency
 - At least some segment migrations are `firmographic_rescore`-triggered, not only `usage_threshold`
 - At least some accounts show the sustained-near-zero-usage-before-renewal pattern
 - At least some deals show stage regression

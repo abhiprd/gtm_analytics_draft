@@ -32,13 +32,22 @@ def log_performance(model_name: str, as_of_date_: date, metric_name: str, metric
     """
     key = (model_name, as_of_date_.isoformat(), metric_name)
     rows = read_performance_history()
-    rows = [r for r in rows if (r["model_name"], r["as_of_date"], r["metric_name"]) != key]
-    rows.append({
+    new_row = {
         "model_name": model_name,
         "as_of_date": as_of_date_.isoformat(),
         "metric_name": metric_name,
         "metric_value": metric_value,
-    })
+    }
+    # Replace in place: a re-run of an existing checkpoint keeps its row's
+    # position, so re-running an artifact never reorders the log (a
+    # remove-and-append would move every re-run row to the end of the file).
+    positions = [i for i, r in enumerate(rows)
+                 if (r["model_name"], r["as_of_date"], r["metric_name"]) == key]
+    if positions:
+        rows[positions[0]] = new_row
+        rows = [r for i, r in enumerate(rows) if i not in positions[1:]]
+    else:
+        rows.append(new_row)
 
     with open(_CSV_PATH, "w", newline="") as f:
         # lineterminator="\n": csv's default is "\r\n", which produced a

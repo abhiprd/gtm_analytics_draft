@@ -3,8 +3,8 @@ marketing_spend_by_channel_month), scoped per the validate-gtm-data skill
 and the QA plan's test cases (docs/acme-corp-phase1-data-qa-plan.md).
 
 Rep-cost/S&M-cost checks (Magic Number, AM Efficiency) are out of scope
-here -- no rep-cost source exists yet (see run_batch3.py's module
-docstring and config.py's TARGET_CAC_BY_CHANNEL comment).
+here -- rep compensation is carried on users.csv and checked with the
+foundation batch (tests/test_phase1_foundation.py, TestRepCompensation).
 
 Run: python3 -m pytest tests/test_phase1_batch3.py -v
 """

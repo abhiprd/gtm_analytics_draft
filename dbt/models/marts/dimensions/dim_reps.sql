@@ -6,6 +6,11 @@
 -- period_start_date <= as_of < coalesce(period_end_date, infinity) for a
 -- point-in-time lookup, or is_current_period = true for "as of now."
 --
+-- annual_ote_usd / fully_loaded_annual_cost_usd are static per-rep attributes
+-- repeated on every capacity-period row of the rep (compensation is not
+-- historized in the raw data); monthly cost accrual lives in
+-- fact_rep_monthly_cost, not here.
+--
 -- territory is a new-business coverage/routing concept scoped to
 -- account-owning reps (rep_type ISR/AE) -- it is null for every SE and
 -- AM-Commercial/AM-Enterprise rep by design, not a data gap.
@@ -28,6 +33,8 @@ select
     r.segment,
     r.hire_date,
     r.book_size,
+    r.annual_ote_usd,
+    r.fully_loaded_annual_cost_usd,
     t.territory,
     cp.period_start_date,
     cp.period_end_date,

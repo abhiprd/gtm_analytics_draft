@@ -117,9 +117,12 @@ same connection pattern `analytics/variance_diagnostic.py` uses.
    `non_additive_metric`, with the tree's own non-additive language quoted
    back.
 3. **Registered but not computable** -- most Layer-2/3 leaves have no
-   `mart_*` table backing them (leads/campaigns, opportunity-stage detail,
-   workflow-chain detail, AM comp data, etc. either don't exist in the raw
-   sources or sit in a `fact_*` table with no `mart_*` rollup) ->
+   `mart_*` table backing them: opportunity-stage detail and
+   workflow-chain detail sit in a `fact_*` table with no `mart_*` rollup,
+   the marketing-sales handoff nodes need an MQL/SAL lifecycle that no
+   source carries, and Pipeline generated with its channel legs is
+   computed by `analytics/marketing_attribution.py` (point-in-time lead
+   resolution) rather than served from a mart rollup ->
    `metric_not_queryable`, with the specific gap and, where meaningful, a
    `suggested_alternative` (usually the nearest computable ancestor).
 4. **Dimension not allowed by the tree** -- e.g. `opportunity_type` on NRR
@@ -134,22 +137,26 @@ same connection pattern `analytics/variance_diagnostic.py` uses.
 
 ## What's actually queryable right now
 
-20 of the tree's 70 parsed nodes (11 Layer-1 + 9 Layer-2/3) have a real
+23 of the tree's 70 parsed nodes (11 Layer-1 + 12 Layer-2/3) have a real
 `mart_*` mapping today -- every Layer-1 node, plus `win_rate`,
 `avg_initial_commitment`, `onboarding_completion_rate`,
 `am_touchpoint_volume`, `automated_action_volume_delivered`,
 `cac_by_channel` (blended only), `utilized_vs_committed_action_volume`,
-`am_cost_by_segment` (NULL -- no comp data), `tenure_at_churn`. Everything
-else is a genuine, cited data gap (see each node's `gap_note` via
+`s_m_cost`, `rep_fully_loaded_cost_incl_ramp`,
+`marketing_spend_allocation_by_channel` (summed over channels, attributed to
+segment), `am_cost_by_segment`, `tenure_at_churn`. Everything else is a
+genuine, cited data gap (see each node's `gap_note` via
 `get_metric_definition`), not a stub -- consistent with how
 `analytics/variance_diagnostic.py` already documents the same gaps against
 the same marts.
 
-`magic_number` and `am_efficiency` are marked computable (they have a real
-`mart_efficiency` column) but that column is NULL in every row -- there is
-no rep-cost/comp data anywhere in the raw sources. `query_metric()` will
-return real, correctly-shaped `null` values for them, not an error; the
-metric definition's `gap_note` explains why.
+`magic_number` and `am_efficiency` are ratio-of-sums metrics over
+`mart_efficiency`'s cost columns: Magic number is summed net new ARR over
+summed prior-period S&M cost, AM efficiency is summed monthly expansion MRR
+over summed AM cost. At month grain a single month is seasonal and can be
+negative; `grain="year"` gives a stable read. SMB has no reps and no AM, so
+Magic number for SMB reflects program spend only and AM efficiency for SMB
+returns `null` by design (no AM to divide by), not an execution gap.
 
 ## Validation
 

@@ -1,14 +1,14 @@
 # Proxy-metric health / analytics investment prioritization -- as of 2025-12-31
 
-**Headline finding**: no genuine drift/decay claim is possible yet for anything in this project. Every model with any logged checkpoint has between 1 and 3 real checkpoints (18 models total) -- see 'Checkpoint depth by model' below. This artifact is a governance catalog and framework, not a time-series drift tool; it becomes more useful as `drift-monitor` actually runs on a recurring cadence.
+**Headline finding**: no genuine drift/decay claim is possible yet for anything in this project. Every model with any logged checkpoint has between 1 and 3 real checkpoints (20 models total) -- see 'Checkpoint depth by model' below. This artifact is a governance catalog and framework, not a time-series drift tool; it becomes more useful as `drift-monitor` actually runs on a recurring cadence.
 
 This module's own correctness checks: 3 of 3 pass (ALL PASS).
 
 ## Correctness checks
 - Hooks trace to real doc text: 29 of 29
-- Cited data-gap node keys are live in variance_diagnostic.py's `_TREE`: 21 of 21
-- Checkpoint counts reconcile against an independent CSV parse: PASS (18 models checked)
-- `pipeline_generated` stale-marking cross-reference confirmed live: True
+- Cited data-gap node keys are live in variance_diagnostic.py's `_TREE`: 20 of 20
+- Checkpoint counts reconcile against an independent CSV parse: PASS (20 models checked)
+- Variance-engine computability markings agree with `marketing_attribution.py`'s validated coverage: PASS
 
 ## Checkpoint depth by model (as of 2025-12-31)
 | Model | n_checkpoints | as_of_dates |
@@ -18,7 +18,9 @@ This module's own correctness checks: 3 of 3 pass (ALL PASS).
 | capacity_planning | 2 | 2025-06-30, 2025-12-31 |
 | data_quality_governance | 2 | 2025-06-30, 2025-12-31 |
 | deal_diagnostics | 2 | 2025-06-30, 2025-11-30 |
+| experimentation_platform | 2 | 2025-06-30, 2025-12-31 |
 | forecast | 2 | 2025-08-15, 2025-11-14 |
+| lead_scoring_model | 1 | 2025-12-31 |
 | marketing_attribution | 2 | 2025-06-30, 2025-12-31 |
 | mmm_incrementality | 2 | 2025-06-30, 2025-12-31 |
 | pricing_packaging_analytics | 2 | 2025-06-30, 2025-11-30 |
@@ -69,7 +71,6 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 
 | Node | Layer | Tier | Blocks full Layer-1? | Nodes blocked |
 |---|---|---|---|---|
-| Pipeline generated (`pipeline_generated`) | 2 | A_already_computed_elsewhere_wiring_only | False | 4 |
 | Workflow chain under-utilization (`workflow_chain_underutilization`) | 2 | B_phase2_mart_exposure_only | False | 4 |
 | Renewal win rate (`renewal_win_rate`) | 2 | B_phase2_mart_exposure_only | False | 3 |
 | Discount rate vs. list (`discount_rate_vs_list`) | 3 | B_phase2_mart_exposure_only | False | 1 |
@@ -79,31 +80,32 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 | POC pass rate (Enterprise) (`poc_pass_rate`) | 3 | B_phase2_mart_exposure_only | False | 1 |
 | Churn reason category (loud vs. silent) (`churn_reason_category`) | 2 | B_phase2_mart_exposure_only | False | 1 |
 | Overage realization (`overage_realization`) | 2 | B_phase2_mart_exposure_only | False | 1 |
+| Cost per channel activity (`cost_per_channel_activity`) | 3 | B_phase2_mart_exposure_only | False | 1 |
 | Rep capacity / ramp mix (`rep_capacity_ramp_mix`) | 3 | B_phase2_mart_exposure_only | False | 1 |
 | Account health score (`account_health_score`) | 2 | C_phase4_code_or_design_fix | False | 5 |
-| Magic number (blended) (`magic_number`) | 1 | D_genuine_new_phase1_data | True | 5 |
 | Marketing-sales handoff quality (`marketing_sales_handoff_quality`) | 2 | D_genuine_new_phase1_data | False | 4 |
 | Brand & awareness (`brand_awareness`) | 2 | D_genuine_new_phase1_data | False | 4 |
 | Wallet share progression (`wallet_share_progression`) | 2 | D_genuine_new_phase1_data | False | 4 |
-| AM efficiency (blended) (`am_efficiency`) | 1 | D_genuine_new_phase1_data | True | 3 |
 | Time-to-first-integration / first successful run (`time_to_first_integration`) | 2 | D_genuine_new_phase1_data | False | 1 |
 | Quickstart/docs content engagement rate (`quickstart_docs_engagement_rate`) | 2 | D_genuine_new_phase1_data | False | 1 |
 | Cohort comparison (same account type, same period last cycle) (`cohort_comparison`) | 3 | D_genuine_new_phase1_data | False | 1 |
+| Expansion revenue drivers (`expansion_revenue_drivers`) | 2 | E_not_a_real_gap | False | 1 |
 | Account-specific baseline deviation (`account_specific_baseline_deviation`) | 3 | E_not_a_real_gap | False | 1 |
 
 ## Validation-maturity summary (self-proposed vs. independently confirmed thresholds)
-1 artifact section(s) carry a threshold CONFIRMED by `analytics-model-validator`; 14 carry at least one threshold still PROPOSED, not yet confirmed.
+1 artifact section(s) carry a threshold CONFIRMED by `analytics-model-validator`; 16 carry at least one threshold still PROPOSED, not yet confirmed.
 
 | Artifact section | PROPOSED mentions | CONFIRMED mentions |
 |---|---|---|
 | Segment/segmentation migration analysis | 0 | 1 |
 | Marketing attribution & channel mix | 1 | 0 |
+| Segment/lead scoring model | 2 | 0 |
 | Forecast (sales bottoms-up / ML / CRO overlay reconciliation) | 1 | 0 |
 | Variance-diagnostic engine | 1 | 0 |
 | Weekly executive readout | 1 | 0 |
 | Capacity planning | 1 | 0 |
 | Data quality / metric governance | 1 | 0 |
-| Automated playbook triggers | 3 | 0 |
+| Automated playbook triggers | 4 | 0 |
 | Deal-level diagnostics | 1 | 0 |
 | Rep productivity & coaching diagnostics | 1 | 0 |
 | Pricing / packaging analytics | 2 | 0 |
@@ -111,3 +113,4 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 | Territory / account coverage & routing | 1 | 0 |
 | MMM / incrementality-based measurement | 1 | 0 |
 | Retention / expansion cohort analytics | 1 | 0 |
+| Testing / experimentation methodology & platform | 1 | 0 |

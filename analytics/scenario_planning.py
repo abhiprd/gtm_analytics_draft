@@ -74,12 +74,12 @@ grounded directly in `analytics/data_quality_governance.py`'s own
 `_METRIC_TREE_EDGES_STATIC` list and its per-edge check functions -- the
 one artifact in this repo whose entire job is "does the tree's math
 actually tie out in the built marts," independently re-verified at every
-governance checkpoint (11/11 real edges PASS as of both its checkpoints).
+governance checkpoint (14/14 real edges PASS as of both its checkpoints).
 Every edge this module propagates through is one of those governance-
 PASSING edges (`edge_id`s cited per function below); every edge governance
 found `NOT_COMPUTABLE` (New logo = Pipeline x Win rate x Avg commitment;
-Expansion = Wallet share progression x Overage realization; Magic number;
-AM efficiency) is honoured as `NOT_COMPUTABLE` here too, for the identical
+Expansion = Wallet share progression x Overage realization) is honoured as
+`NOT_COMPUTABLE` here too, for the identical
 reason -- never re-derived, never silently patched around, never
 back-solved from the parent's real value to fabricate a missing factor
 (that specific temptation -- solving `pipeline_generated = new_logo_mrr /
@@ -155,15 +155,16 @@ R^2/RMSE, and their absence is deliberate, not pending. The correctness
 claim is "does propagation through a real formula produce the exact
 hand-computable answer, does a NOT_COMPUTABLE gap get reported rather than
 fabricated, and does a shared ancestor reached via two paths tie out
-without double-counting" -- checked by `SYNTHETIC_SCENARIOS` below. Five
-of its seven cases are pure functions over hand-built DataFrames (no I/O,
-exact hand-computable expected answers -- the sum / product / ratio /
-ratio-of-sum / shared-ancestor cases this artifact's build task requires);
-the remaining two (NOT_COMPUTABLE handling for a product-node gap and for
-a cost-data gap) deliberately run the real `run_scenario()` end to end
-against real marts data at a fixed `as_of_date`, because NOT_COMPUTABLE
-reporting is a property of the node-registration logic in
-`run_scenario()` itself, not of a standalone formula function -- a
+without double-counting" -- checked by `SYNTHETIC_SCENARIOS` below. Six
+of its eight cases are pure functions over hand-built DataFrames or series
+(no I/O, exact hand-computable expected answers -- the sum / product /
+ratio / ratio-of-sum / trailing-twelve-month-ratio / shared-ancestor cases
+this artifact's build task requires); the remaining two (NOT_COMPUTABLE
+handling for a product-node gap, and a cost driver propagating through the
+real Magic number / AM efficiency equations) deliberately run the real
+`run_scenario()` end to end against real marts data at a fixed
+`as_of_date`, because node-registration and reporting logic is a property
+of `run_scenario()` itself, not of a standalone formula function -- a
 synthetic DataFrame could not exercise it. This mirrors
 `analytics/variance_diagnostic.py`'s own synthetic suite and
 `analytics/data_quality_governance.py`'s own synthetic-violation suite,
@@ -234,18 +235,21 @@ class DriverSpec:
 _DRIVERS: Dict[str, DriverSpec] = {
     "contraction_mrr": DriverSpec(
         "contraction_mrr", "growth_bridge", "contraction_mrr", "usd", _ALL_SEGMENTS,
-        ("contraction_churned_revenue", "nrr", "grr", "growth_pillar_bridge"),
-        ("new_logo_equals_pipeline_x_winrate_x_commitment", "durability_growth_cross_mart"),
+        ("contraction_churned_revenue", "nrr", "grr", "growth_pillar_bridge", "magic_number"),
+        ("new_logo_equals_pipeline_x_winrate_x_commitment", "durability_growth_cross_mart",
+         "magic_number_ratio", "net_new_arr_cross_mart"),
     ),
     "churn_mrr": DriverSpec(
         "churn_mrr", "growth_bridge", "churn_mrr", "usd", _ALL_SEGMENTS,
-        ("contraction_churned_revenue", "nrr", "grr", "growth_pillar_bridge"),
-        ("durability_growth_cross_mart",),
+        ("contraction_churned_revenue", "nrr", "grr", "growth_pillar_bridge", "magic_number"),
+        ("durability_growth_cross_mart", "magic_number_ratio", "net_new_arr_cross_mart"),
     ),
     "expansion_mrr": DriverSpec(
         "expansion_mrr", "growth_bridge", "expansion_mrr", "usd", _ALL_SEGMENTS,
-        ("expansion_consumption_revenue", "nrr", "growth_pillar_bridge", "am_efficiency"),
-        ("am_efficiency_ratio", "durability_growth_cross_mart"),
+        ("expansion_consumption_revenue", "nrr", "growth_pillar_bridge", "am_efficiency",
+         "magic_number"),
+        ("am_efficiency_ratio", "magic_number_ratio", "net_new_arr_cross_mart",
+         "durability_growth_cross_mart"),
     ),
     "am_touchpoint_count": DriverSpec(
         "am_touchpoint_count", "efficiency", "am_touchpoint_count", "count", _ALL_SEGMENTS,
@@ -280,23 +284,21 @@ _DRIVERS: Dict[str, DriverSpec] = {
         "avg_initial_commitment", "growth_bridge", None, "usd", _REP_SOLD_SEGMENTS,
         ("avg_initial_commitment", "new_logo_consumption_revenue"), ("win_rate_ratio",),
     ),
-    # Registered so a user asking for these gets a structured NOT_COMPUTABLE
-    # answer rather than a KeyError -- the identical gap
-    # analytics/variance_diagnostic.py's magic_number / am_efficiency nodes
-    # already carry (no rep-cost/comp data anywhere in the raw sources).
-    # Columns exist in mart_efficiency (magic_number_sm_cost / am_cost) but
-    # are NULL for every row by design -- no rep-cost/comp data anywhere in
-    # the raw sources. Reading them yields NaN, not a KeyError; NaN simply
-    # propagates through the (otherwise-unused) arithmetic below, and
-    # `_apply()` never actually writes to these columns -- the point is to
-    # register the driver so a request against it resolves to an honest
-    # NOT_COMPUTABLE report rather than an unknown-driver error.
+    # Cost drivers. The quantity perturbed is the evaluation month's own
+    # mart_efficiency value: `magic_number_sm_cost` is the PRIOR-period S&M
+    # cost that month's Magic number divides by (governance edge_id
+    # 'magic_number_ratio'; S&M cost itself is rep fully-loaded cost +
+    # marketing spend, edge_id 'sm_cost_sum'), `am_cost` is that month's AM
+    # cost. Both are defined over Commercial and Enterprise only: SMB has no
+    # AM and no rep cost, and the blended Layer-1 figures exclude it (the
+    # benchmark table marks it n/a), so a change to an SMB cost could not
+    # reach any Layer-1 node and is rejected rather than silently ignored.
     "s_m_cost": DriverSpec(
-        "s_m_cost", "efficiency", "magic_number_sm_cost", "usd", _ALL_SEGMENTS,
-        ("magic_number",), ("magic_number_ratio",),
+        "s_m_cost", "efficiency", "magic_number_sm_cost", "usd", _PAYBACK_BLEND_SEGMENTS,
+        ("magic_number",), ("magic_number_ratio", "sm_cost_sum"),
     ),
     "am_cost_by_segment": DriverSpec(
-        "am_cost_by_segment", "efficiency", "am_cost", "usd", _ALL_SEGMENTS,
+        "am_cost_by_segment", "efficiency", "am_cost", "usd", _PAYBACK_BLEND_SEGMENTS,
         ("am_efficiency",), ("am_efficiency_ratio",),
     ),
 }
@@ -315,15 +317,6 @@ _RATE_ALIASES = {
     "nrr_expansion_rate": "expansion_mrr",
 }
 
-_COST_GAP_NOTE = (
-    "No rep-cost/comp data exists anywhere in the raw sources. "
-    "mart_efficiency.magic_number_sm_cost / .magic_number / .am_cost / "
-    ".am_efficiency are NULL by design -- the identical gap "
-    "analytics/variance_diagnostic.py and "
-    "analytics/data_quality_governance.py both name as structurally "
-    "not-computable. A scenario cannot move a quantity that has no real "
-    "baseline value to perturb."
-)
 _NEW_LOGO_PRODUCT_GAP_NOTE = (
     "New logo consumption revenue = Pipeline generated x Win rate x Avg "
     "initial commitment is NOT_COMPUTABLE as a real identity in this "
@@ -565,8 +558,6 @@ def _apply(gb_month: pd.DataFrame, eff_month: pd.DataFrame, dur_month: pd.DataFr
         elif rc.canonical_driver == "avg_initial_commitment":
             won = target.loc[idx, "new_business_won_count"]
             target.loc[idx, "new_logo_bookings_amount"] = won * rc.scenario_value
-        elif rc.canonical_driver in ("s_m_cost", "am_cost_by_segment"):
-            pass  # NOT_COMPUTABLE -- no column exists to perturb; handled at report time.
         else:
             target.loc[idx, rc.column] = rc.scenario_value
     return gb2, eff2, dur2
@@ -708,6 +699,82 @@ def compute_growth_pillar_bridge(gb_month: pd.DataFrame,
     )
 
 
+def compute_net_new_arr_ce(gb_month: pd.DataFrame) -> float:
+    """Sum node. governance edge_id 'net_new_arr_cross_mart': (new logo +
+    expansion - contraction - churn) x 12, summed over Commercial +
+    Enterprise (the segments Magic number is blended over). Reads the
+    growth-bridge frame, so a scenario that moves any of those four flows
+    moves Magic number's numerator through the same shared perturbed
+    copy every other formula reads."""
+    ce = gb_month[gb_month["segment"].isin(vd._COST_BLEND_SEGMENTS)]
+    return float((ce["new_logo_mrr"] + ce["expansion_mrr"]
+                  - ce["contraction_mrr"] - ce["churn_mrr"]).sum()) * 12.0
+
+
+def compute_prior_sm_cost_ce(eff_month: pd.DataFrame) -> float:
+    """Sum node. governance edge_id 'sm_cost_sum' feeds 'magic_number_ratio':
+    prior-period S&M cost (mart_efficiency.magic_number_sm_cost) summed
+    over Commercial + Enterprise. NaN if either segment has no prior-period
+    cost that month."""
+    ce = eff_month[eff_month["segment"].isin(vd._COST_BLEND_SEGMENTS)]
+    return float(ce["magic_number_sm_cost"].sum(min_count=1)) if len(ce) else float("nan")
+
+
+def compute_am_cost_ce(eff_month: pd.DataFrame) -> float:
+    """Sum node: AM cost summed over Commercial + Enterprise."""
+    ce = eff_month[eff_month["segment"].isin(vd._COST_BLEND_SEGMENTS)]
+    return float(ce["am_cost"].sum()) if len(ce) else float("nan")
+
+
+def compute_expansion_mrr_ce(gb_month: pd.DataFrame) -> float:
+    """Sum node: monthly expansion MRR movement over Commercial +
+    Enterprise -- AM efficiency's numerator on the monthly-flow basis
+    (am_expansion_arr / 12)."""
+    ce = gb_month[gb_month["segment"].isin(vd._COST_BLEND_SEGMENTS)]
+    return float(ce["expansion_mrr"].sum())
+
+
+def compute_ttm_ratio(num_series: pd.Series, den_series: pd.Series, month: pd.Timestamp,
+                      scenario_num: Optional[float] = None,
+                      scenario_den: Optional[float] = None) -> float:
+    """Trailing-twelve-month ratio of sums, ending at `month`: sum(num) /
+    sum(den) over the 12 months to `month`, exactly as
+    vd.blend_layer1_actuals builds Magic number and AM efficiency, with
+    ONLY the evaluation month's own numerator/denominator optionally
+    swapped for a scenario value (the other eleven months stay real). NaN
+    unless all twelve months carry both a numerator and a non-NaN
+    denominator."""
+    num = num_series.loc[:month].tail(_ANNUALISATION_MONTHS).copy()
+    den = den_series.loc[:month].tail(_ANNUALISATION_MONTHS).copy()
+    if len(num) < _ANNUALISATION_MONTHS or len(den) < _ANNUALISATION_MONTHS or month not in num.index:
+        return float("nan")
+    if scenario_num is not None:
+        num.loc[month] = scenario_num
+    if scenario_den is not None:
+        den.loc[month] = scenario_den
+    if num.isna().any() or den.isna().any() or den.sum() == 0:
+        return float("nan")
+    return float(num.sum() / den.sum())
+
+
+def _cost_ratio_series(eff_all: pd.DataFrame, gb_all: pd.DataFrame) -> Dict[str, pd.Series]:
+    """Per-month Commercial+Enterprise series behind Magic number and AM
+    efficiency, built from the same columns vd.blend_layer1_actuals reads."""
+    ce_eff = eff_all[eff_all["segment"].isin(vd._COST_BLEND_SEGMENTS)]
+    by = ce_eff.groupby("month").agg(
+        net_new_arr=("net_new_arr", "sum"),
+        sm_cost_prior=("magic_number_sm_cost", lambda x: x.sum(min_count=1)),
+        am_cost=("am_cost", "sum"))
+    ce_gb = gb_all[gb_all["segment"].isin(vd._COST_BLEND_SEGMENTS)]
+    exp = ce_gb.groupby("month")["expansion_mrr"].sum()
+    return {
+        "mn_num": by["net_new_arr"].where(by["sm_cost_prior"].notna()),
+        "mn_den": by["sm_cost_prior"],
+        "am_num": exp.reindex(by.index),
+        "am_den": by["am_cost"],
+    }
+
+
 # =====================================================================
 # Trailing-twelve-month annualisation -- replays vd.blend_layer1_actuals's
 # own rolling-product compounding, with ONLY the evaluation month's own
@@ -792,7 +859,6 @@ def run_scenario(as_of_date: date, changes: Dict[str, dict], con=None) -> Scenar
     gb_s, eff_s, dur_s = _apply(gb_m, eff_m, dur_m, resolved)
 
     touched_drivers = {rc.canonical_driver for rc in resolved}
-    touched_cost_drivers = touched_drivers & {"s_m_cost", "am_cost_by_segment"}
     touched_new_logo_path = touched_drivers & {"win_rate", "avg_initial_commitment"}
 
     nodes: Dict[str, NodeResult] = {}
@@ -945,15 +1011,42 @@ def run_scenario(as_of_date: date, changes: Dict[str, dict], con=None) -> Scenar
         ("new_logo_equals_pipeline_x_winrate_x_commitment",) if touched_new_logo_path else (),
         note=pillar_note)
 
-    # --- Magic number / AM efficiency -- explicit NOT_COMPUTABLE ---
-    for key in touched_cost_drivers:
-        parent_key = _DRIVERS[key].consumed_by[0]
-        n = _l1(parent_key)
-        nodes[parent_key] = NodeResult(n.key, n.label, 1, n.pillar, None, None, None,
-                                       False, "ratio", (f"{parent_key}_ratio",),
-                                       note=_COST_GAP_NOTE)
-        notes.append(f"{key} was changed, but {parent_key} is structurally NOT_COMPUTABLE "
-                     "in this data (no rep-cost/comp source exists) -- see its own note.")
+    # --- S&M cost / Magic number (trailing-twelve-month ratio of sums) ---
+    series = _cost_ratio_series(eff_all, gb_all)
+    base_sm = compute_prior_sm_cost_ce(eff_m)
+    scen_sm = compute_prior_sm_cost_ce(eff_s)
+    nodes["sm_cost"] = NodeResult(
+        "sm_cost", "S&M cost, prior period (Commercial + Enterprise)", 2, "efficiency",
+        base_sm, scen_sm, scen_sm - base_sm, True, "sum", ("sm_cost_sum",))
+    base_mn = compute_ttm_ratio(series["mn_num"], series["mn_den"], month)
+    scen_mn = compute_ttm_ratio(
+        series["mn_num"], series["mn_den"], month,
+        scenario_num=compute_net_new_arr_ce(gb_s), scenario_den=scen_sm)
+    n = _l1("magic_number")
+    nodes[n.key] = NodeResult(
+        n.key, n.label, 1, n.pillar, base_mn, scen_mn, scen_mn - base_mn, True, "ratio",
+        ("magic_number_ratio", "net_new_arr_cross_mart"),
+        note="Trailing-twelve-month ratio of net new ARR to prior-period S&M cost, "
+             "Commercial + Enterprise (vd.blend_layer1_actuals precedent); the evaluation "
+             "month's own numerator and denominator move under the scenario, the other 11 "
+             "months in the window are real and unperturbed.")
+
+    # --- AM cost / AM efficiency (trailing-twelve-month ratio of sums) ---
+    base_amc = compute_am_cost_ce(eff_m)
+    scen_amc = compute_am_cost_ce(eff_s)
+    nodes["am_cost_by_segment"] = NodeResult(
+        "am_cost_by_segment", "AM cost (Commercial + Enterprise)", 2, "efficiency",
+        base_amc, scen_amc, scen_amc - base_amc, True, "sum", ("am_efficiency_ratio",))
+    base_ame = compute_ttm_ratio(series["am_num"], series["am_den"], month)
+    scen_ame = compute_ttm_ratio(
+        series["am_num"], series["am_den"], month,
+        scenario_num=compute_expansion_mrr_ce(gb_s), scenario_den=scen_amc)
+    n = _l1("am_efficiency")
+    nodes[n.key] = NodeResult(
+        n.key, n.label, 1, n.pillar, base_ame, scen_ame, scen_ame - base_ame, True, "ratio",
+        ("am_efficiency_ratio",),
+        note="Trailing-twelve-month ratio of monthly expansion MRR to AM cost, "
+             "Commercial + Enterprise; same treatment as Magic number.")
 
     return ScenarioResult(as_of_date, month, change_list, resolved, nodes, notes)
 
@@ -986,6 +1079,7 @@ def check_baseline_matches_variance_diagnostic(as_of_date: date, con=None) -> di
         "onboarding_cs_efficiency": "onboarding_cs_efficiency",
         "consumption_payback": "consumption_payback",
         "nrr": "nrr", "grr": "grr", "logo_retention": "logo_retention",
+        "magic_number": "magic_number", "am_efficiency": "am_efficiency",
     }
     for node_key, vd_col in mapping.items():
         mine = result.nodes[node_key].baseline
@@ -1159,23 +1253,73 @@ def _case_not_computable_new_logo():
            "passed": passed}
 
 
-def _case_not_computable_cost_gap():
-    """A scenario touching s_m_cost (no data source anywhere in this
-    project) must report magic_number as NOT_COMPUTABLE with the exact
-    same gap reason vd.get_node('magic_number') already carries -- not a
-    silently-dropped request."""
-    result = run_scenario(date(2025, 11, 30),
-                          {"s_m_cost": {"segment": "Commercial", "change_type": "pct", "value": 0.10}})
+def _case_ttm_ratio_node():
+    """The trailing-twelve-month ratio-of-sums shape behind Magic number and
+    AM efficiency, on hand-built series: twelve months of numerator 100 over
+    denominator 50 is exactly 2.0; raising ONLY the evaluation month's
+    denominator by 10% (50 -> 55) must give 1200 / 605, not a whole-window
+    10% change to the denominator."""
+    idx = pd.date_range("2025-01-01", periods=12, freq="MS")
+    num = pd.Series(100.0, index=idx)
+    den = pd.Series(50.0, index=idx)
+    month = idx[-1]
+    observed = {
+        "baseline": compute_ttm_ratio(num, den, month),
+        "scenario_den": compute_ttm_ratio(num, den, month, scenario_den=55.0),
+        "short_window_is_nan": float(np.isnan(compute_ttm_ratio(num.iloc[3:], den.iloc[3:], month))),
+    }
+    expected = {"baseline": 2.0, "scenario_den": 1200.0 / 605.0, "short_window_is_nan": 1.0}
+    passed = all(abs(observed[k] - v) <= 1e-9 for k, v in expected.items())
+    return {"name": "ttm_ratio_node_magic_number_shape",
+           "description": "Twelve months of net new ARR 100 over prior-period S&M cost 50 is "
+                          "2.0; changing only the evaluation month's cost 50 -> 55 must give "
+                          "1200/605 (one month of twelve moves), and a window shorter than "
+                          "twelve months must be NaN rather than a partial-year ratio.",
+           "expected": expected, "observed": observed, "passed": passed}
+
+
+def _case_cost_driver_propagates_to_magic_number():
+    """A scenario naming s_m_cost (+10% on Commercial's prior-period S&M
+    cost) must now propagate through the real Magic number equation: the
+    node is computable, moves down (more cost, same ARR), and lands exactly
+    where an independent recomputation from the mart's own twelve
+    numerator/denominator pairs says it should."""
+    as_of = date(2025, 11, 30)
+    result = run_scenario(as_of, {"s_m_cost": {"segment": "Commercial", "change_type": "pct",
+                                               "value": 0.10}})
     mn = result.nodes.get("magic_number")
-    passed = mn is not None and mn.computable is False and mn.note == _COST_GAP_NOTE
-    return {"name": "not_computable_cost_gap_magic_number",
-           "description": "A scenario naming s_m_cost (no cost data anywhere in this "
-                          "project's raw sources) must report magic_number as "
-                          "NOT_COMPUTABLE, not silently ignore the request or fabricate a "
-                          "figure.",
-           "expected": {"magic_number_computable": False},
-           "observed": {"magic_number_computable": mn.computable if mn else None},
-           "passed": passed}
+    eff = vd.load_efficiency(as_of)
+    month = result.evaluation_month
+    ce = eff[eff["segment"].isin(vd._COST_BLEND_SEGMENTS)]
+    window = sorted(ce["month"].unique())
+    window = [m for m in window if m <= month][-_ANNUALISATION_MONTHS:]
+    w = ce[ce["month"].isin(window)]
+    num = float(w["net_new_arr"].sum())
+    den = float(w["magic_number_sm_cost"].sum())
+    commercial_eval = float(w[(w["segment"] == "Commercial") & (w["month"] == month)]
+                            ["magic_number_sm_cost"].iloc[0])
+    expected_scenario = num / (den + 0.10 * commercial_eval)
+    passed = (
+        mn is not None and mn.computable is True and mn.scenario is not None
+        and mn.scenario < mn.baseline
+        and abs(mn.baseline - num / den) <= 1e-9
+        and abs(mn.scenario - expected_scenario) <= 1e-9
+    )
+    rejected_smb = False
+    try:
+        run_scenario(as_of, {"s_m_cost": {"segment": "SMB", "change_type": "pct", "value": 0.10}})
+    except ValueError:
+        rejected_smb = True
+    return {"name": "cost_driver_propagates_to_magic_number",
+           "description": "s_m_cost +10% on Commercial must report magic_number as computable, "
+                          "lower than baseline, and equal to the independently recomputed "
+                          "trailing-twelve-month ratio; an SMB cost change (no path to any "
+                          "Layer-1 node) must be rejected, not silently ignored.",
+           "expected": {"magic_number_computable": True, "scenario": expected_scenario,
+                       "smb_rejected": True},
+           "observed": {"magic_number_computable": mn.computable if mn else None,
+                       "scenario": mn.scenario if mn else None, "smb_rejected": rejected_smb},
+           "passed": bool(passed and rejected_smb)}
 
 
 def _case_conflicting_rate_aliases_raises():
@@ -1200,8 +1344,8 @@ def _case_conflicting_rate_aliases_raises():
 
 SYNTHETIC_SCENARIOS = [
     _case_sum_node, _case_product_with_constant_node, _case_ratio_node,
-    _case_ratio_of_sum_and_shared_ancestor, _case_not_computable_new_logo,
-    _case_not_computable_cost_gap, _case_conflicting_rate_aliases_raises,
+    _case_ratio_of_sum_and_shared_ancestor, _case_ttm_ratio_node, _case_not_computable_new_logo,
+    _case_cost_driver_propagates_to_magic_number, _case_conflicting_rate_aliases_raises,
 ]
 
 

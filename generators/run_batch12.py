@@ -13,10 +13,10 @@ campaigns/leads/campaign_engagement_events existed, Wave 4 before
 run_batch8.py's fact_sales_activities, and Wave 5 before run_batch9.py's
 territory dimension.
 
-Batch number note: `lead_scoring_history` (Wave 7's other Phase 1 addition
-on this branch) claims batches 10 and 11, so this module is numbered 12 --
-the next free slot as of this write. This batch does not read, write, or
-otherwise depend on anything the lead_scoring_history batch produces.
+Depends on run_batch7 only (campaigns.csv, leads.csv and
+campaign_engagement_events.csv); it does not read or depend on
+run_batch11's lead_scoring_history. Batch numbering runs 9, 11, 12; there
+is no batch 10.
 
 Design decision, stated once here and in full in generators/experiments.py:
 this batch catalogs the one real, already-running randomized experiment in

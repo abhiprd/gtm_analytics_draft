@@ -12,11 +12,6 @@ grain, lead_id FK), so every correlational test here is checking whether the
 new scoring events line up sensibly with data that was already fixed by
 earlier batches, not whether this batch quietly changed them.
 
-Originally staged as batch 10; renumbered to 11 after a sibling batch
-built concurrently on this branch claimed batch 10 first for
-experiments_registry/experiment_assignment -- see run_batch11.py's
-module docstring.
-
 Two things shape this batch's test profile specifically:
 
   * The scored value is a pure function of company_id's firmographics

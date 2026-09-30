@@ -26,12 +26,13 @@
       "status": "built_and_validated",
       "artifact": "analytics/variance_diagnostic.py",
       "shown_on": ["Digest"],
-      "note": "Feeds the Layer-1 scorecard and drill-downs."
+      "note": "Feeds the Layer-1 scorecard and drill-downs. New logo's Layer-2 ranking includes Pipeline generated (monthly converted-lead flow read from analytics/marketing_attribution.py, company-wide) with organic/paid/community as its Layer-3 legs. The marketing-sales handoff nodes (MQL response SLA, MQL to SAL acceptance, lead recycling) are not computable: no MQL/SAL lifecycle exists in any source, and the page must render them as an explicit gap."
     },
     "playbook_triggers": {
       "status": "built_and_validated",
       "artifact": "analytics/playbook_triggers.py",
-      "shown_on": ["Digest"]
+      "shown_on": ["Digest"],
+      "note": "Each trigger carries a resolved outcome (resolved / unresolved / pending / not_evaluable, per the rule's own success criterion), an owning rep where the source data supports one, and an SLA clock. The Digest table shows the trigger list as fired; it does not show outcome, owner or SLA."
     },
     "executive_summary_narrative": {
       "status": "deferred",
@@ -53,7 +54,7 @@
       "status": "built_and_validated",
       "artifact": "mart_efficiency",
       "shown_on": ["Segment Efficiency"],
-      "note": "Magic Number and AM Efficiency are null within this mart by design (no rep-cost/comp data anywhere in the raw sources) -- a real data gap, not an unvalidated artifact. The page must render these as an explicit gap, not a blank pending state."
+      "note": "Magic Number and AM Efficiency are computed from rep fully-loaded cost (fact_rep_monthly_cost) and marketing spend. They are NULL only where undefined: Magic Number before a prior-period S&M cost exists (before 2023-02), AM Efficiency for SMB (no AM). The page must render those as an explicit gap, not a blank pending state. Monthly values are seasonal; the Digest reads them trailing-twelve-month."
     },
     "segment_durability_pillar": {
       "status": "built_and_validated",

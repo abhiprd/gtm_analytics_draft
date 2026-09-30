@@ -3,15 +3,48 @@
 -- Efficiency pillar: Magic Number / Consumption Payback / Onboarding-CS
 -- Efficiency / AM Efficiency.
 --
--- RAW-DATA GAP, left null on purpose (per this build's explicit scope
--- instructions -- do not fabricate a placeholder cost):
---   - magic_number_sm_cost / magic_number: there is no rep-cost/comp data
---     anywhere in the raw sources (no salary, OTE, or fully-loaded-cost
---     field on dim_reps/users.csv), so the numerator (net new ARR) is
---     computed but the S&M cost denominator, and therefore the ratio
---     itself, stays NULL until a comp data source exists.
---   - am_cost / am_efficiency: same gap -- AM comp isn't in the raw data.
---     am_expansion_arr (the numerator) is computed.
+-- COST SIDE (Magic Number, AM Efficiency). Source: fact_rep_monthly_cost
+-- (per-rep OTE x loading factor, accrued from hire to departure -- ramping
+-- reps cost money before they produce) and fact_marketing_spend.
+--
+--   S&M cost (per the metric tree: rep fully-loaded cost incl. ramp +
+--   marketing spend allocation by channel) = rep_fully_loaded_cost +
+--   marketing_spend_allocated, both attributed to a segment by an explicit rule:
+--     * Rep cost follows the rep's own segment (dim_reps.segment, which is
+--       fixed by rep_type: ISR / AM-Commercial -> Commercial; AE / SE /
+--       AM-Enterprise -> Enterprise). SMB has no reps, so its rep cost is a
+--       real zero, not a gap. Every rep type counts toward S&M cost,
+--       including AMs, because net_new_arr includes expansion ARR and the
+--       AMs are what generate it.
+--     * Marketing spend is a channel-level figure and channel does NOT imply
+--       segment, so each channel-month's spend is split across segments in
+--       proportion to that segment's share of the channel-month's new
+--       accounts (the same weighting blended_cac already uses). A channel-
+--       month with no new accounts (outbound_sdr only, ~$2K in total) falls
+--       back to that channel's whole-window segment mix, so the segment
+--       allocations always sum back to fact_marketing_spend.
+--   S&M cost is NULL before the first month marketing spend exists
+--   (2023-01): a rep-only figure there would understate cost, not measure
+--   it. Rep cost columns are populated for every month except the four Enterprise
+--   months 2020-03 to 2020-06, where they are NULL: reps were on payroll before
+--   any Enterprise revenue-bridge row existed. The dbt reconcile test checks
+--   2023-01 onward.
+--   Scope note: the tree's S&M definition has no marketing headcount, sales
+--   management or RevOps line. The loading factor carries a management/ops
+--   allocation for the reps; marketing-team headcount is absent from the raw
+--   data, so S&M cost, and therefore magic_number's denominator, is a floor.
+--
+--   magic_number = net_new_arr / magic_number_sm_cost, where
+--   magic_number_sm_cost is the PRIOR month's sm_cost (the tree's
+--   "prior-period S&M cost"); both are monthly flows, so no annualisation is
+--   applied to the cost. NULL where the prior month has no S&M cost.
+--
+--   am_cost = fully-loaded cost of the AM-Commercial / AM-Enterprise reps of
+--   the segment in the month (a real 0 for SMB, which has no AM).
+--   am_efficiency = expansion consumption revenue / am_cost, in the tree's
+--   own terms: monthly expansion MRR movement (am_expansion_arr / 12) over
+--   the same month's AM cost. NULL where am_cost is 0 (SMB, and any month
+--   before a segment's first AM).
 --
 -- Consumption Payback IS fully computable: CAC by channel comes from
 -- fact_marketing_spend (spend / new_accounts), blended to a segment/month
@@ -41,15 +74,141 @@ with revenue_bridge as (
 
 ),
 
-magic_number as (
+new_accounts_by_segment_channel_month as (
+
+    select
+        segment,
+        channel,
+        date_trunc('month', signup_date) as month,
+        count(*) as new_account_count
+    from {{ ref('dim_accounts') }}
+    group by 1, 2, 3
+
+),
+
+rep_cost_by_segment_month as (
 
     select
         segment,
         month,
-        (new_logo_mrr + expansion_mrr - contraction_mrr - churn_mrr) * 12 as net_new_arr,
-        cast(null as double) as magic_number_sm_cost,  -- GAP: no rep-cost/comp data in raw sources
-        cast(null as double) as magic_number            -- GAP: undefined without the cost denominator
-    from revenue_bridge
+        sum(monthly_fully_loaded_cost_usd)                                                         as rep_fully_loaded_cost,
+        sum(monthly_ramping_cost_usd)                                                              as rep_ramp_cost,
+        sum(case when rep_type in ('AM-Commercial', 'AM-Enterprise')
+                 then monthly_fully_loaded_cost_usd else 0 end)                                    as am_cost
+    from {{ ref('fact_rep_monthly_cost') }}
+    group by 1, 2
+
+),
+
+marketing_spend_window as (
+
+    select
+        min(month) as first_month
+    from {{ ref('fact_marketing_spend') }}
+
+),
+
+channel_month_segment_mix as (
+
+    select
+        segment,
+        channel,
+        month,
+        new_account_count,
+        sum(new_account_count) over (partition by channel, month) as channel_month_new_accounts
+    from new_accounts_by_segment_channel_month
+
+),
+
+channel_window_segment_mix as (
+
+    select
+        nas.channel,
+        nas.segment,
+        sum(nas.new_account_count)::double
+            / sum(sum(nas.new_account_count)) over (partition by nas.channel) as window_share
+    from new_accounts_by_segment_channel_month nas
+    inner join {{ ref('fact_marketing_spend') }} fms
+        on fms.channel = nas.channel and fms.month = nas.month
+    group by nas.channel, nas.segment
+
+),
+
+marketing_spend_allocated as (
+
+    -- Channel-months with new accounts: split by that month's segment mix.
+    select
+        cms.segment,
+        fms.month,
+        fms.spend * cms.new_account_count::double / cms.channel_month_new_accounts as allocated_spend
+    from {{ ref('fact_marketing_spend') }} fms
+    inner join channel_month_segment_mix cms
+        on cms.channel = fms.channel and cms.month = fms.month
+    where fms.new_accounts > 0
+
+    union all
+
+    -- Channel-months with no new accounts: split by the channel's whole-window mix.
+    select
+        cws.segment,
+        fms.month,
+        fms.spend * cws.window_share as allocated_spend
+    from {{ ref('fact_marketing_spend') }} fms
+    inner join channel_window_segment_mix cws on cws.channel = fms.channel
+    where fms.new_accounts = 0
+
+),
+
+marketing_spend_by_segment_month as (
+
+    select
+        segment,
+        month,
+        sum(allocated_spend) as marketing_spend_allocated
+    from marketing_spend_allocated
+    group by 1, 2
+
+),
+
+sm_cost as (
+
+    select
+        rb.segment,
+        rb.month,
+        coalesce(rc.rep_fully_loaded_cost, 0)   as rep_fully_loaded_cost,
+        coalesce(rc.rep_ramp_cost, 0)           as rep_ramp_cost,
+        coalesce(rc.am_cost, 0)                 as am_cost,
+        ms.marketing_spend_allocated,
+        case
+            when rb.month >= mw.first_month
+                then coalesce(rc.rep_fully_loaded_cost, 0) + coalesce(ms.marketing_spend_allocated, 0)
+        end as sm_cost
+    from revenue_bridge rb
+    cross join marketing_spend_window mw
+    left join rep_cost_by_segment_month rc on rc.segment = rb.segment and rc.month = rb.month
+    left join marketing_spend_by_segment_month ms on ms.segment = rb.segment and ms.month = rb.month
+
+),
+
+magic_number as (
+
+    select
+        rb.segment,
+        rb.month,
+        (rb.new_logo_mrr + rb.expansion_mrr - rb.contraction_mrr - rb.churn_mrr) * 12 as net_new_arr,
+        sc.rep_fully_loaded_cost,
+        sc.rep_ramp_cost,
+        sc.marketing_spend_allocated,
+        sc.sm_cost,
+        prior.sm_cost as magic_number_sm_cost,
+        case
+            when prior.sm_cost > 0
+                then (rb.new_logo_mrr + rb.expansion_mrr - rb.contraction_mrr - rb.churn_mrr) * 12 / prior.sm_cost
+        end as magic_number
+    from revenue_bridge rb
+    left join sm_cost sc on sc.segment = rb.segment and sc.month = rb.month
+    left join sm_cost prior
+        on prior.segment = rb.segment and prior.month = cast(rb.month - interval 1 month as date)
 
 ),
 
@@ -60,18 +219,6 @@ channel_cac as (
         month,
         case when new_accounts > 0 then spend / new_accounts end as cac
     from {{ ref('fact_marketing_spend') }}
-
-),
-
-new_accounts_by_segment_channel_month as (
-
-    select
-        segment,
-        channel,
-        date_trunc('month', signup_date) as month,
-        count(*) as new_account_count
-    from {{ ref('dim_accounts') }}
-    group by 1, 2, 3
 
 ),
 
@@ -179,12 +326,15 @@ onboarding_cs_efficiency as (
 am_efficiency as (
 
     select
-        segment,
-        month,
-        expansion_mrr * 12 as am_expansion_arr,
-        cast(null as double) as am_cost,        -- GAP: no rep-cost/comp data in raw sources
-        cast(null as double) as am_efficiency    -- GAP: undefined without the cost denominator
-    from revenue_bridge
+        rb.segment,
+        rb.month,
+        rb.expansion_mrr * 12 as am_expansion_arr,
+        sc.am_cost,
+        case
+            when sc.am_cost > 0 then rb.expansion_mrr / sc.am_cost
+        end as am_efficiency
+    from revenue_bridge rb
+    left join sm_cost sc on sc.segment = rb.segment and sc.month = rb.month
 
 )
 
@@ -192,6 +342,10 @@ select
     coalesce(mn.segment, cp.segment, oce.segment, ae.segment) as segment,
     coalesce(mn.month, cp.month, oce.month, ae.month)         as month,
     mn.net_new_arr,
+    mn.rep_fully_loaded_cost,
+    mn.rep_ramp_cost,
+    mn.marketing_spend_allocated,
+    mn.sm_cost,
     mn.magic_number_sm_cost,
     mn.magic_number,
     cp.blended_cac,

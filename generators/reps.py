@@ -115,7 +115,78 @@ def generate_reps(rng: np.random.Generator, n_am_commercial: int, n_am_enterpris
 
     quota_history_df = _generate_quota_history(rng, users_df)
     rep_status_history_df = _generate_rep_status_history(rng, users_df)
+    # Compensation is appended last and draws from its own seeded stream (see
+    # _generate_rep_compensation), so it cannot move any draw above.
+    users_df = _generate_rep_compensation(users_df, quota_history_df)
     return users_df, quota_history_df, rep_status_history_df
+
+
+def _generate_rep_compensation(users_df: pd.DataFrame, quota_history_df: pd.DataFrame) -> pd.DataFrame:
+    """Adds `annual_ote_usd` and `fully_loaded_annual_cost_usd` to users
+    (grain: one row per rep_id, unchanged). Compensation is a function of the
+    rep's real drivers, not an independent draw:
+
+      * rep_type sets the OTE band (config.REP_OTE_BAND; segment is implied
+        by rep_type).
+      * Seniority -- tenure at SIM_END -- moves OTE up the band.
+      * Scope moves it too: the base quota an ISR/AE carries
+        (quota_history's first row) or an AM's book_size, each relative to
+        its own role's range. SE carries neither, so seniority alone.
+      * A small multiplicative residual stands in for offer-to-offer
+        variance; it is drawn from an independent stream
+        (config.REP_COMP_SEED_OFFSET), never the shared generator, so no
+        pre-existing column changes when these two are added.
+
+    fully_loaded_annual_cost_usd = OTE x (1 + benefits/tax + role tooling/T&E
+    + management/ops allocation). Cost is annual and time-invariant per rep
+    (no comp-history table); dbt accrues it monthly from hire to departure,
+    so a ramping rep costs the same as a ramped one before producing.
+    """
+    rng_comp = np.random.default_rng([config.SEED, config.REP_COMP_SEED_OFFSET])
+    residual = rng_comp.normal(0.0, config.REP_OTE_RESIDUAL_SIGMA, size=len(users_df))
+
+    base_quota = (
+        quota_history_df.sort_values(["rep_id", "effective_date"])
+        .groupby("rep_id")["amount"].first()
+    )
+
+    sim_end = pd.Timestamp(config.SIM_END)
+    ote = np.zeros(len(users_df))
+    cost = np.zeros(len(users_df))
+    for i, rep in enumerate(users_df.itertuples()):
+        lo, hi = config.REP_OTE_BAND[rep.rep_type]
+        mid, half = (lo + hi) / 2, (hi - lo) / 2
+
+        tenure_years = (sim_end - pd.Timestamp(rep.hire_date)).days / 365.25
+        seniority = float(np.clip(
+            (tenure_years - config.REP_OTE_TENURE_MIDPOINT_YEARS) / config.REP_OTE_TENURE_SPAN_YEARS, -1, 1))
+
+        if rep.rep_type in _QUOTA_BASE_RANGE:
+            q_lo, q_hi = _QUOTA_BASE_RANGE[rep.rep_type]
+            scope = (base_quota[rep.rep_id] - (q_lo + q_hi) / 2) / ((q_hi - q_lo) / 2)
+        elif rep.rep_type == "AM-Commercial":
+            scope = (rep.book_size - config.COMMERCIAL_BOOK_SIZE) / 80.0
+        elif rep.rep_type == "AM-Enterprise":
+            scope = (rep.book_size - config.ENTERPRISE_BOOK_SIZE) / 10.0
+        else:  # SE: no quota, no persistent book
+            scope = 0.0
+        scope = float(np.clip(scope, -1, 1))
+
+        position = np.clip(
+            config.REP_OTE_SENIORITY_WEIGHT * seniority + config.REP_OTE_SCOPE_WEIGHT * scope, -1, 1)
+        value = (mid + position * half) * (1 + residual[i])
+        value = float(np.clip(value, lo, hi))
+        ote[i] = round(value / 500) * 500
+
+        load = (1 + config.REP_LOADING_BENEFITS_TAX
+                + config.REP_LOADING_TOOLING_TE[rep.rep_type]
+                + config.REP_LOADING_MANAGEMENT_OPS)
+        cost[i] = round(ote[i] * load)
+
+    users_df = users_df.copy()
+    users_df["annual_ote_usd"] = ote.astype(int)
+    users_df["fully_loaded_annual_cost_usd"] = cost.astype(int)
+    return users_df
 
 
 # Quarterly new-business ARR quota ranges by rep_type. Only ISR/AE carry
