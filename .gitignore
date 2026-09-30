@@ -21,3 +21,6 @@ node_modules/
 
 # Environment
 .env
+
+# Internal strategy/assessment docs — local only, not part of the portfolio
+internal-plans/
