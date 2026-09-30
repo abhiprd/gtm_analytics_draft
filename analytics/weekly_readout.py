@@ -2,8 +2,10 @@
 (the last complete month at or before as_of_date, company-wide/blended);
 sources: analytics/variance_diagnostic.py's run_diagnostic() output only
 (which itself reads mart_gtm_plan, mart_growth_bridge, mart_efficiency,
-mart_durability, mart_account_health) plus, through that engine's
-watchlist, analytics/health_score.py's scored output.
+mart_durability, mart_account_health, and, for Pipeline generated,
+analytics/marketing_attribution.py's lead panel over fact_leads and
+fact_campaign_engagement_events) plus, through that engine's watchlist,
+analytics/health_score.py's scored output.
 
 WHAT THIS IS
 ------------
@@ -27,13 +29,12 @@ away from that artifact's own validation.
 
 Three consequences follow, all deliberate:
   * The engine's caveats travel with the numbers rather than being
-    quietly smoothed over -- magic_number and am_efficiency report "Not
-    computable" (no rep-cost source exists), Activation reports the same
-    (blended TTFA is identically 0 at this data's monthly grain), and the
-    three plan-comparability caveats (consumption payback, NRR, GRR)
-    are reproduced next to the metrics they qualify.
+    quietly smoothed over -- Activation reports "Not computable" (blended
+    TTFA is identically 0 at this data's monthly grain), and the five
+    plan-comparability caveats (magic number, consumption payback, AM
+    efficiency, NRR, GRR) are reproduced next to the metrics they qualify.
   * The Layer-1 scorecard carries all eleven nodes every period,
-    unconditionally, including those three -- the build spec asks for the
+    unconditionally, including those six -- the build spec asks for the
     scorecard "every week... value, vs. plan, status", and a gap reported
     is worth more than a gap hidden.
   * The drill-down section is genuinely variable-length: exactly as many
@@ -364,7 +365,7 @@ def _playbook_triggers_section(as_of_date: date) -> Dict[str, Any]:
     only formatting, matching every other section's discipline. Grain:
     one row per trigger firing (rule_id, account_id, timestamp,
     resulting_action, outcome)."""
-    triggers = pbt.run_playbook_triggers(as_of_date)
+    triggers = pbt.with_known_outcomes(pbt.run_playbook_triggers(as_of_date), as_of_date)
     rows = [{k: _none_if_nan(v) for k, v in rec.items()}
             for rec in triggers.to_dict(orient="records")]
     return {
@@ -377,11 +378,11 @@ def _playbook_triggers_section(as_of_date: date) -> Dict[str, Any]:
             "Section 5's own phrasing for this section. Each row is one binary threshold "
             "rule (see 'rules' above for each rule's stored, configurable threshold) firing "
             "for one account, computed fresh from main_marts fact tables at as_of_date. "
-            "outcome is null/pending for every row: this artifact fires triggers and knows "
-            "what fired, not yet whether any specific firing was worth acting on -- that "
-            "judgement needs the trigger to age, which is what fact_playbook_triggers "
-            "(data/playbook_triggers.csv, analytics/playbook_triggers.py's upsert-safe "
-            "logger) exists to make backtestable later, per build spec line 118."),
+            "outcome is read from the operational log (fact_playbook_triggers / "
+            "data/playbook_triggers.csv) and shown only where it was already knowable at "
+            "as_of_date: a trigger reads pending until its rule's observation window has "
+            "elapsed (analytics/playbook_triggers.py OUTCOME_CRITERIA, PROPOSED). Owner, SLA "
+            "and the open task list live in the same log (open_trigger_tasks())."),
     }
 
 
