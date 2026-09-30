@@ -1,6 +1,6 @@
 {
-  "content_sha256": "60b431d74e19dbd2641951e7345d7530c2ce3fcc8f3dd57cc4bd24867473ff49",
-  "generated_at": "2026-09-24T05:43:09.479334+00:00",
+  "content_sha256": "b3abb5aa9356f0ba8625dfb40f09bd8bca81d939209c689c84e213e040d13324",
+  "generated_at": "2026-09-30T06:22:10.345602+00:00",
   "metric_order": [
     "new_logo_consumption_revenue",
     "pipeline_generated",
@@ -58,6 +58,7 @@
     "consumption_payback",
     "cac_by_channel",
     "utilized_vs_committed_action_volume",
+    "ltv_by_segment_acquisition_channel",
     "onboarding_cs_efficiency",
     "am_touchpoint_volume",
     "automated_action_volume_delivered",
@@ -572,7 +573,8 @@
       ],
       "children": [
         "cac_by_channel",
-        "utilized_vs_committed_action_volume"
+        "utilized_vs_committed_action_volume",
+        "ltv_by_segment_acquisition_channel"
       ],
       "computability": "full",
       "computable": true,
@@ -1066,6 +1068,34 @@
       "owner": null,
       "parent": "renewal_win_rate",
       "pillar": "Growth",
+      "query": null,
+      "queryable_dimensions": [],
+      "scope_note": null,
+      "source_mart": null
+    },
+    "ltv_by_segment_acquisition_channel": {
+      "additive": false,
+      "allowed_dimensions": [
+        "segment",
+        "channel"
+      ],
+      "children": [],
+      "computability": "not_computable",
+      "computable": false,
+      "cross_reference": false,
+      "detail": [],
+      "formula": "Cumulative margin-adjusted revenue over a modeled retention-weighted horizon, by segment \u00d7 acquisition channel",
+      "formula_note": "\u2014 5-year horizon, flat 10% annual discount rate, same ~80% gross margin assumption as Consumption payback (reused, not re-derived). Built from a retention-curve input (GRR/logo retention by segment, extended forward past the observed window \u2014 `retention_cohorts.py` already tested acquisition channel as a retention driver and found no comparable differentiation, so this node's channel split is expected to carry signal mainly through CAC and segment-mix differences by channel, not through differential retention; state that plainly rather than imply an open channel-retention question this project has already checked), an expansion-trajectory input (wallet share progression and overage realization \u2014 same Growth-lineage drivers Expansion already uses, referenced not duplicated), and the LTV : CAC ratio by channel as the decision-grade output, which inherits Consumption payback's existing `level_comparability: caveated` status \u2014 CAC here is marketing-spend-only (no sales headcount cost), the same fully-loaded-cost gap that already caveats payback and leaves Magic Number/AM efficiency structurally NULL. Don't present this ratio as more trustworthy than the payback figure it extends; it closes when rep cost lands, not before.",
+      "gap_note": "Not registered as computable in semantic/build_registry.py's _SOURCE_MART_MAP -- no mart_* table has been identified for this leaf yet.",
+      "key": "ltv_by_segment_acquisition_channel",
+      "layer": 2,
+      "name": "LTV by segment \u00d7 acquisition channel",
+      "non_additive": true,
+      "note": "**non-additive** diagnostic overlay on payback, not a mathematical child \u2014 payback is a single-window recovery ratio; LTV extends the same CAC-efficiency question over the account's full modeled life",
+      "opportunity_type_filter": null,
+      "owner": "AM/finance",
+      "parent": "consumption_payback",
+      "pillar": "Efficiency",
       "query": null,
       "queryable_dimensions": [],
       "scope_note": null,
@@ -2158,7 +2188,7 @@
       "tagline": "consumption revenue growth"
     }
   },
-  "registry_version": 1,
+  "registry_version": 2,
   "source_tree_file": "docs/acme-corp-gtm-metric-tree.md",
-  "source_tree_sha256": "c360c7a2a8f8f272d98680a91e2b6a2f974f5ff5f2fd8d3e391ad5a13ff59037"
+  "source_tree_sha256": "c254f9167cb6d7c79ac4ef7eae908834df3da5342a4d0edd34925370cd06df52"
 }
