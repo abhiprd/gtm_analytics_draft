@@ -69,9 +69,20 @@ models:
     description: >
       Efficiency pillar: Magic Number / Consumption Payback /
       Onboarding-CS Efficiency / AM Efficiency. Grain: one row per segment
-      per month. magic_number_sm_cost, magic_number, am_cost, and
-      am_efficiency are NULL for every row -- see model header comment for
-      the raw-data gap (no rep-cost/comp data).
+      per month. Segment attribution of cost: rep cost follows the rep's own
+      segment (rep_type fixes it; SMB has no reps, so its rep cost is a real
+      zero); marketing spend is split across segments by each segment's
+      share of the channel-month's new accounts (channel does not imply
+      segment). sm_cost = rep_fully_loaded_cost + marketing_spend_allocated,
+      NULL before marketing spend exists (2023-01). magic_number =
+      net_new_arr / magic_number_sm_cost, where magic_number_sm_cost is the
+      PRIOR month's sm_cost (tree: "Net new ARR / prior-period S&M cost").
+      am_cost = fully-loaded cost of the segment's AM reps (0 for SMB);
+      am_efficiency = expansion consumption revenue (monthly expansion MRR
+      movement = am_expansion_arr / 12) / am_cost, NULL where am_cost is 0.
+      S&M cost is the tree's three-part definition; marketing-team headcount
+      is not in the raw data, so it is a floor and magic_number a ceiling.
+      See the model header comment.
     columns:
       - name: segment
         tests:
@@ -81,6 +92,31 @@ models:
                 values: ['SMB', 'Commercial', 'Enterprise']
       - name: month
         tests: [not_null]
+      - name: rep_fully_loaded_cost
+        description: >
+          Fully-loaded cost of the segment's reps in the month, all rep
+          types, accruing from hire (so it includes reps still ramping).
+          The tree's "Rep fully-loaded cost, incl. ramp".
+      - name: rep_ramp_cost
+        description: >
+          The part of rep_fully_loaded_cost accrued while a rep is inside
+          the two-quarter ramp window after hire_date.
+      - name: marketing_spend_allocated
+        description: >
+          The tree's "Marketing spend allocation by channel", attributed to
+          segment by share of each channel-month's new accounts. NULL before
+          2023-01 (no marketing spend). Sums across segments to
+          fact_marketing_spend.spend (tests/assert_mart_efficiency_cost_reconciles.sql).
+      - name: sm_cost
+        description: "rep_fully_loaded_cost + marketing_spend_allocated for the month; NULL before marketing spend exists."
+      - name: magic_number_sm_cost
+        description: "The prior month's sm_cost -- the Magic Number denominator (tree: prior-period S&M cost)."
+      - name: magic_number
+        description: "net_new_arr / magic_number_sm_cost. May be negative in a month with net-negative movement. SMB carries no rep cost, so its ratio reflects program spend only and is not comparable to Commercial/Enterprise."
+      - name: am_cost
+        description: "Fully-loaded cost of the segment's AM-Commercial / AM-Enterprise reps in the month; a real 0 for SMB (no AM)."
+      - name: am_efficiency
+        description: "Expansion consumption revenue (monthly expansion MRR movement) / am_cost. NULL where am_cost = 0."
 
   - name: mart_account_health
     description: >

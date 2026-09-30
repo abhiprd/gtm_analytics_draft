@@ -329,6 +329,42 @@ models:
               arguments:
                 values: ['QBR', 'check_in']
 
+  - name: fact_rep_monthly_cost
+    description: >
+      Grain: one row per rep_id per calendar month in which the rep was
+      employed for at least one day. Static per-rep OTE / fully-loaded cost
+      (dim_reps) accrued day-by-day from hire_date to the departure date, so
+      a ramping rep costs money before producing -- the metric tree's "Rep
+      fully-loaded cost, incl. ramp" (S&M cost) and the AM-comp input to "AM
+      cost by segment". ramping_days / monthly_ramping_cost_usd isolate the
+      six-month (two-quarter) ramp window after the hire date.
+    columns:
+      - name: rep_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_reps')
+                field: rep_id
+      - name: month
+        tests: [not_null]
+      - name: rep_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ISR', 'AE', 'SE', 'AM-Commercial', 'AM-Enterprise']
+      - name: segment
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+      - name: active_days
+        description: "Days of the month the rep was employed (1 to days_in_month)."
+        tests: [not_null]
+      - name: monthly_fully_loaded_cost_usd
+        description: "fully_loaded_annual_cost_usd / 12 x active_days / days_in_month."
+        tests: [not_null]
+
   - name: fact_marketing_spend
     description: "Grain: one row per channel per month."
     columns:
@@ -379,10 +415,14 @@ models:
   - name: fact_playbook_triggers
     description: >
       Grain: one row per (rule_id, account_id, timestamp) automated-
-      playbook-trigger firing. Append-only operational log -- see
-      docs/acme-corp-analytics-methods.md's "Automated playbook triggers"
-      entry and analytics/playbook_triggers.py. Zero rows until the first
-      build-time run.
+      playbook-trigger firing. Operational log -- see docs/acme-corp-
+      analytics-methods.md's "Automated playbook triggers" entry and
+      analytics/playbook_triggers.py. Carries, per firing: the outcome
+      resolved from data observed after it (or recorded manually / by a
+      CRM), the owning rep resolved from real assignment data, and an SLA
+      clock with a status computed as of var('analysis_as_of_date'). It is
+      the task-list read: filter sla_status in (open_within_sla,
+      breached) and outcome <> 'resolved'.
     columns:
       - name: playbook_trigger_id
         tests: [not_null, unique]
@@ -419,14 +459,131 @@ models:
                   - Trigger AM proactive onboarding check-in
       - name: outcome
         description: >
-          Always null/pending on a freshly-fired trigger --
-          analytics/playbook_triggers.py's log_triggers() never fabricates a
-          value, and no enum is defined yet for what a filled-in outcome
-          will look like once backtesting populates it (build spec line
-          118's stated future use). No test here by design: a not_null test
-          would fail against the column's correct current state, and an
-          accepted_values test would have to invent a vocabulary the
-          generator itself hasn't defined.
+          Whether the condition the rule fired on was remedied, judged from
+          data observed strictly after the trigger against the rule's
+          OUTCOME_CRITERIA (PROPOSED). resolved = the criterion was met
+          inside the rule's window; unresolved = it was not (including the
+          account churning first); pending = the window had not elapsed as
+          of outcome_evaluated_as_of, never guessed; not_evaluable = the
+          window elapsed but the data cannot decide it. A manually / CRM-
+          recorded outcome (outcome_source manual / crm) is never
+          overwritten by the automated resolver.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [resolved, unresolved, pending, not_evaluable]
+      - name: outcome_date
+        description: >
+          Date of the evidence that decided the outcome (the confirming
+          recovery month, the churn date, or the window end). Null while
+          pending.
+      - name: outcome_metric_value
+        description: >
+          The metric value that decided the outcome (the recovered
+          completion / utilization rate, or the forward POC pass rate). Null
+          when no value decided it (pending, churned, no observations).
+      - name: outcome_reason
+        description: >
+          Why the outcome is what it is, e.g. window_open,
+          sustained_recovery_within_window, churned_before_recovery,
+          no_sustained_recovery_in_window, forward_pass_rate_recovered.
+      - name: outcome_window_end
+        description: >
+          End of the rule's observation window; a non-pending automated
+          outcome always has outcome_window_end <= outcome_evaluated_as_of.
+      - name: outcome_evaluated_as_of
+        description: The as_of_date the automated resolver last evaluated this row at.
+      - name: outcome_source
+        description: automated (analytics/playbook_triggers.py's resolver), manual, or crm.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [automated, manual, crm]
+      - name: owner_rep_id
+        description: >
+          The rep who owns the follow-up, resolved from real assignment data
+          by the rule's OWNER_RULES basis: the account's AM of record (most
+          recent fact_am_activity rep as of the SLA clock start, active in
+          dim_reps then) for ingestion_without_completion and
+          post_close_underutilization; the failed-POC opportunity's AE for
+          poc_pass_rate_below_threshold. Null with owner_unresolved_reason
+          when none is resolvable -- never fabricated.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_reps')
+                field: rep_id
+      - name: owner_role
+        description: The owner's dim_reps.rep_type; null exactly when owner_rep_id is null.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [AE, AM-Commercial, AM-Enterprise]
+      - name: owner_unresolved_reason
+        description: >
+          Populated exactly when owner_rep_id is null. smb_no_touch_no_human_owner:
+          SMB is no-touch by design and has no AM. no_am_activity_as_of_trigger:
+          a non-SMB account with no AM activity yet at the SLA clock start.
+          owner_departed_as_of_trigger: the AM of record had departed.
+          no_matching_opportunity: no failed-POC opportunity with a rep on
+          the trigger date.
+        tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - smb_no_touch_no_human_owner
+                  - no_am_activity_as_of_trigger
+                  - owner_departed_as_of_trigger
+                  - no_matching_opportunity
+                  - owner_not_in_dim_reps
+      - name: account_territory
+        description: >
+          The account's territory (dim_accounts.territory) -- routing
+          context on every row, not an owner: territory reps are ISR / AE
+          new-business reps.
+      - name: sla_hours
+        description: Configured SLA length for the rule (SLA_CONFIG, PROPOSED).
+        tests: [not_null]
+      - name: sla_due_at
+        description: >
+          SLA clock start plus sla_hours. A month-grain trigger's clock
+          starts the first of the following month (its figure is not
+          knowable until the month ends); a day-grain trigger's clock starts
+          on its own date.
+        tests: [not_null]
+      - name: closed_at
+        description: >
+          When the owner actioned the task, set only by a recorded closure
+          (record_outcome); never inferred. Null on every backfilled row --
+          the source has no task-action data, so every past-due row reads
+          breached.
+      - name: sla_status
+        description: >
+          Computed as of var('analysis_as_of_date'): closed_within_sla /
+          closed_late when a closure is recorded by then, otherwise
+          open_within_sla / breached by whether sla_due_at has passed.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [open_within_sla, breached, closed_within_sla, closed_late]
+      - name: escalation_required
+        description: True when the task is open and past its SLA (sla_status = breached).
+        tests: [not_null]
+      - name: escalation_to
+        description: >
+          The manager to escalate to. Null on every row: the source data
+          carries no manager / reporting-line field for any rep.
+      - name: escalation_reason
+        description: >
+          no_reporting_line_in_source while escalation_to cannot be resolved;
+          a raw-data addition (a rep -> manager mapping) is what populates it.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [no_reporting_line_in_source]
 
   - name: fact_forecast_submissions
     description: >
