@@ -53,6 +53,7 @@ Every phase in the build spec's system diagram (Section 1) is now built. The two
 - `semantic/` — Phase 3 MCP server + metric registry (generated from the tree file)
 - `analytics/` — Phase 4 variance-diagnostic engine, forecast, capacity planning, etc.
 - `dashboard/` — Phase 5 web app (Streamlit; needs its own Python 3.12 venv at `dashboard/.venv`, see `dashboard/README.md`, same reason as `semantic/`)
+- `pipeline/` — orchestration layer: the task DAG over generators, QA gates, dbt, every analytics artifact and the smoke checks, plus the governance gate and the freshness contract (`python3 -m pipeline run|plan|gate|check-freshness`, see `pipeline/README.md`); CI lives in `.github/workflows/`
 
 ## Stack
 
