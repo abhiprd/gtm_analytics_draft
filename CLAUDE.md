@@ -12,10 +12,12 @@ Acme Corp GTM Analytics Portfolio — a fictional company's simulated GTM analyt
 
 **Read `docs/acme-corp-analytics-methods.md` before building or evaluating any Phase 4 artifact.** It is the source of truth for each model's methodology, validation target, and drift threshold — the Phase 4 equivalent of the metric tree. Entries are filled in as each artifact is built, not written ahead of the work; an entry marked TBD is expected, not a gap to silently fill in yourself.
 
+**Read `docs/acme-corp-post-wave8-improvement-plan.md` before starting any Wave 9+ work.** It's the sequenced, deduplicated backlog reconciling the post-Wave-8 build audit, CRO-readiness assessment, and RevOps integration plan into one wave order with explicit gates. Don't re-derive priority from those three source assessments independently — they disagree on sequencing in places, and this doc states the resolution and why.
+
 ## Non-negotiable invariants
 
 - Terminology is **segment**, not "tier" — SMB / Commercial / Enterprise. Never reintroduce "tier." "Segment" refers only to these three; industry and region are named as themselves, never called "segment."
-- Every parent metric in the tree must be the actual mathematical result of its children (sum, product, or ratio) — never a "related metrics" grouping. Two deliberate exceptions, both explicitly marked non-additive in the tree's own text: Brand & Awareness (a leading indicator, not summed into the pipeline math) and Marketing–sales handoff quality (a diagnostic overlay on New Logo's three multiplicative factors, not a fourth factor).
+- Every parent metric in the tree must be the actual mathematical result of its children (sum, product, or ratio) — never a "related metrics" grouping. Three deliberate exceptions, all explicitly marked non-additive in the tree's own text: Brand & Awareness (a leading indicator, not summed into the pipeline math), Marketing–sales handoff quality (a diagnostic overlay on New Logo's three multiplicative factors, not a fourth factor), and LTV by segment × acquisition channel (a diagnostic overlay on Consumption payback, not a mathematical child).
 - No segment downgrade path. An account that fails to activate churns entirely; it never demotes to a lower segment.
 - Currency is USD only. No FX modeling.
 - Channel (how an account was acquired) and segment (what it is) are orthogonal. Never assume a channel implies a segment or vice versa.
@@ -67,6 +69,7 @@ DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Streamlit
 - `external-repo-conventions` — commit message and changelog rules; read before every commit
 - `import-downloads` — routes a downloaded batch of project files into place; invoke explicitly via `/import-downloads`, never autonomously
 - `dashboard-design-conventions` — the visual/presentation spec for Phase 5 (`dashboard/`): color semantics, chart-type selection, audience-adaptive layout, information hierarchy, grain/resolution rules, Streamlit implementation patterns; read before building or editing any dashboard page
+- `stakeholder-brief-conventions` — structure, voice, audience→decision-owner mapping, and evidence discipline for one-shot narrative decision briefs (distinct from `asset-brief-writer`'s evergreen per-asset documentation, and from the live dashboard). Read before writing any stakeholder-facing document.
 
 **Agents** (`.claude/agents/` — isolated subagents for delegable tasks):
 - `dbt-model-writer` — writes dbt models + schema.yml
@@ -79,6 +82,7 @@ DuckDB · dbt-core (dbt-duckdb adapter) · Python · MCP Python SDK · Streamlit
 - `repo-audit` — one-time/milestone scan of commit history and docs for process-revealing language before sharing the repo publicly; diagnostic only, run manually, not part of routine work
 - `drift-monitor` — recurring production monitoring for model calibration drift and proxy-metric decoupling, checked against `docs/acme-corp-analytics-methods.md`'s stated thresholds; distinct from one-time build-time validation
 - `asset-brief-writer` — writes/updates one plain-language leadership brief per built dbt mart or Phase 4 artifact under `docs/asset-briefs/`; distinct from `dbt-docs-writer` (schema.yml, technical audience) and `sync-portfolio-docs` (the six fixed reference docs)
+- `business-analyst` — turns one existing, validated analytics artifact (MMM/attribution, forecast, capacity planning, cohort analysis, etc.) into a stakeholder-ready decision brief: names the decision, the decision-owner, and the investment ask, grounded in the artifact's real output. Distinct from `asset-brief-writer` (evergreen per-asset documentation) — this is a one-off decision document for a named audience. Refuses to brief anything not confirmed built-and-validated.
 - `dashboard-page-builder` — builds/updates a Streamlit page in `dashboard/` against `dashboard-design-conventions`; renders and visually inspects the result itself before reporting done, never just confirms the code runs
 - `dashboard-visual-qa` — diagnostic-only audit of the built dashboard for cross-page visual consistency and completeness honesty (flags a polished-looking page overselling an artifact that isn't actually built/validated); independent of `dashboard-page-builder` by design, so a page is never graded by the process that built it
 

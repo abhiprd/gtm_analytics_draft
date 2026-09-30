@@ -43,7 +43,7 @@ Concretely, the loop that actually runs through the data model:
 
 ## The metric tree
 
-Every parent metric is the literal mathematical result of its children (sum, product, or ratio) — never a "related metrics" grouping. Two deliberate exceptions, both explicitly marked non-additive in the tree's own text: Brand & Awareness (a leading indicator, not summed into the pipeline math) and Marketing–sales handoff quality (a diagnostic overlay on New Logo's three multiplicative factors, not a fourth factor).
+Every parent metric is the literal mathematical result of its children (sum, product, or ratio) — never a "related metrics" grouping. Three deliberate exceptions, all explicitly marked non-additive in the tree's own text: Brand & Awareness (a leading indicator, not summed into the pipeline math), Marketing–sales handoff quality (a diagnostic overlay on New Logo's three multiplicative factors, not a fourth factor), and LTV by segment × acquisition channel (a diagnostic overlay on Consumption payback, not a mathematical child).
 
 - **Growth** — `Starting + New Logo − Contraction − Churn + Expansion` (± segment migration, nets to zero). New Logo decomposes into Pipeline Generated × Win Rate × Avg Initial Commitment; Expansion into Wallet Share Progression × Overage Realization; Contraction/Churn into workflow under-utilization, account health score, and renewal win rate.
 - **Efficiency** — is the touch model paying for itself. Magic Number, Consumption Payback (CAC ÷ utilized-Action margin), Onboarding/CS Efficiency, AM Efficiency.

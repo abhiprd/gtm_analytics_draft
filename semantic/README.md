@@ -107,10 +107,12 @@ same connection pattern `analytics/variance_diagnostic.py` uses.
 1. **Unknown metric** -- not in the registry -> `unknown_metric`, with
    fuzzy `did_you_mean` suggestions (suggestions only; never silently
    substituted).
-2. **Non-additive node treated as queryable/summable** -- the tree marks two
+2. **Non-additive node treated as queryable/summable** -- the tree marks three
    nodes non-additive: Brand & Awareness (a leading indicator, "not summed
-   into" the pipeline math) and Marketing-sales handoff quality (a
-   diagnostic overlay, "not a fourth multiplicative factor"). Both carry
+   into" the pipeline math), Marketing-sales handoff quality (a
+   diagnostic overlay, "not a fourth multiplicative factor"), and LTV by
+   segment x acquisition channel (a diagnostic overlay on Consumption
+   payback, "not a mathematical child"). All three carry
    `additive: false` in the registry, per CLAUDE.md's invariant ->
    `non_additive_metric`, with the tree's own non-additive language quoted
    back.
@@ -132,7 +134,7 @@ same connection pattern `analytics/variance_diagnostic.py` uses.
 
 ## What's actually queryable right now
 
-20 of the tree's 69 parsed nodes (11 Layer-1 + 9 Layer-2/3) have a real
+20 of the tree's 70 parsed nodes (11 Layer-1 + 9 Layer-2/3) have a real
 `mart_*` mapping today -- every Layer-1 node, plus `win_rate`,
 `avg_initial_commitment`, `onboarding_completion_rate`,
 `am_touchpoint_volume`, `automated_action_volume_delivered`,
