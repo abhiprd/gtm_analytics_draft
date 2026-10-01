@@ -76,6 +76,8 @@ Built phase by phase, each validated against real generated data before the next
 - [x] **Phase 4 — Analytics artifacts**: all seven waves (twenty artifacts — see `analytics/` above and `docs/asset-briefs/` for the full list) are built and validated, closing the build spec's full 22-artifact priority order (three items were absorbed into other artifacts by the spec's own design, not built standalone). See `CLAUDE.md`'s "Current phase" section or `CHANGELOG.md` for per-wave detail.
 - [x] **Phase 5 — CRO / leadership interface**: a Streamlit app (`dashboard/`) reading live from the finished marts, the weekly readout's own generated output, and `analytics/forecast.py`/`semantic/server.py` called in-process — the digest, forecast, segment-efficiency, and chat views called for in the build spec's Section 6 scope guardrail, not a full BI platform.
 
+The weekly readout's executive-summary narrative is built but not generated in the committed outputs (it needs an API key; see "Executive summary narrative" under step 4).
+
 Known, deliberate gaps rather than silent placeholders: Consumption Payback's CAC is marketing-spend-only (rep fully-loaded cost is carried in Magic Number and AM Efficiency, not folded into payback), so its level is caveated against the benchmark band, and Magic Number's S&M cost excludes marketing-team headcount, which the raw data does not carry.
 
 ## Stack
@@ -105,7 +107,7 @@ The numbered steps below are the same sequence `python3 -m pipeline` runs as a d
 ```bash
 python3 -m pipeline plan                    # show the execution order; no side effects
 python3 -m pipeline run                     # verify the dataset on disk: QA suites -> dbt build -> governance gate
-                                            #   -> all 20 analytics artifacts -> log refresh -> smoke checks -> freshness
+                                            #   -> all 20 analytics artifacts + the optional executive summary -> log refresh -> smoke checks -> freshness
 python3 -m pipeline run --with-generators   # cold rebuild: regenerate data/raw first (overwrites tracked CSVs)
 python3 -m pipeline run --only weekly_readout    # one node plus what it needs; add --no-deps for the node alone
 python3 -m pipeline gate                    # governance checks + registry staleness, nonzero exit on failure
@@ -158,7 +160,20 @@ Every `analytics/` module reads the finished marts in `data/acme_gtm.duckdb` rea
 python3 -m analytics.<module>     # e.g. weekly_readout, forecast, health_score, variance_diagnostic
 ```
 
-This step is a refresh, not a prerequisite: the logs and `analytics/outputs/` files that the dashboard reads are committed. Ordering constraints between artifacts (`proxy_metric_health` counts every other artifact's logged checkpoints and runs last; `weekly_readout` reads the trigger log `playbook_triggers` writes) are encoded in the orchestration layer's DAG. `analytics.model_performance` is a library module, and `analytics.deal_diagnostics` has no command-line entry point of its own (the pipeline runs it through `python3 -m pipeline.entrypoints deal_diagnostics 2025-11-30`). Re-run `dbt build` afterwards if you want the refreshed logs reflected in `fact_model_performance_history` and `fact_playbook_triggers` (the pipeline's `dbt_refresh_logs` node does this).
+This step is a refresh, not a prerequisite: the logs and `analytics/outputs/` files that the dashboard reads are committed. Ordering constraints between artifacts (`proxy_metric_health` counts every other artifact's logged checkpoints and runs last; `weekly_readout` reads the trigger log `playbook_triggers` writes and calls `forecast` for its forecast section) are encoded in the orchestration layer's DAG. `analytics.model_performance` is a library module, and `analytics.deal_diagnostics` has no command-line entry point of its own (the pipeline runs it through `python3 -m pipeline.entrypoints deal_diagnostics 2025-11-30`). Re-run `dbt build` afterwards if you want the refreshed logs reflected in `fact_model_performance_history` and `fact_playbook_triggers` (the pipeline's `dbt_refresh_logs` node does this).
+
+#### Executive summary narrative (optional; needs an Anthropic API key)
+
+The weekly readout's executive summary is written by the Claude API, in a separate pipeline step, and stored in the readout JSON (`analytics/outputs/weekly_readout_<date>.json`, key `executive_summary`); the dashboard only reads it. Every statement is checked by a deterministic validator before it is published: each figure must appear, within its displayed rounding and in its written unit, in an object the statement cites, with segment, forecast-lens and metric labels bound to their own figures where checkable; the engine's top-ranked driver must be named; caveats and banned wording are enforced. The checks do not verify that the prose is the right story or a causal explanation. Text that fails twice is discarded. With no key the section says `not_generated` and why, and everything else runs as usual. There is no template fallback.
+
+```bash
+pip install -r requirements.txt                              # includes the pinned anthropic SDK
+export ANTHROPIC_API_KEY=...                                 # never stored or logged by this repo
+export ACME_SUMMARY_MODEL=claude-sonnet-5-5                  # optional; this is the default
+python3 -m pipeline run --only executive_summary --no-deps   # or: python3 -m analytics.executive_summary
+```
+
+A summary is reused, with no API call, while the readout it was generated from is unchanged (`input_hash`); `python3 -m analytics.executive_summary --force` regenerates it. The committed readouts carry `not_generated` because no live run has been made from this repository. See `docs/acme-corp-analytics-methods.md`, "Executive summary narrative".
 
 ### 5. Semantic layer and dashboard (Phases 3 and 5)
 

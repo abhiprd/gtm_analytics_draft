@@ -46,6 +46,7 @@ The independent machine-driven view runs a consistent, modest built-in undershoo
 - **One of the checks that validates the machine-driven view only catches it underperforming a manager's own judgment by too much — it has no equivalent check for the view doing suspiciously better than a person reasonably could,** which is precisely the kind of result that ought to raise a flag rather than be treated as a win. That gap in the validation approach is real and not yet closed.
 - **Enterprise renewal deals don't yet have enough history to price or model independently.** There are too few completed Enterprise renewal deals to read that group on its own with confidence, so its pricing currently leans heavily on the broader pattern from other deal types rather than a dedicated read of its own history.
 - **For Commercial new-business deals specifically, a manager's confidence label barely distinguishes which deals go on to close.** Deals rated "Commit" close only modestly more often than ones still rated "Pipeline" in this population, and no view in this forecast — human or machine — can manufacture a stronger signal than genuinely exists in that segment.
+- **The machine-driven view is not exactly reproducible across rebuilds of the underlying tables.** The tables do not fix a row order, so the model sees the same rows in a different order after a rebuild and its figures move slightly: up to about half a percent on a forecast value (0.53% at most) and about 0.001 on its accuracy score, in comparisons between a stored run and a fresh run. Every divergence flag, widest pairing and target verdict was unchanged. The change is carried in the forecast's published caveats, and the weekly readout's generated summary is regenerated if a rebuild changes these figures.
 - **This forecast only covers the quarter already in flight, from pipeline that already exists.** It does not project a future quarter's pipeline that hasn't been created yet, and leadership's logged adjustments are applied exactly as recorded but not independently checked for whether the underlying business judgment behind them was right.
 
 ## Technical validation
@@ -58,12 +59,12 @@ The following reproduces the model's full statistical record for a reader who wa
 
 | Measure | Result | Target | Met |
 |---|---|---|---|
-| Out-of-time held-out AUC | 0.8153 | 0.70–0.85 | Yes |
-| Stratified-random-split AUC (secondary) | 0.8236 | — | — |
+| Out-of-time held-out AUC | 0.8154 | 0.70–0.85 | Yes |
+| Stratified-random-split AUC (secondary) | 0.8227 | — | — |
 | Manager-category-lookup AUC, same holdout (leak-proof reference) | 0.7819 | — | — |
 | Within-stratum ratio, Commercial new_business (n=233) | 1.077× | ≥0.95× | Yes |
 | Within-stratum ratio, Commercial renewal (n=160) | 1.117× | ≥0.95× | Yes |
-| Held-out calibration gap | −0.0058 (mean predicted 0.4740 vs. base rate 0.4798) | ≤±0.05 | Yes |
+| Held-out calibration gap | −0.0063 (mean predicted 0.4735 vs. base rate 0.4798) | ≤±0.05 | Yes |
 
 Sample sizes: n_train = 1,410 (517 won), n_holdout = 471 (226 won), out-of-time split. Full fitted population 1,881 closed opportunities — Commercial new_business 1,034, Commercial renewal 428, Enterprise new_business 387, Enterprise renewal 32.
 
@@ -107,7 +108,7 @@ The two `opportunity_type` dummies dominate this table because new-business and 
 
 Precision 0.9556, recall 0.5708, F1 0.7147.
 
-**Calibration**: mean predicted probability 0.4740 vs. actual base rate 0.4798 on held-out data (gap −0.0058) — this model is calibrated and its raw probability is meant to be read directly (no class-weight reweighting is applied), unlike the account health score's ranking-only output. Reliability by held-out quintile:
+**Calibration**: mean predicted probability 0.4735 vs. actual base rate 0.4798 on held-out data (gap −0.0063) — this model is calibrated and its raw probability is meant to be read directly (no class-weight reweighting is applied), unlike the account health score's ranking-only output. Reliability by held-out quintile:
 
 | Predicted-probability bucket | n | Mean predicted | Actual rate |
 |---|---|---|---|

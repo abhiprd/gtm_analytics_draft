@@ -153,6 +153,10 @@ Proven-out structure (see the sample readout in `acme-corp-claude-design-brief.m
 - Automated playbook triggers: whatever fired this week, unranked (binary, not prioritized)
 - Forecast and watchlist sections, same variance/threshold logic as above
 
+**Status — executive summary:** built as a separate step, `analytics/executive_summary.py`, which generates the narrative through the Claude API from the assembled readout and publishes it only after a deterministic validator (each figure appears in a cited readout object within its displayed rounding and unit, dates and cites exist in the readout, segment, lens and metric labels are bound to their figures where checkable, the engine's top-ranked driver is named and caveats are carried; it does not verify causal explanation). Without `ANTHROPIC_API_KEY` the section reports `not_generated` with its reason; there is no template fallback. Not yet run against the live API in this repository. Qualitative context (AM notes, exit-interview-style reasons) is not part of the readout and so is not used. See the methods doc's "Executive summary narrative" entry.
+
+**Status — forecast section:** built. `analytics/weekly_readout.py` carries `analytics/forecast.py`'s four lenses (bottoms-up rep and manager, ML, CRO-adjusted) per segment with the artifact's own divergence flag, its ML-lens accuracy and calibration context and its caveats, for the weekly forecast call that was current at the reporting month's end (the readout is monthly, the forecast quarterly), traced field by field to a fresh run of the forecast artifact. A date with no such call, or a call leaving no open deal in its quarter, is declared `unavailable` with its reason. The forecast has no plan or quota at its grain and unit, so the section states that rather than comparing. See the methods doc's "Weekly executive readout" entry.
+
 ---
 
 ## 6. Sequencing & Scope Guardrail
