@@ -200,6 +200,9 @@ class MetricNode:
     # Layer-1 only: whether the actual can be diffed against the plan.
     plan_comparability: Optional[str] = None
     plan_comparability_note: Optional[str] = None
+    # Long-form version of plan_comparability_note (every disclosed fact);
+    # the short note is what a list view shows.
+    plan_comparability_detail: Optional[str] = None
     # False for nodes the tree itself excludes from the parent's
     # arithmetic: the marketing-sales handoff overlay ("a diagnostic
     # overlay on the above three, not a fourth multiplicative factor")
@@ -260,13 +263,14 @@ def _register(node: MetricNode) -> MetricNode:
 
 def _l1(key, label, pillar, favorable_direction, plan_comparability,
         computability=COMPUTABLE, gap_note=None, plan_comparability_note=None,
-        sibling_comparison_basis="relative_deviation"):
+        sibling_comparison_basis="relative_deviation", plan_comparability_detail=None):
     return _register(MetricNode(
         key=key, label=label, layer=1, pillar=pillar, parent_key=None,
         computability=computability, gap_note=gap_note,
         favorable_direction=favorable_direction,
         plan_comparability=plan_comparability,
         plan_comparability_note=plan_comparability_note,
+        plan_comparability_detail=plan_comparability_detail,
         sibling_comparison_basis=sibling_comparison_basis,
     ))
 
@@ -289,70 +293,60 @@ def _child(key, label, parent_key, computability=NOT_COMPUTABLE, gap_note=None,
 # note travels with every drill-down that ranks the node, because its
 # population is not the one Win rate and Avg initial commitment use.
 PIPELINE_GENERATED_SCOPE_NOTE = (
-    "Pipeline generated is read from analytics/marketing_attribution.py as a monthly "
-    "flow: leads that converted to a PQL (this funnel's signup) in the month, by the "
-    "lead's sourcing sub-channel (organic / paid / community), company-wide. It "
-    "covers inbound-marketing-sourced accounts only, across all three segments (SMB "
-    "included), and is indexed by conversion month rather than lead-creation month so "
-    "the latest month is not right-censored. Win rate and Avg initial commitment are "
-    "measured on rep-sold Commercial/Enterprise opportunities, a different population "
-    "and unit, so this engine ranks Pipeline generated against its own trailing "
-    "baseline like any sibling but does not multiply the three legs into a New logo "
-    "figure (the governance module's New-logo product edge stays NOT_COMPUTABLE for "
-    "the same reason)."
+    "Pipeline generated counts inbound-sourced leads converting to signup (PQL) across all "
+    "three segments; Win rate and Avg initial commitment cover Commercial and Enterprise "
+    "opportunities. Each sibling is ranked against its own trailing baseline and the three "
+    "are not multiplied into a New logo figure."
+)
+PIPELINE_GENERATED_SCOPE_DETAIL = (
+    "Pipeline generated is read from the marketing attribution artifact as a monthly flow: "
+    "leads that converted to a PQL (this funnel's signup) in the month, by the lead's "
+    "sourcing sub-channel (organic, paid, community), company-wide. It covers "
+    "inbound-marketing-sourced accounts only, across all three segments (SMB included), "
+    "and is indexed by conversion month rather than lead-creation month so the latest "
+    "month is not right-censored. Win rate and Avg initial commitment are measured on "
+    "rep-sold Commercial and Enterprise opportunities, a different population and unit, so "
+    "Pipeline generated is ranked against its own trailing baseline like any sibling and "
+    "the three legs are not multiplied into a New logo figure (the governance module's "
+    "New-logo product edge is Not computable for the same reason)."
 )
 _NO_MQL_SAL_LIFECYCLE = (
-    "No MQL or SAL lifecycle stage exists anywhere in the lead funnel: fact_leads "
-    "carries lead_id, account_id, company_id, channel, created_date, converted_date, "
-    "is_converted, lead_score and days_to_conversion, and the raw leads source has no "
-    "stage or status field either, so the marketing-to-sales handoff is not an "
-    "observable event. Leads and campaign touches are available (they feed Pipeline "
-    "generated) but measure conversion to signup, not handoff."
+    "No MQL or SAL stage exists in the lead data: leads carry creation and conversion "
+    "dates, a score and a converted flag, with no stage or status field, so the "
+    "marketing-to-sales handoff is not an observable event. Leads and campaign touches "
+    "measure conversion to signup, not handoff."
 )
 _NO_MQL_RESPONSE_SLA = (
-    "Needs a per-lead MQL timestamp and the timestamp of the first sales touch on that "
-    "lead. Neither exists: the only lifecycle timestamp on a lead is converted_date "
-    "(the signup), and fact_sales_activities is keyed to opportunity_id and contact_ref "
-    "with no lead_id, so a sales touch cannot be tied to the lead that sourced it "
-    "(lost new-business opportunities also carry no account_id). days_to_conversion is "
-    "lead-to-signup time, not time-to-first-sales-touch, and is not substituted."
+    "Needs an MQL timestamp and a first-sales-touch timestamp per lead. Neither exists: the "
+    "only lead lifecycle timestamp is the signup date, and sales activities are keyed to "
+    "opportunity and contact with no lead id, so a touch cannot be tied to the lead that "
+    "sourced it. Days to conversion measures lead-to-signup time, not response time, and is "
+    "not substituted."
 )
 _NO_MQL_SAL_ACCEPTANCE = (
-    "Needs an MQL and an SAL stage, or an accept/reject disposition, per lead. "
-    "fact_leads has one row per lead with a converted flag and no stage history or "
-    "disposition; the only outcome it records is convert vs. not, which is the "
-    "lead-to-PQL rate already inside Pipeline generated, not an MQL-to-SAL acceptance rate."
+    "Needs an MQL and an SAL stage, or an accept/reject disposition, per lead. The lead "
+    "data records only converted or not, which is the lead-to-PQL rate already inside "
+    "Pipeline generated, not an MQL-to-SAL acceptance rate."
 )
 _NO_LEAD_RECYCLING_HISTORY = (
-    "Needs lead status history (a lead returning to nurture and re-qualifying). "
-    "fact_leads has one row per lead with a single created_date and no status changes; "
-    "fact_lead_scoring_history re-scores leads over time but records no recycling or "
-    "nurture disposition, so a re-score is not a re-qualification event and is not used "
-    "as a proxy."
+    "Needs lead status history (a lead returning to nurture and re-qualifying). Each lead "
+    "has one creation date and no status changes; lead re-scoring history carries no "
+    "nurture or recycling disposition, so a re-score is not treated as a re-qualification."
 )
 _NO_OPPORTUNITY_MART = (
-    "Needs opportunity-level detail (stage history, loss_reason, list_price, "
-    "opportunity_type='renewal'). fact_opportunities / "
-    "fact_opportunity_stage_history exist but are fact_* tables, outside the "
-    "mart_*-only read scope Phase 4 code operates under "
-    "(.claude/skills/analytics-engineering-conventions). Closing this is a "
-    "Phase 2 mart change, not a Phase 4 workaround."
+    "Needs opportunity-level detail (stage history, loss reason, list price, renewal flag). "
+    "No reporting table exposes it; closing the gap needs a new reporting table."
 )
 _NO_CHANNEL_ACTIVITY_MART = (
-    "Cost per channel activity (cost/MQL, cost/SDR meeting) needs channel "
-    "spend joined to per-channel lead and meeting counts. The rep and "
-    "marketing cost sides exist (mart_efficiency.sm_cost); leads "
-    "(fact_leads) and rep meetings (fact_sales_activities) exist too, but no "
-    "mart joins channel cost to those counts. A Phase 2 mart gap, not a "
-    "missing cost source."
+    "Cost per channel activity (cost per MQL, cost per SDR meeting) needs channel spend "
+    "joined to per-channel lead and meeting counts. Rep cost, marketing cost, leads and rep "
+    "meetings each exist, but no reporting table joins channel cost to those counts."
 )
 _NO_UPSTREAM_EXPANSION_DRIVERS = (
-    "Defined by reference in the tree ('See Growth -- expansion revenue "
-    "drivers'): the drivers are Wallet share progression and Overage "
-    "realization, neither of which is computable from any mart (see their "
-    "own gap notes). AM cost, the other side of the ratio, is now a real "
-    "input, but this node is the Growth-side driver breakdown, so it stays "
-    "blocked on those upstream nodes."
+    "Defined by reference in the metric tree ('See Growth \u2014 expansion revenue "
+    "drivers'). The drivers, Wallet share progression and Overage realization, are not "
+    "computable (see their gap notes), so this node stays blocked. AM cost, the other side "
+    "of the ratio, is a computed input."
 )
 
 # ---------------------------------------------------------------- Growth
@@ -377,9 +371,8 @@ _child("poc_pass_rate", "POC pass rate (Enterprise)", "win_rate",
        NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
 _child("rep_capacity_ramp_mix", "Rep capacity / ramp mix", "win_rate",
        NOT_COMPUTABLE,
-       "Needs rep-level quota/ramp joined to deal ownership; dim_reps and "
-       "int_rep_capacity_periods are not mart_* tables and no mart exposes "
-       "win rate cut by rep ramp status.")
+       "Needs rep-level quota and ramp joined to deal ownership; no reporting table "
+       "exposes win rate by rep ramp status.")
 _child("loss_reason_mix", "Loss-reason mix", "win_rate", NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
 
 _child("avg_initial_commitment", "Avg initial commitment", "new_logo_consumption_revenue", COMPUTABLE)
@@ -390,9 +383,9 @@ _child("deal_size_trend_within_band", "Deal-size trend within segment band",
 
 _child("marketing_sales_handoff_quality", "Marketing-sales handoff quality",
        "new_logo_consumption_revenue", NOT_COMPUTABLE,
-       _NO_MQL_SAL_LIFECYCLE + " Excluded from sibling ranking regardless: the "
-       "tree calls it 'a diagnostic overlay on the above three, not a fourth "
-       "multiplicative factor'.",
+       _NO_MQL_SAL_LIFECYCLE + " Excluded from sibling ranking: the metric tree defines "
+       "it as a diagnostic overlay on the three factors above, not a fourth "
+       "multiplicative factor.",
        is_ranking_sibling=False)
 _child("mql_response_sla", "MQL response SLA", "marketing_sales_handoff_quality",
        NOT_COMPUTABLE, _NO_MQL_RESPONSE_SLA)
@@ -403,140 +396,120 @@ _child("lead_recycling_rate", "Lead recycling / nurture re-qualification rate",
 
 _child("brand_awareness", "Brand & awareness", "new_logo_consumption_revenue",
        NOT_COMPUTABLE,
-       "No web-traffic, branded-search or share-of-voice source exists. "
-       "Excluded from sibling ranking regardless: the tree marks it a "
-       "'leading indicator, not summed into the pipeline math' -- the one "
-       "deliberate non-additive node in the tree (CLAUDE.md invariant).",
+       "No web-traffic, branded-search or share-of-voice source exists. Excluded from "
+       "sibling ranking: the metric tree marks it a leading indicator that is not summed "
+       "into the pipeline math.",
        is_ranking_sibling=False)
 _child("branded_search_volume_trend", "Branded search volume trend", "brand_awareness",
-       NOT_COMPUTABLE, "No web-traffic/search source exists in any layer of this project.")
+       NOT_COMPUTABLE, "No web-traffic or search source exists in the project.")
 _child("direct_traffic_share", "Direct traffic share", "brand_awareness",
-       NOT_COMPUTABLE, "No web-traffic source exists in any layer of this project.")
+       NOT_COMPUTABLE, "No web-traffic source exists in the project.")
 _child("share_of_voice", "Share of voice vs. named competitors", "brand_awareness",
-       NOT_COMPUTABLE, "No competitive-intelligence source exists in any layer of this project.")
+       NOT_COMPUTABLE, "No competitive-intelligence source exists in the project.")
 
 _l1("activation", "Activation (TTFA, blended)", "growth", "lower", NO_PLAN_BY_DESIGN,
     plan_comparability_note=(
-        "Activation is the one Layer-1 node mart_gtm_plan deliberately carries "
-        "no plan row for (its own header, and generators/gtm_plan.py). The "
-        "design brief's sample readout reports it against a trailing baseline "
-        "('2.1 days vs. 2.4d last month'), not a plan figure. This engine "
-        "therefore gives Activation its own trailing-baseline variance "
-        "mechanism -- a different mechanism from the other ten metrics, stated "
-        "explicitly rather than forced into the plan-diff shape. DEGENERATE IN "
-        "THE CURRENT DATA: blended TTFA is identically 0 in every month of the "
-        "36-month window, because fact_usage_monthly is monthly grain and every "
-        "account records its first Action in its own signup month (see "
-        "mart_growth_bridge's own Activation comment). The baseline mechanism is "
-        "implemented and exercised, but on this data it has a zero baseline and "
-        "therefore no computable deviation -- which is why Activation reports "
-        "'Not computable' rather than 'On track'. A real TTFA signal needs a "
-        "day-grain first-Action timestamp in Phase 1 plus a mart change, not a "
-        "Phase 4 workaround."))
+        "No plan row exists for Activation, so it is compared with its trailing 3-month "
+        "baseline. Blended time to first Action is 0 in every month, so the baseline is 0 "
+        "and no variance is computable."),
+    plan_comparability_detail=(
+        "The plan table carries no Activation row by design, and the design brief's sample "
+        "readout reports Activation against a trailing baseline ('2.1 days vs. 2.4d last "
+        "month') rather than a plan figure. The engine therefore gives Activation its own "
+        "variance mechanism, a trailing-baseline comparison, separate from the "
+        "plan-difference mechanism used for the other ten metrics. In the current data "
+        "blended time to first Action (TTFA) is 0 in every month of the 36-month window, "
+        "because usage is recorded monthly and every account records its first Action in "
+        "its signup month. The baseline is therefore 0 and no deviation is computable, so "
+        "Activation reports Not computable rather than On track. A real TTFA signal needs a "
+        "day-grain first-Action timestamp in the raw data and a corresponding mart change."))
 _child("onboarding_completion_rate", "Onboarding completion rate", "activation",
        PARTIAL,
-       "Computed as mart_growth_bridge.activated_count / signup_cohort_size -- "
-       "the share of a signup cohort that reached a first production Action. "
-       "In the current generated data this is identically 1.0 in every month "
-       "(every account produces a first Action in its signup month), so the "
-       "series carries no variance signal -- a data property, not an engine "
-       "limitation.")
+       "Share of a signup cohort that reached a first production Action (activated accounts "
+       "divided by signup cohort size). The value is 1.0 in every month because every "
+       "account produces a first Action in its signup month, so the series carries no "
+       "variance signal.")
 _child("time_to_first_integration", "Time-to-first-integration / first successful run",
        "activation", NOT_COMPUTABLE,
-       "No integration or first-successful-run event exists in the raw data; "
-       "fact_usage_monthly is monthly grain with no first-Action timestamp.")
+       "No integration or first-successful-run event exists in the raw data; usage is "
+       "recorded monthly, with no first-Action timestamp.")
 _child("quickstart_docs_engagement_rate", "Quickstart/docs content engagement rate",
        "activation", NOT_COMPUTABLE,
-       "The build spec's content_engagement source was never generated, so no "
-       "mart or fact table carries docs/quickstart interaction at all.")
+       "No docs or quickstart engagement source exists; the content-engagement source in the "
+       "build spec was not generated.")
 
 _l1("expansion_consumption_revenue", "Expansion consumption revenue", "growth",
     "higher", COMPARABLE)
 _child("wallet_share_progression", "Wallet share progression",
        "expansion_consumption_revenue", NOT_COMPUTABLE,
-       "Requires an account's total addressable workflow footprint (the "
-       "denominator of 'wallet share'). No source in this project estimates "
-       "an account's non-Acme workflow volume, so the ratio has no "
-       "denominator at all.")
+       "Needs an account's total addressable workflow footprint as the denominator of "
+       "wallet share. No source estimates an account's non-Acme workflow volume, so the "
+       "ratio has no denominator.")
 _child("workflow_migration_rate", "Workflow migration rate", "wallet_share_progression",
-       NOT_COMPUTABLE, "Needs business-process-level onboarding events; not generated.")
+       NOT_COMPUTABLE, "Needs business-process-level onboarding events, which are not in the raw data.")
 _child("am_touch_effectiveness", "AM touch effectiveness", "wallet_share_progression",
        NOT_COMPUTABLE,
-       "fact_am_activity exists but no mart exposes AM touches joined to a "
-       "recommitment outcome; mart_efficiency exposes only the touch count.")
+       "AM activity is recorded, but no reporting table joins AM touches to a recommitment "
+       "outcome; only the touch count is exposed.")
 _child("existing_account_community_engagement", "Existing-account community engagement depth",
        "wallet_share_progression", NOT_COMPUTABLE,
-       "The build spec's community_membership source was never generated.")
+       "The community-membership source in the build spec was not generated.")
 _child("overage_realization", "Overage realization", "expansion_consumption_revenue",
        NOT_COMPUTABLE,
-       "Committed-vs-utilized Action volume exists only in "
-       "fact_committed_vs_utilized_monthly, a fact_* table outside this "
-       "module's mart_*-only read scope. mart_efficiency consumes it "
-       "internally but exposes only a utilisation-haircut margin figure, not "
-       "realised overage billing. Closing this is a Phase 2 mart change.")
+       "Needs committed versus utilized Action volume, which no reporting table exposes (the "
+       "efficiency table uses it only inside a utilization-haircut margin, not as realized "
+       "overage billing). Closing the gap needs a new reporting table.")
 
 _l1("contraction_churned_revenue", "Contraction + churned revenue", "growth",
     "lower", COMPARABLE)
 _child("workflow_chain_underutilization", "Workflow chain under-utilization",
        "contraction_churned_revenue", NOT_COMPUTABLE,
-       "fact_workflow_chain_events exists but is not exposed through any "
-       "mart_* table, so upstream-vs-downstream Action completion is outside "
-       "this module's read scope. Phase 2 mart gap.")
+       "Workflow-chain events are not exposed through any reporting table, so "
+       "upstream-versus-downstream Action completion is not available.")
 _child("ingestion_without_completion_rate", "Ingestion-without-completion rate",
-       "workflow_chain_underutilization", NOT_COMPUTABLE, "See parent's gap note.")
+       "workflow_chain_underutilization", NOT_COMPUTABLE, "Same gap as the parent node.")
 _child("mid_chain_abandonment", "Mid-chain workflow abandonment",
-       "workflow_chain_underutilization", NOT_COMPUTABLE, "See parent's gap note.")
+       "workflow_chain_underutilization", NOT_COMPUTABLE, "Same gap as the parent node.")
 _child("full_vs_partial_chain_share", "Declining share of full-chain vs. partial-chain runs",
-       "workflow_chain_underutilization", NOT_COMPUTABLE, "See parent's gap note.")
+       "workflow_chain_underutilization", NOT_COMPUTABLE, "Same gap as the parent node.")
 
 _child("account_health_score", "Account health score", "contraction_churned_revenue",
        NOT_COMPUTABLE,
-       "Not computable AS A POINT-IN-TIME TRAILING SERIES, which is what a "
-       "sibling ranking needs. analytics/health_score.py's score_accounts() "
-       "defines its scored population as accounts whose mart_account_health "
-       "customer_status is 'Active' -- a final-status field. Scored at a "
-       "historical month that silently drops every account that has churned "
-       "since, biasing older months upward and manufacturing a spurious "
-       "deterioration trend. Producing an honest series needs score_accounts() "
-       "to gate the population on churn_month > month instead, a change to "
-       "analytics/health_score.py that is out of this artifact's scope. The "
-       "model's CURRENT-state output is still used, at as_of_date only, for "
-       "the watchlist -- see build_watchlist().")
+       "Not available as a point-in-time trailing series. The health score population is "
+       "defined by final account status (Active), so scoring a past month would drop "
+       "accounts that churned later, which biases older months upward and creates a "
+       "spurious deterioration trend. A usable series needs the score population gated on "
+       "churn month instead. The current-month score is used for the watchlist.")
 _child("usage_trend_account_relative", "Usage trend (account-relative baseline)",
-       "account_health_score", NOT_COMPUTABLE, "See parent's gap note.")
+       "account_health_score", NOT_COMPUTABLE, "Same gap as the parent node.")
 _child("support_ticket_volume_severity", "Support ticket volume / severity",
-       "account_health_score", NOT_COMPUTABLE, "See parent's gap note.")
+       "account_health_score", NOT_COMPUTABLE, "Same gap as the parent node.")
 _child("engagement_login_frequency", "Engagement / login frequency",
-       "account_health_score", NOT_COMPUTABLE, "See parent's gap note.")
+       "account_health_score", NOT_COMPUTABLE, "Same gap as the parent node.")
 _child("am_sentiment_notes", "AM sentiment notes", "account_health_score",
-       NOT_COMPUTABLE, "See parent's gap note.")
+       NOT_COMPUTABLE, "Same gap as the parent node.")
 
 _child("cyclical_vs_structural_usage_dip", "Cyclical/planned usage dip vs. structural churn",
        "contraction_churned_revenue", PARTIAL,
-       "Computed as usage_dip_breadth: the share of the active account "
-       "population whose trailing-3-month mean actions_consumed sits below "
-       "_USAGE_DIP_RATIO_THRESHOLD of that account's own cumulative-to-date "
-       "mean -- the node's first Layer-3 leaf ('account-specific baseline "
-       "deviation') made concrete from mart_account_health. PARTIAL because it "
-       "measures the breadth of account-relative dips without performing the "
-       "cyclical-vs-structural classification the node's headline asks for; "
-       "that needs the second leaf's cohort comparison (same account type, "
-       "same period last cycle), which no mart supports. Descriptive only -- "
-       "no model is fitted here.")
+       "Computed as usage-dip breadth: the share of active accounts whose trailing "
+       "3-month mean Actions consumed is below a set ratio of that account's own "
+       "cumulative mean. Partial: it measures account-relative dip breadth without "
+       "classifying dips as cyclical or structural, which needs a same-account-type, "
+       "same-period-last-cycle cohort comparison that no reporting table supports. "
+       "Descriptive only; no model is fitted.")
 _child("account_specific_baseline_deviation", "Account-specific baseline deviation",
        "cyclical_vs_structural_usage_dip", NOT_COMPUTABLE,
-       "Already folded into the parent's own computation (usage_dip_breadth IS "
-       "the account-relative baseline deviation, aggregated); surfacing it as "
-       "a separate Layer-3 leaf would restate the parent, not add evidence.")
+       "Already included in the parent's computation (usage-dip breadth is the aggregated "
+       "account-relative baseline deviation); a separate leaf would restate the parent.")
 _child("cohort_comparison", "Cohort comparison (same account type, same period last cycle)",
        "cyclical_vs_structural_usage_dip", NOT_COMPUTABLE,
-       "No mart exposes an account-type x usage-cycle cohort baseline.")
+       "No reporting table exposes an account-type by usage-cycle cohort baseline.")
 
 _child("renewal_win_rate", "Renewal win rate", "contraction_churned_revenue",
        NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
 _child("time_to_respond_churn_risk_flag", "Time-to-respond on churn-risk flag",
        "renewal_win_rate", NOT_COMPUTABLE,
-       "Needs a churn-risk flag event joined to AM response; no mart exposes it.")
+       "Needs churn-risk flag events joined to AM response; no reporting table exposes them.")
 _child("loud_vs_silent_churn_mix", "Loud vs. silent churn mix", "renewal_win_rate",
        NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
 
@@ -545,27 +518,27 @@ _child("loud_vs_silent_churn_mix", "Loud vs. silent churn mix", "renewal_win_rat
 _l1("magic_number", "Magic number (blended)", "efficiency", "higher", CAVEATED,
     computability=COMPUTABLE,
     plan_comparability_note=(
-        "Both sides exist and the variance IS computed, but the LEVELS are not "
-        "on the same footing and the readout must not present the gap as a "
-        "business finding on its own. (1) SCOPE OF S&M COST. mart_gtm_plan's "
-        "anchor is the QA plan's benchmark Magic Number band (Commercial and "
-        "Enterprise ~0.7-0.9), a figure for a fully scoped S&M line. The "
-        "actual's S&M cost is the metric tree's three-part definition: rep "
-        "fully-loaded cost (incl. ramp, with a management/ops allocation in the "
-        "loading factor) plus marketing program spend. Marketing-team "
-        "headcount, which the raw data does not carry, is outside it, so the "
-        "denominator is a floor and the actual a ceiling against the "
-        "benchmark. (2) BASIS. The actual is a trailing-twelve-month ratio of "
-        "net new ARR (new logo + expansion - contraction - churn, so it "
-        "includes usage-driven expansion) to the prior-month S&M cost over the "
-        "same twelve months, blended over Commercial and Enterprise only (SMB "
-        "carries no rep cost and is 'n/a' in the benchmark table), the same "
-        "population the plan blend uses. (3) TREND. Net new ARR compounds with "
-        "a revenue base growing ~88% a year while quota-carrying and AM "
-        "headcount is close to flat, so the actual climbs through the window "
-        "(roughly 0.9 to 2.5) against a plan that moves ~3% a year: the gap "
-        "widens with scale rather than tracking any one month. Read the sign, "
-        "the trend and the Layer-2 drill-down, not the level."))
+        "Caveated: the plan is a benchmark for a fully scoped S&M line, while the actual "
+        "excludes marketing-team headcount and is a trailing-12-month ratio. The level gap "
+        "against plan is definitional."),
+    plan_comparability_detail=(
+        "The variance is computed, but plan and actual are not on the same footing, so the "
+        "gap is not a performance finding on its own. (1) S&M cost scope: the plan anchor is "
+        "the QA benchmark Magic Number band for Commercial and Enterprise (about 0.7-0.9), a "
+        "figure for a fully scoped S&M line. The actual uses the metric tree's three-part "
+        "S&M cost: rep fully-loaded cost (including ramp, with a management and operations "
+        "allocation in the loading factor) plus marketing program spend. Marketing-team "
+        "headcount is not in the raw data, so the denominator is a floor and the actual a "
+        "ceiling against the benchmark. (2) Basis: the actual is a trailing-12-month ratio "
+        "of net new ARR (new logo plus expansion minus contraction minus churn, so it "
+        "includes usage-driven expansion) to the prior month's S&M cost over the same 12 "
+        "months, blended over Commercial and Enterprise only (SMB carries no rep cost and "
+        "has no benchmark), the same population the plan blend uses. (3) Trend: net new ARR "
+        "compounds with a revenue base growing about 88% a year while quota-carrying and AM "
+        "headcount is close to flat, so the actual climbs through the window (about 0.9 to "
+        "2.5) against a plan that moves about 3% a year, and the gap widens with scale "
+        "rather than tracking any one month. The sign and trend of the variance and the "
+        "Layer-2 drill-down are the comparable signals; the level is not."))
 # S&M cost = rep fully-loaded cost + marketing spend, two additive USD
 # components of one identity, so its children are compared by absolute dollar
 # deviation (a small component's large % swing must not outrank the one that
@@ -577,41 +550,36 @@ _child("cost_per_channel_activity", "Cost per channel activity", "sm_cost",
 _child("rep_fully_loaded_cost", "Rep fully-loaded cost, incl. ramp", "sm_cost", COMPUTABLE)
 _child("marketing_spend_allocation_by_channel", "Marketing spend allocation by channel",
        "sm_cost", PARTIAL,
-       "mart_efficiency.marketing_spend_allocated carries channel spend "
-       "attributed to segment (by each segment's share of the channel-month's "
-       "new accounts), summed over channels. The per-channel split the tree "
-       "names is not exposed by any mart_* table, so the leg is ranked in its "
-       "channel-summed form: enough to say marketing spend moved, not which "
-       "channel moved it.")
+       "Channel spend attributed to segment (by each segment's share of the channel-month's "
+       "new accounts), summed over channels. The per-channel split is not exposed by any "
+       "reporting table, so the leg is ranked in channel-summed form: it shows that "
+       "marketing spend moved, not which channel moved it.")
 
 _l1("consumption_payback", "Consumption payback (blended)", "efficiency", "lower", CAVEATED,
     plan_comparability_note=(
-        "Both sides exist and the variance IS computed, but the LEVELS are not "
-        "on the same footing and the readout must not present the gap as a "
-        "business finding. mart_gtm_plan's anchor is the QA plan's benchmark "
-        "payback band (Commercial ~14-18mo, Enterprise ~9-13mo), which assumes "
-        "a fully-loaded CAC. mart_efficiency's actual CAC comes from "
-        "fact_marketing_spend only -- generators/config.py records that "
-        "outbound_sdr's channel spend 'covers tooling/data enrichment only, NOT "
-        "rep headcount cost', so the actual numerator systematically excludes "
-        "sales headcount. The actual's denominator is also average utilised "
-        "margin across the whole installed base rather than per NEW account. "
-        "Both push the computed actual far below the benchmark band. The "
-        "Layer-2 drill-down is unaffected: it ranks each leg against its own "
-        "trailing baseline, which is immune to a constant level offset."))
+        "Caveated: the plan band assumes a fully loaded CAC, while the actual CAC is "
+        "marketing spend only. The actual sits far below the band by definition."),
+    plan_comparability_detail=(
+        "The variance is computed, but plan and actual are not on the same footing. The "
+        "plan anchor is the QA benchmark payback band (Commercial about 14-18 months, "
+        "Enterprise about 9-13 months), which assumes a fully loaded CAC. The actual CAC "
+        "comes from marketing spend only: channel spend for outbound SDR covers tooling and "
+        "data enrichment, not rep headcount cost, so the numerator excludes sales "
+        "headcount. The actual's denominator is also average utilized margin across the "
+        "whole installed base rather than per new account. Both push the actual far below "
+        "the benchmark band. The Layer-2 drill-down is unaffected, because it ranks each "
+        "leg against its own trailing baseline, which a constant level offset does not "
+        "change."))
 _child("cac_by_channel", "CAC by channel (unblended)", "consumption_payback", PARTIAL,
-       "mart_efficiency exposes blended_cac (already blended across channels "
-       "by each channel's share of the segment's new accounts). The per-channel "
-       "unblending the tree names is not exposed by any mart_* table, so the "
-       "leg is ranked in blended form. Enough to identify CAC as the outlier "
-       "leg; not enough to name the responsible channel.")
+       "Blended CAC (blended across channels by each channel's share of the segment's new "
+       "accounts). The per-channel split is not exposed by any reporting table, so the leg "
+       "is ranked in blended form: it identifies CAC as the outlier leg, not the "
+       "responsible channel.")
 _child("utilized_vs_committed_action_volume", "Utilized vs. committed Action volume",
        "consumption_payback", PARTIAL,
-       "mart_efficiency exposes avg_utilized_action_margin_per_account, which "
-       "is MRR haircut by min(1, utilized/committed) and multiplied by the "
-       "build spec's flat 80% gross margin. The raw utilised/committed ratio "
-       "is not separately exposed, so movement in this leg can come from "
-       "either utilisation or the MRR base.")
+       "Exposed only as average utilized margin per account (MRR reduced by the "
+       "utilized-to-committed ratio, times the flat 80% gross margin). The raw ratio is not "
+       "exposed separately, so movement can come from utilization or from the MRR base.")
 
 _l1("onboarding_cs_efficiency", "Onboarding/CS efficiency (blended)", "efficiency",
     "lower", COMPARABLE)
@@ -622,24 +590,22 @@ _child("automated_action_volume", "Automated Action volume delivered",
 _l1("am_efficiency", "AM efficiency (blended)", "efficiency", "higher", CAVEATED,
     computability=COMPUTABLE,
     plan_comparability_note=(
-        "Both sides exist and the variance IS computed; three differences in "
-        "footing are stated rather than applied silently. (1) UNITS AND BASIS: "
-        "the tree defines the ratio as Expansion consumption revenue / AM cost; "
-        "both are read as monthly flows (monthly expansion MRR movement over "
-        "the same month's AM cost), the basis generators/gtm_plan.py's anchor "
-        "uses, and the actual is a trailing-twelve-month aggregate of them "
-        "because a single month carries the raw data's Q4 seasonality. (2) "
-        "POPULATION: the plan anchor's numerator is built on the company-wide "
-        "revenue base (SMB included; see generators/gtm_plan.py's KNOWN "
-        "DIVERGENCE note), while the actual is blended over Commercial and "
-        "Enterprise, the only segments with an AM, so the actual sits below a "
-        "like-for-like plan by roughly SMB's share of expansion. (3) SCOPE OF "
-        "EXPANSION: int_revenue_movements buckets any month-on-month usage "
-        "increase as expansion, the same gross-bucket definition that caveats "
-        "NRR/GRR. The actual rises through the window (roughly 0.8 to 2.6) "
-        "toward a plan that is nearly flat, so the negative gap narrows over "
-        "time. Read the sign, the trend and the Layer-2 drill-down, not the "
-        "level."))
+        "Caveated: the actual covers Commercial and Enterprise over a trailing 12 months and "
+        "counts any usage increase as expansion, while the plan includes SMB expansion."),
+    plan_comparability_detail=(
+        "The variance is computed, with three differences in footing. (1) Units and basis: "
+        "the tree defines the ratio as Expansion consumption revenue divided by AM cost; "
+        "both are read as monthly flows (monthly expansion MRR movement over the same "
+        "month's AM cost), the basis the plan anchor uses, and the actual is a "
+        "trailing-12-month aggregate because a single month carries the raw data's Q4 "
+        "seasonality. (2) Population: the plan anchor's numerator is built on the "
+        "company-wide revenue base (SMB included), while the actual is blended over "
+        "Commercial and Enterprise, the only segments with an AM, so the actual sits below "
+        "a like-for-like plan by roughly SMB's share of expansion. (3) Scope of expansion: "
+        "the revenue-movement model counts any month-on-month usage increase as expansion, "
+        "the same gross-bucket definition that caveats NRR and GRR. The actual rises "
+        "through the window (about 0.8 to 2.6) toward a nearly flat plan, so the negative "
+        "gap narrows over time."))
 _child("expansion_revenue_drivers", "Expansion revenue drivers", "am_efficiency",
        NOT_COMPUTABLE, _NO_UPSTREAM_EXPANSION_DRIVERS,
        cross_reference_to="expansion_consumption_revenue")
@@ -650,44 +616,47 @@ _child("am_cost_by_segment", "AM cost by segment", "am_efficiency", COMPUTABLE)
 _l1("nrr", "NRR", "durability", "higher", CAVEATED,
     sibling_comparison_basis="additive_share",
     plan_comparability_note=(
-        "Two adjustments, both stated rather than applied silently. (1) UNITS: "
-        "mart_gtm_plan's nrr is an annual-equivalent decimal rate while "
-        "mart_durability exposes a monthly rate -- this engine compounds the "
-        "trailing 12 company-wide monthly rates before diffing, per "
-        "mart_gtm_plan's own header instruction. (2) SCOPE OF THE CONTRACTION "
-        "BUCKET. The plan side is internally consistent: generators/gtm_plan.py "
-        "derives its monthly expansion and contraction+churn shares of base "
-        "FROM the benchmark-blended nrr/grr anchors (1 - grr**(1/12), and "
-        "nrr**(1/12) - 1 + that), so the plan's flow rows and its durability "
-        "rows are two readings of one identity rather than two independent "
-        "guesses. The remaining gap is on the ACTUALS side and is definitional, "
-        "not performance. Over the twelve months to 2025-11 the marts carry "
-        "gross contraction+churn at ~5.4% of starting revenue per month against "
-        "gross expansion at ~10.8%, of which outright churn is only ~0.2%: "
-        "int_revenue_movements buckets ANY month-on-month usage decline as "
-        "contraction, so in a consumption business whose base grows ~88% a year "
-        "both gross legs are large and largely offsetting, while a benchmark "
-        "NRR/GRR band describes durable downsell in a mature base. That one "
-        "difference drives both signs at once -- TTM GRR lands ~0.51 against a "
-        "0.93 plan while TTM NRR lands ~1.82 against a 1.17 plan. Logo "
-        "retention, which has no gross-flow bucket, reconciles to plan within "
-        "2%, which is the evidence that the churn leg is sound and it is the "
-        "contraction bucket's SCOPE that differs. Read the Layer-2 drill-down, "
-        "which ranks each leg against its own trailing baseline and is immune "
-        "to a definitional level offset."))
-_child("nrr_expansion_rate", "Expansion (share of starting revenue)", "nrr", COMPUTABLE,
+        "Caveated: the contraction bucket counts any month-on-month usage decline, so gross "
+        "expansion and contraction are both large, while the plan benchmark describes "
+        "durable downsell. Trailing-12-month NRR and GRR differ from plan by definition."),
+    plan_comparability_detail=(
+        "Two adjustments apply. (1) Units: the plan's NRR is an annual-equivalent decimal "
+        "rate while the durability table carries a monthly rate; the engine compounds the "
+        "trailing 12 company-wide monthly rates before comparing, as the plan table's own "
+        "header specifies. (2) Scope of the contraction bucket: the plan side is "
+        "internally consistent, since its monthly expansion and contraction-plus-churn "
+        "shares of base are derived from the benchmark-blended NRR and GRR anchors "
+        "(1 - GRR^(1/12), and NRR^(1/12) - 1 plus that), so the plan's flow rows and "
+        "durability rows are two readings of one identity. The remaining gap is on the "
+        "actuals side and is definitional, not performance. Over the 12 months to 2025-11 "
+        "the marts carry gross contraction plus churn at about 5.4% of starting revenue per "
+        "month against gross expansion at about 10.8%, of which outright churn is about "
+        "0.2%. The revenue-movement model counts any month-on-month usage decline as "
+        "contraction, so in a consumption business whose base grows about 88% a year both "
+        "gross legs are large and largely offsetting, while a benchmark NRR/GRR band "
+        "describes durable downsell in a mature base. That one difference drives both "
+        "signs: trailing-12-month GRR is about 0.51 against a 0.93 plan and NRR about 1.82 "
+        "against a 1.17 plan. Logo retention, which has no gross-flow bucket, reconciles to "
+        "plan within 2%, which indicates the churn leg is sound and the contraction "
+        "bucket's scope is what differs. The Layer-2 drill-down ranks each leg against its "
+        "own trailing baseline and is not affected by a definitional level offset."))
+_child("nrr_expansion_rate", "See Growth: Expansion (share of starting revenue)", "nrr", COMPUTABLE,
        cross_reference_to="expansion_consumption_revenue")
-_child("nrr_contraction_rate", "Contraction (share of starting revenue)", "nrr", COMPUTABLE,
+_child("nrr_contraction_rate", "See Growth: Contraction (share of starting revenue)", "nrr", COMPUTABLE,
        cross_reference_to="contraction_churned_revenue")
-_child("nrr_churn_rate", "Churn (share of starting revenue)", "nrr", COMPUTABLE,
+_child("nrr_churn_rate", "See Growth: Churn (share of starting revenue)", "nrr", COMPUTABLE,
        cross_reference_to="contraction_churned_revenue")
 
 _l1("grr", "GRR", "durability", "higher", CAVEATED,
     sibling_comparison_basis="additive_share",
-    plan_comparability_note="Same two adjustments as NRR -- see the NRR entry.")
-_child("grr_contraction_rate", "Contraction (share of starting revenue)", "grr", COMPUTABLE,
+    plan_comparability_note=(
+        "Caveated: same contraction-bucket scope and unit adjustments as NRR."),
+    plan_comparability_detail=(
+        "Same two adjustments as NRR (units, and the scope of the contraction bucket); the "
+        "NRR detail gives the full explanation and figures."))
+_child("grr_contraction_rate", "See Growth: Contraction (share of starting revenue)", "grr", COMPUTABLE,
        cross_reference_to="contraction_churned_revenue")
-_child("grr_churn_rate", "Churn (share of starting revenue)", "grr", COMPUTABLE,
+_child("grr_churn_rate", "See Growth: Churn (share of starting revenue)", "grr", COMPUTABLE,
        cross_reference_to="contraction_churned_revenue")
 
 _l1("logo_retention", "Logo retention", "durability", "higher", COMPARABLE)
@@ -1282,6 +1251,8 @@ def rank_siblings(parent_key: str, series_by_key: Dict[str, pd.Series],
             "metric_key": key, "label": node.label, "layer": node.layer,
             "parent_key": node.parent_key, "computability": node.computability,
             "cross_reference_to": node.cross_reference_to,
+            "cross_reference_label": (_TREE[node.cross_reference_to].label
+                                      if node.cross_reference_to else None),
             "comparison_basis": basis, **stats,
         })
     df = pd.DataFrame(rows)
@@ -1341,6 +1312,8 @@ class Drilldown:
     layer3_evidence: pd.DataFrame
     branch_max_depth_in_tree: int
     notes: List[str] = field(default_factory=list)
+    # Long-form versions of the notes that have one: [{"note": <short>, "detail": <long>}].
+    notes_detail: List[dict] = field(default_factory=list)
 
     def __post_init__(self):
         # raise, not assert: this re-check must hold even under python -O --
@@ -1378,13 +1351,16 @@ class Drilldown:
             "layer2_outlier": None if l2 is None else {
                 "metric_key": l2.key, "label": l2.label, "layer": l2.layer,
                 "parent_key": l2.parent_key, "computability": l2.computability,
-                "cross_reference_to": l2.cross_reference_to},
+                "cross_reference_to": l2.cross_reference_to,
+                "cross_reference_label": (_TREE[l2.cross_reference_to].label
+                                          if l2.cross_reference_to else None)},
             "layer3_evidence": [{"metric_key": k, "label": _TREE[k].label, "layer": _TREE[k].layer,
                                  "parent_key": _TREE[k].parent_key} for k in self.layer3_keys],
             "layer3_status": self.layer3_status,
             "branch_max_depth_in_tree": self.branch_max_depth_in_tree,
             "sibling_coverage": self.sibling_coverage,
             "notes": self.notes,
+            "notes_detail": self.notes_detail,
         }
 
 
@@ -1503,6 +1479,7 @@ def compute_layer1_scorecard(as_of_date: date, threshold: float = _VARIANCE_THRE
             "favorable_direction": node.favorable_direction,
             "plan_comparability": node.plan_comparability,
             "plan_comparability_note": node.plan_comparability_note,
+            "plan_comparability_detail": node.plan_comparability_detail,
             "status": status, "breaches_threshold": breached,
         })
     return pd.DataFrame(rows)
@@ -1619,11 +1596,11 @@ def _data_window_check(as_of_date: date, month: pd.Timestamp) -> dict:
         "evaluation_month_is_last_month_in_window": is_last,
         "truncation_warning": (
             "The evaluation month is the final month of the simulated 36-month window. "
-            "Contraction is inflated (every still-active account's last observed month "
-            "lands in the contraction bucket), Enterprise marketing spend is missing so "
-            "blended CAC is incomplete, and Action volume is partial. Variances for this "
-            "month are truncation artifacts, not business signal -- prefer the prior "
-            "month as the last representative evaluation period."
+            "Contraction is inflated (each still-active account's last observed month lands "
+            "in the contraction bucket), Enterprise marketing spend is missing so blended CAC "
+            "is incomplete, and Action volume is partial. Variances for this month reflect "
+            "end-of-window truncation, not business signal; the prior month is the last "
+            "representative evaluation period."
         ) if is_last else None,
     }
 
@@ -1634,49 +1611,64 @@ def _build_drilldown(scorecard_row, as_of_date, month, baseline_months, con) -> 
     ranked = rank_siblings(l1_key, l2_series, month, baseline_months) if l2_series \
         else pd.DataFrame()
     coverage = _sibling_coverage(l1_key, _with_signal(l1_key, ranked))
-    notes = []
+    notes: List[str] = []
+    notes_detail: List[dict] = []
+    l1_label = _TREE[l1_key].label
     if scorecard_row["plan_comparability"] == CAVEATED:
         notes.append(scorecard_row["plan_comparability_note"])
+        if scorecard_row["plan_comparability_detail"]:
+            notes_detail.append({"note": scorecard_row["plan_comparability_note"],
+                                 "detail": scorecard_row["plan_comparability_detail"]})
     if not ranked.empty and "pipeline_generated" in set(ranked["metric_key"]):
         notes.append(PIPELINE_GENERATED_SCOPE_NOTE)
+        notes_detail.append({"note": PIPELINE_GENERATED_SCOPE_NOTE,
+                             "detail": PIPELINE_GENERATED_SCOPE_DETAIL})
 
     if l1_key in ("nrr", "grr"):
+        drivers = ("expansion, contraction, churn drivers" if l1_key == "nrr"
+                   else "contraction, churn drivers")
         notes.append(
-            f"Grain note: {l1_key}'s Layer-1 figure is the trailing-12-month compounded rate "
-            "(to match mart_gtm_plan's annual-equivalent units), while its Layer-2 drivers are "
-            "read at monthly grain -- the grain at which a driver actually moves. A driver can "
-            "therefore point the opposite way to the annualised parent in any single month; "
-            "read the driver ranking as 'what moved this month', not as a decomposition of the "
-            "twelve-month figure.")
+            f"Tree definition: {l1_label}'s child in the metric tree is a single reference, "
+            f"'See Growth \u2014 {drivers}'. The engine expands that reference into the named "
+            "drivers, each shown as a share of starting revenue and linked to the Growth "
+            "driver it mirrors.")
+        notes.append(
+            f"Grain: the {l1_label} figure is the trailing-12-month compounded rate "
+            "(annual-equivalent, as in the plan), while the drivers are read monthly. A driver "
+            "can point opposite to the annualised parent in a single month, so the driver "
+            "ranking shows what moved this month, not a decomposition of the 12-month figure.")
 
     scored = _with_signal(l1_key, ranked)
     if scored.empty:
         notes.append(
-            f"No Layer-2 child of {l1_key} has a mart-computable actual with a usable "
-            "trailing baseline, so no outlier can be identified. The Layer-1 variance "
-            "stands on its own; see sibling_coverage for which children are missing and why.")
+            f"No Layer-2 child of {l1_label} has a computable actual with a usable trailing "
+            "baseline, so no outlier is identified. The Layer-1 variance stands alone; the "
+            "missing children and reasons are listed with the drill-down.")
         return Drilldown(
             layer1_key=l1_key, layer2_key=None, layer3_keys=[],
             layer1_variance_pct=scorecard_row["variance_pct"],
             layer1_mechanism=scorecard_row["mechanism"],
             sibling_ranking=ranked, sibling_coverage=coverage,
             layer3_status=L3_NO_COMPUTABLE_DATA, layer3_evidence=pd.DataFrame(),
-            branch_max_depth_in_tree=branch_max_depth(l1_key), notes=notes)
+            branch_max_depth_in_tree=branch_max_depth(l1_key), notes=notes,
+            notes_detail=notes_detail)
 
     l2_key = scored.iloc[0]["metric_key"]
+    l2_label = _TREE[l2_key].label
     if not coverage["is_genuine_sibling_comparison"]:
         notes.append(
-            f"Only {coverage['computable_siblings']} of {coverage['eligible_siblings']} "
-            f"Layer-2 siblings under {l1_key} have a mart-computable actual, so this is a "
-            "single-candidate read rather than a genuine outlier selection among siblings.")
+            f"Single-candidate read: only {coverage['computable_siblings']} of "
+            f"{coverage['eligible_siblings']} Layer-2 children of {l1_label} has a computable "
+            "actual, so no sibling comparison is possible.")
     l3_series = _build_child_series(l2_key, as_of_date, con)
     l3 = layer3_evidence(l2_key, l3_series, month, baseline_months)
     if l3["status"] == L3_BRANCH_DEPTH_2:
-        notes.append(f"{l2_key} has no Layer-3 children in the metric tree -- this branch is "
-                     "genuinely two layers deep. No Layer 3 is fabricated to force symmetry.")
+        notes.append(f"{l2_label} has no Layer-3 children in the metric tree; this branch is "
+                     "two layers deep.")
     elif l3["status"] == L3_NO_COMPUTABLE_DATA:
-        notes.append(f"{l2_key} does have Layer-3 children in the tree, but none is computable "
-                     "from any mart_* table; see layer3_evidence's missing list for the reasons.")
+        notes.append(f"{l2_label} has Layer-3 children in the tree, but none is computable "
+                     "from the reporting tables; the missing leaves and reasons are listed "
+                     "with the drill-down.")
 
     return Drilldown(
         layer1_key=l1_key, layer2_key=l2_key, layer3_keys=l3["keys"],
@@ -1684,7 +1676,8 @@ def _build_drilldown(scorecard_row, as_of_date, month, baseline_months, con) -> 
         layer1_mechanism=scorecard_row["mechanism"],
         sibling_ranking=ranked, sibling_coverage=coverage,
         layer3_status=l3["status"], layer3_evidence=l3.get("ranking", pd.DataFrame()),
-        branch_max_depth_in_tree=branch_max_depth(l1_key), notes=notes)
+        branch_max_depth_in_tree=branch_max_depth(l1_key), notes=notes,
+        notes_detail=notes_detail)
 
 
 def _coverage_report() -> pd.DataFrame:

@@ -80,6 +80,7 @@ Every stochastic step is seeded via _RANDOM_SEED.
 """
 import os
 from datetime import date
+from typing import Optional
 
 import duckdb
 import numpy as np
@@ -1643,6 +1644,112 @@ def run_build_time_validation(as_of_date: date, backtest: pd.DataFrame = None,
     }
 
 
+# =====================================================================
+# Published parameters, lens definitions and caveats -- read verbatim by
+# consumers (analytics/weekly_readout.py) so no consumer restates them
+# =====================================================================
+
+PUBLISHED_PARAMETERS = {
+    "divergence_threshold": _DIVERGENCE_THRESHOLD,
+    "divergence_threshold_status": (
+        "spread > 25% of the mean of the computable lenses; proposed, not yet confirmed "
+        "(non-vacuous and non-trivial on the backtest per the Forecast entry of the "
+        "analytics methods document, not a derived number)"),
+    "ml_auc_target_range": _TARGET_AUC_RANGE,
+    "ml_calibration_gap_target": _TARGET_CALIBRATION_GAP,
+}
+
+LENS_DEFINITIONS = {
+    "bottoms_up_rep": (
+        "Open deals priced at the rep's own forecast category, each category weighted by its "
+        "observed historical close rate (structural roll-up, not fitted)."),
+    "bottoms_up_manager": (
+        "Open deals priced at the manager's forecast category, each category weighted by its "
+        "observed historical close rate (structural roll-up, not fitted)."),
+    "ml": (
+        "Open deals priced at a fitted win-probability classifier that reads deal mechanics "
+        "only (stage, stall, deal age, POC outcome, rep ramp, account usage trend) and "
+        "deliberately not the forecast categories, so it is an independent third read."),
+    "cro_adjusted": (
+        "The manager bottoms-up lens plus the CRO's logged dollar override for the quarter "
+        "and segment; exactly the manager lens where no override was filed."),
+}
+
+FORECAST_CAVEATS = (
+    "Commercial and Enterprise only. SMB has no weekly forecast cadence (no-touch, 0-7 day "
+    "motion) and is not forecast here or folded into a company total.",
+    "Quarter grain, and the lenses forecast what is still open: each is the expected "
+    "closed-won amount of the deals open at the call date whose close lands in the call "
+    "date's quarter. There is no forward-quarter forecast. A call made in a quarter's final "
+    "days therefore prices only the few deals still open, and the CRO override, a "
+    "quarter-level logged dollar delta, is not scaled down to that shrinking pipeline, so "
+    "the CRO-adjusted lens can exceed the remaining open pipeline late in a quarter.",
+    "Dollars are opportunity amounts as recorded in the CRM (closed-won deal value), not the "
+    "monthly MRR movements the Layer-1 scorecard reports; the two are not comparable and "
+    "are never added.",
+    "The four lenses are reconciled, not collapsed: no lens is 'the' forecast. The "
+    "divergence flag marks where they disagree materially, and the threshold behind it is "
+    "proposed, not confirmed.",
+    "The ML lens excludes the manager's forecast category by design. Its backtested "
+    "under-forecast from out-of-time calibration drift (mix shift) is documented and "
+    "deliberately not corrected; the Forecast entry of the analytics methods document "
+    "gives the backtested accuracy of every lens, which this section does not recompute.",
+    "The CRO overlay is applied, never explained or validated: the logged reason is carried "
+    "through, not reproduced. Where no override was filed the adjustment is exactly 0.",
+    "The Commercial new-business categories barely discriminate in this data, so a "
+    "Commercial new-business Commit is not meaningfully stronger than a Pipeline call.",
+    "ML lens values vary slightly across database rebuilds, because the marts' final "
+    "selects have no fixed row order and the model sees the rows in a different order. "
+    "Measured between a committed run and a fresh run after a rebuild: up to about 0.5% on "
+    "a lens value (0.53% on the CRO-adjusted ML lens) and about 0.001 on holdout AUC; "
+    "divergence flags, widest pairs and target verdicts were unchanged.",
+)
+
+
+def latest_forecast_call_date(as_of_date: date, con=None) -> Optional[date]:
+    """Grain: a single date. The most recent weekly forecast call (a
+    fact_forecast_submissions snapshot_date) on or before as_of_date, or
+    None when no snapshot exists that early. Source mart:
+    fact_forecast_submissions. Point-in-time by construction: a snapshot
+    after as_of_date is never considered."""
+    owns = con is None
+    con = con or _connect()
+    try:
+        row = con.execute(
+            "select max(snapshot_date) from main_marts.fact_forecast_submissions "
+            "where snapshot_date <= ?",
+            [as_of_date],
+        ).fetchone()
+    finally:
+        if owns:
+            con.close()
+    value = row[0] if row else None
+    if value is None:
+        return None
+    return value.date() if hasattr(value, "date") else value
+
+
+_SUBMISSIONS_END = date(2025, 12, 26)
+_LAST_OPPORTUNITY_CLOSE = date(2025, 12, 28)
+
+
+def _data_window_note(as_of_date: date) -> str:
+    """Period-aware data-window statement. The end-of-window effect (every
+    open deal scopes into the current quarter, since no deal closes beyond
+    the simulation window) applies only to calls inside the quarter that
+    contains the window end."""
+    last_quarter = _period_label(pd.Timestamp(_SUBMISSIONS_END))
+    period = _period_label(pd.Timestamp(as_of_date))
+    ends = (f"Forecast submissions end {_SUBMISSIONS_END.isoformat()} and the last "
+            f"opportunity closes {_LAST_OPPORTUNITY_CLOSE.isoformat()}.")
+    if period == last_quarter:
+        return (f"{ends} A call inside {period} therefore sees a quarter with no deals "
+                "closing beyond the simulation window: every open deal scopes into the "
+                "current quarter by construction.")
+    return (f"{ends} This call's quarter ({period}) ends before the window does, so the "
+            "end-of-window effect on open-deal scoping does not apply.")
+
+
 def run_forecast(as_of_date: date) -> dict:
     """The artifact's headline output -- grain: one row per (period, segment)
     for the quarter containing as_of_date, with all four lenses side by side
@@ -1661,14 +1768,7 @@ def run_forecast(as_of_date: date) -> dict:
         "period": _period_label(as_of_date),
         "reconciliation": reconciled,
         "model": model,
-        "data_window": {
-            "note": (
-                "fact_forecast_submissions ends 2025-12-26 and the last opportunity closes "
-                "2025-12-28, so an as_of_date inside 2025-Q4 sees a quarter with no deals "
-                "closing beyond the simulation window -- every open deal scopes into the "
-                "current period by construction. Reported rather than silently absorbed."
-            ),
-        },
+        "data_window": {"note": _data_window_note(as_of_date)},
     }
 
 
