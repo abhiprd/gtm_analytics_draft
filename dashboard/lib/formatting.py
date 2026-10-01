@@ -29,3 +29,18 @@ def num(v: Optional[float], decimals: int = 0) -> str:
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return "N/A"
     return f"{v:,.{decimals}f}"
+
+
+def months(v: Optional[float]) -> str:
+    """Months with enough precision that a non-zero value never prints as 0.0: one
+    decimal from 1 month up, two decimals below 1, '<0.01' for a tiny positive value."""
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return "N/A"
+    a = abs(v)
+    if a >= 1:
+        return f"{v:,.1f}"
+    if a == 0:
+        return "0.0"
+    if a < 0.005:
+        return "<0.01" if v > 0 else ">-0.01"
+    return f"{v:.2f}"

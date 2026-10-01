@@ -19,7 +19,13 @@ import streamlit as st
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
 DB_PATH = os.path.join(REPO_ROOT, "data", "acme_gtm.duckdb")
-OUTPUTS_DIR = os.path.join(REPO_ROOT, "analytics", "outputs")
+# TEST/QA HOOK: ACME_DASHBOARD_OUTPUTS_DIR points the readout reader at a
+# scratch copy of analytics/outputs (used to render the Digest's
+# executive-summary "generated" state from a test fixture without touching
+# committed outputs). Unset in normal use. When set, pages must say so
+# visibly -- see OUTPUTS_OVERRIDE_ACTIVE.
+OUTPUTS_DIR = os.environ.get("ACME_DASHBOARD_OUTPUTS_DIR") or os.path.join(REPO_ROOT, "analytics", "outputs")
+OUTPUTS_OVERRIDE_ACTIVE = bool(os.environ.get("ACME_DASHBOARD_OUTPUTS_DIR"))
 
 SEGMENTS = ("SMB", "Commercial", "Enterprise")
 
@@ -83,3 +89,23 @@ def mart_growth_bridge() -> pd.DataFrame:
 @st.cache_data(ttl=300)
 def mart_segment_migration() -> pd.DataFrame:
     return query_df("select * from main_marts.mart_segment_migration order by migration_date")
+
+
+@st.cache_data(ttl=300)
+def final_month_in_marts() -> Optional[str]:
+    """ISO date (YYYY-MM-DD) of the final month of the simulated window, which is a
+    truncated month: every still-active account's last observed month lands in the
+    contraction bucket, Enterprise marketing spend is absent and Action volume is
+    partial (analytics/variance_diagnostic.py `_data_window_check`). Read from the
+    newest weekly readout's own `data_window.last_month_in_marts`, the value that
+    check produced; falls back to the same query (max month of mart_growth_bridge)
+    when no readout is available."""
+    for d in list_readout_dates():
+        value = ((load_readout(d) or {}).get("data_window") or {}).get("last_month_in_marts")
+        if value:
+            return str(value)[:10]
+    try:
+        df = query_df("select max(month) as m from main_marts.mart_growth_bridge")
+        return str(df["m"].iloc[0])[:10]
+    except Exception:
+        return None
