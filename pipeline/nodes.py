@@ -8,7 +8,8 @@ dependencies honest against the code they describe).
 Reading the graph, left to right:
 
   generators (opt-in) -> qa_raw -> dbt_build -> qa_marts / governance_gate
-      -> analytics artifacts -> dbt_refresh_logs -> smoke checks
+      -> analytics artifacts (... -> weekly_readout -> executive_summary)
+      -> proxy_metric_health -> dbt_refresh_logs -> smoke checks
       -> freshness_check
 
 * Generators overwrite tracked data/raw, so they are opt-in
@@ -47,6 +48,10 @@ DB = "data/acme_gtm.duckdb"
 # still exit 0; the runner treats that line as a node failure.
 _FAIL = (r"^\s*\[FAIL\]",)
 
+# A node that finds at run time it cannot do its optional work prints a
+# "[SKIP]" line; the runner records the node as skipped, never as passed.
+_SKIP = (r"^\s*\[SKIP\]",)
+
 # dbt is invoked through the interpreter that runs the pipeline so it always
 # uses the same installed dbt-core/dbt-duckdb as the rest of the root
 # environment, whether or not a `dbt` executable is on PATH.
@@ -65,13 +70,16 @@ def _generator(name: str, module: str, deps: Tuple[str, ...], writes: Tuple[str,
 
 def _analytics(module: str, as_of: Tuple[str, ...], deps: Tuple[str, ...] = (),
                description: str = "", name: str = "",
-               expected_fail: Tuple[str, ...] = ()) -> Node:
+               expected_fail: Tuple[str, ...] = (), requires: Tuple[str, ...] = (DB,),
+               mutates: Tuple[str, ...] = (), skip_patterns: Tuple[str, ...] = (),
+               skip_is_expected: bool = False) -> Node:
     return Node(
         name=name or module, kind="analytics", description=description,
         argv=("{python}", "-m", f"analytics.{module}"),
         deps=("governance_gate",) + deps,
-        requires=(DB,), mutates=("data/model_performance_history.csv",),
-        as_of=as_of, fail_patterns=_FAIL, expected_fail=expected_fail, timeout_s=3600,
+        requires=requires, mutates=("data/model_performance_history.csv",) + mutates,
+        as_of=as_of, fail_patterns=_FAIL, expected_fail=expected_fail,
+        skip_patterns=skip_patterns, skip_is_expected=skip_is_expected, timeout_s=3600,
     )
 
 
@@ -212,13 +220,27 @@ ANALYTICS_NODES: Tuple[Node, ...] = (
 _ALL_BUT_LAST = tuple(n.name for n in ANALYTICS_NODES)
 
 ANALYTICS_LAST: Tuple[Node, ...] = (
-    # Reads the trigger log and the variance engine's scorecard.
+    # Reads the trigger log, the variance engine's scorecard and the
+    # forecast artifact's lenses (its forecast section runs run_forecast()
+    # at the latest weekly call on or before the reporting period's end).
     _analytics("weekly_readout", ("2025-11-30",),
-               ("variance_diagnostic", "playbook_triggers", "health_score"),
+               ("variance_diagnostic", "playbook_triggers", "health_score", "forecast"),
                description="Weekly executive readout (JSON + Markdown)"),
+    # Fills the readout's executive_summary slot through the Claude API and
+    # re-renders the readout Markdown. Without ANTHROPIC_API_KEY it writes
+    # the honest not_generated slot, logs narrative_generated=0 and ends
+    # SKIPPED (exit 0; --strict does not fail on it: a missing key is a
+    # configuration state, not a broken environment). Validation failure or
+    # an API error with a key present prints [FAIL] and stops the run.
+    _analytics("executive_summary", ("2025-11-30",), ("weekly_readout",),
+               description="Executive-summary narrative (Claude API, grounding-validated)",
+               requires=("analytics/outputs/weekly_readout_2025-11-30.json",),
+               mutates=("analytics/outputs/weekly_readout_2025-11-30.json",
+                        "analytics/outputs/weekly_readout_2025-11-30.md"),
+               skip_patterns=_SKIP, skip_is_expected=True),
     # Counts every other artifact's logged checkpoints: runs last.
     _analytics("proxy_metric_health", ("2025-12-31",),
-               _ALL_BUT_LAST + ("weekly_readout",),
+               _ALL_BUT_LAST + ("weekly_readout", "executive_summary"),
                description="Proxy-metric health and analytics investment prioritization"),
 )
 

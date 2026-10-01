@@ -17,7 +17,9 @@ the repo's default Python 3.9 -- see dashboard/README.md.
 """
 import importlib.util
 import os
-from typing import Optional
+
+from lib import answers as _answers
+from lib import routing as _routing
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
@@ -33,83 +35,42 @@ query_metric = _semantic_server.query_metric
 resolve_metric_name = _semantic_server._resolve_metric
 registry_stamp = _semantic_server._registry_stamp
 
-_SEGMENT_WORDS = {"smb": "SMB", "commercial": "Commercial", "enterprise": "Enterprise"}
-_GRAIN_WORDS = {
-    "month": "month", "monthly": "month",
-    "quarter": "quarter", "quarterly": "quarter",
-    "year": "year", "yearly": "year", "annual": "year", "annually": "year",
-}
-_BY_SEGMENT_PHRASES = ("by segment", "per segment", "across segments", "segment breakdown")
+
+def _build_vocabulary() -> dict:
+    """The registry's own display names and keys, the semantic layer's
+    documented aliases (server.py `_ALIASES`), and the dashboard's
+    supplementary aliases (routing.SUPPLEMENTARY_ALIASES). Matching a
+    question against these is an exact match against names the registry
+    recognizes, so it stays inside `_resolve_metric`'s never-fuzzy rule."""
+    return _routing.build_vocabulary(
+        _semantic_server._METRICS,
+        aliases=_semantic_server._ALIASES,
+        valid_segments=_semantic_server._VALID_SEGMENTS,
+    )
 
 
-def _known_metric_vocabulary() -> dict:
-    """Every string the registry itself already treats as a name for a
-    metric -- its display name (_NAME_INDEX, lowercased), its registry key
-    with underscores turned to spaces, and its documented aliases
-    (_ALIASES, e.g. 'nrr' -> 'nrr'). Scanning the question for one of
-    these as a literal substring is an exact match against the whitelist,
-    not a guess -- it stays inside _resolve_metric's own 'never fuzzy'
-    guardrail rather than routing around it."""
-    vocab = dict(_semantic_server._NAME_INDEX)
-    vocab.update(_semantic_server._ALIASES)
-    for key in _semantic_server._METRICS:
-        vocab.setdefault(key.replace("_", " "), key)
-    return vocab
-
-
-_VOCAB = _known_metric_vocabulary()
-
-
-def _find_metric_by_substring(lowered_text: str) -> Optional[str]:
-    matches = [(name, key) for name, key in _VOCAB.items() if name in lowered_text]
-    if not matches:
-        return None
-    # Longest matching name wins -- most specific, e.g. "logo retention
-    # rate" over a shorter partial name that also happens to appear.
-    matches.sort(key=lambda pair: len(pair[0]), reverse=True)
-    return matches[0][1]
+_VOCAB = _build_vocabulary()
 
 
 def parse_question(text: str) -> dict:
-    """Deterministic, keyword-based NL routing over the whitelisted
-    metric registry -- not an LLM call. Extracts a segment filter, a
-    grain, and a 'by segment' dimension request from the raw question
-    text, then resolves the metric itself by scanning for one of the
-    registry's own known names/keys/aliases as a literal substring (see
-    _find_metric_by_substring) so a real sentence like 'what was win rate
-    for Enterprise last year?' still resolves, without ever silently
-    accepting a fuzzy/partial match the registry itself wouldn't accept
-    through _resolve_metric. If no known name is found, `suggestions`
-    carries _resolve_metric's own difflib-based candidates (computed
-    against the raw text) for the UI to offer, unresolved, rather than
-    guessing on the caller's behalf."""
-    lowered = text.lower()
+    """Deterministic keyword routing over the whitelisted registry; see
+    lib/routing.py for the rules. Not an LLM call. When nothing resolves,
+    `suggestions` carries the semantic layer's own difflib candidates for
+    the UI to offer, unresolved."""
+    return _routing.route_question(text, _VOCAB, suggest=_semantic_server._suggestions)
 
-    filters = {}
-    for word, segment in _SEGMENT_WORDS.items():
-        if word in lowered:
-            filters["segment"] = segment
-            break
 
-    grain = "month"
-    for word, g in _GRAIN_WORDS.items():
-        if word in lowered:
-            grain = g
-            break
+def answer_question(text: str, partial_month: str = None) -> dict:
+    """Route a question and assemble its answer: the metric's own result
+    plus, for a non-leaf metric, one entry per immediate child, each from
+    the same query_metric() call (lib/answers.py). `partial_month` is the truncated
+    final month of the data window: the headline is the last complete period."""
+    parsed = parse_question(text)
+    return _answers.build_answer(parsed, query_metric, _semantic_server._METRICS, partial_month=partial_month)
 
-    dimensions = []
-    if any(phrase in lowered for phrase in _BY_SEGMENT_PHRASES):
-        dimensions = ["segment"]
-        filters.pop("segment", None)
 
-    metric_key = _find_metric_by_substring(lowered)
-    suggestions = [] if metric_key else _semantic_server._suggestions(text)
-
-    return {
-        "raw_question": text,
-        "resolved_metric": metric_key,
-        "suggestions": suggestions,
-        "dimensions": dimensions,
-        "filters": filters,
-        "grain": grain,
-    }
+def registry() -> dict:
+    """The loaded registry (metrics, metric_order, pillars, stamp fields)
+    the semantic layer itself serves. The tree panel is built from this,
+    never from a hard-coded copy."""
+    return _semantic_server._REGISTRY

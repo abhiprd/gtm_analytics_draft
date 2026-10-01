@@ -417,6 +417,11 @@ NOT_DRIFT_MONITORED_ARTIFACTS = [
         reason="Pure assembly of already-validated artifacts' outputs with no arithmetic of its own; its three checks are binary structural invariants with no sampling variance.",
         doc_anchor="### Drift monitoring — not applicable",
     ),
+    dict(
+        artifact="executive_summary_narrative",
+        reason="Language-model prose checked by a deterministic grounding validator before publication; no fitted model or calibration to drift. Its criteria are binary invariants (every published statement passes the validator; no unvalidated prose is shown), and the model's output is not seedable, so a single failed run is a review trigger, not a trend.",
+        doc_anchor="### Drift monitoring — not applicable (executive summary narrative)",
+    ),
 ]
 
 # The one Wave 7 sibling artifact this build does not touch (built in

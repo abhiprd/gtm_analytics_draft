@@ -4,23 +4,23 @@
     "checks_total": 3,
     "checks_passed": 3,
     "hooks_cataloged": 26,
-    "hooks_traced_to_doc": 29,
+    "hooks_traced_to_doc": 30,
     "hooks_with_zero_persisted_readings": 7,
-    "not_drift_monitored_artifacts": 2,
+    "not_drift_monitored_artifacts": 3,
     "not_yet_built_artifacts": 1,
-    "models_with_any_checkpoint": 15,
+    "models_with_any_checkpoint": 16,
     "min_checkpoints_across_models": 1,
     "max_checkpoints_across_models": 1,
     "data_gap_roots_cataloged": 20,
     "data_gap_roots_live_confirmed": 20,
     "pipeline_generated_stale_marking_confirmed": false,
     "artifacts_with_confirmed_threshold": 1,
-    "artifacts_with_proposed_not_confirmed_threshold": 16
+    "artifacts_with_proposed_not_confirmed_threshold": 17
   },
   "doc_trace_check": {
     "passed": true,
-    "n_total": 29,
-    "n_passed": 29,
+    "n_total": 30,
+    "n_passed": 30,
     "results": [
       {
         "id": "health_score_auc",
@@ -219,6 +219,13 @@
         "traces_to_doc": true
       },
       {
+        "id": "executive_summary_narrative",
+        "kind": "not_monitored",
+        "artifact": "executive_summary_narrative",
+        "doc_anchor": "### Drift monitoring \u2014 not applicable (executive summary narrative)",
+        "traces_to_doc": true
+      },
+      {
         "id": "segment_lead_scoring_model",
         "kind": "not_yet_built",
         "artifact": "segment_lead_scoring_model",
@@ -336,7 +343,7 @@
   },
   "checkpoint_reconciliation_check": {
     "passed": true,
-    "n_models_checked": 15,
+    "n_models_checked": 16,
     "mismatches": []
   },
   "pipeline_generated_staleness": {
@@ -366,6 +373,12 @@
       ]
     },
     "deal_diagnostics": {
+      "n_checkpoints": 1,
+      "as_of_dates": [
+        "2025-06-30"
+      ]
+    },
+    "executive_summary_narrative": {
       "n_checkpoints": 1,
       "as_of_dates": [
         "2025-06-30"
@@ -1173,6 +1186,11 @@
       "n_confirmed_by_validator_mentions": 0
     },
     {
+      "artifact_section": "Executive summary narrative",
+      "n_proposed_not_confirmed_mentions": 3,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
       "artifact_section": "Capacity planning",
       "n_proposed_not_confirmed_mentions": 1,
       "n_confirmed_by_validator_mentions": 0
@@ -1184,7 +1202,7 @@
     },
     {
       "artifact_section": "Automated playbook triggers",
-      "n_proposed_not_confirmed_mentions": 3,
+      "n_proposed_not_confirmed_mentions": 4,
       "n_confirmed_by_validator_mentions": 0
     },
     {

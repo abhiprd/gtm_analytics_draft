@@ -5,17 +5,20 @@
 **As of:** 2025-06-30  
 **Drill-down threshold:** +/-8% variance (proposed, not yet confirmed)
 
-_Monthly, not weekly. Every actuals mart in this project is segment x month and the variance-diagnostic engine evaluates the last complete month at or before as_of_date; a weekly period would either re-window the marts inside this artifact (a computation it does not do) or repeat one monthly figure under four weekly labels._
+_Monthly grain. Every actuals table is segment by month and the variance engine evaluates the last complete month at or before the as-of date, so the reporting period is one month._
 
 ## Executive summary
 
-> _Executive summary narrative: not yet generated._
+> _Executive summary: not generated (no_api_key)._
 >
-> Narrative generation is a separate, deliberately deferred piece of work. Build spec Section 5 specifies an executive summary that names a specific Layer-2/Layer-3 cause for any real miss, generated via the Claude API (Section 3's stack). No LLM is called from analytics/weekly_readout.py and no template-based prose generator substitutes for one -- canned sentences would read as narrative while carrying none of the causal reasoning the section exists for. assemble_readout()'s full return value is the structured input that step is designed to consume.
+> No ANTHROPIC_API_KEY was available to the step that writes this section, so no narrative was generated. There is no template fallback: a canned sentence would read as narrative while carrying none of the causal reasoning this section exists for. Set the key and run `python3 -m pipeline run --only executive_summary --no-deps` (or `python3 -m analytics.executive_summary`).
 
 ## Layer 1 scorecard - all 11 nodes
 
-_All eleven Layer-1 nodes are shown every period, unconditionally, per build spec Section 5 -- including the nodes whose actual is not computable from any mart. A reported gap is more useful than a hidden one._
+_All 11 Layer-1 nodes are shown every period, including nodes with no computable comparison._
+
+**Nodes:** 11 tracked, 9 breaching the variance threshold, 1 Not computable (Activation (TTFA, blended)).
+_A node counts as Not computable when its scorecard status is 'Not computable': the engine produced no variance, either because no actual exists or because the comparison is degenerate (Activation: blended time to first Action is 0 in every month, so its trailing baseline is 0)._
 
 ### Layer 1 - Growth
 
@@ -43,25 +46,25 @@ _All eleven Layer-1 nodes are shown every period, unconditionally, per build spe
 | GRR | 50.8% | 92.8% plan | -45.2% | Behind |
 | Logo retention | 85.2% | 84.8% plan | +0.4% | On track |
 
-Dollar figures are monthly MRR movements (`mart_growth_bridge`); NRR, GRR and logo retention are trailing-12-month compounded rates (`mart_durability`), which is the unit `mart_gtm_plan` states them in.
+Dollar figures are monthly MRR movements. NRR, GRR and logo retention are trailing-12-month compounded rates, the unit the plan states them in.
 
 ### Scorecard notes
 
-- **Activation (TTFA, blended)** (no_plan_by_design): Activation is the one Layer-1 node mart_gtm_plan deliberately carries no plan row for (its own header, and generators/gtm_plan.py). The design brief's sample readout reports it against a trailing baseline ('2.1 days vs. 2.4d last month'), not a plan figure. This engine therefore gives Activation its own trailing-baseline variance mechanism -- a different mechanism from the other ten metrics, stated explicitly rather than forced into the plan-diff shape. DEGENERATE IN THE CURRENT DATA: blended TTFA is identically 0 in every month of the 36-month window, because fact_usage_monthly is monthly grain and every account records its first Action in its own signup month (see mart_growth_bridge's own Activation comment). The baseline mechanism is implemented and exercised, but on this data it has a zero baseline and therefore no computable deviation -- which is why Activation reports 'Not computable' rather than 'On track'. A real TTFA signal needs a day-grain first-Action timestamp in Phase 1 plus a mart change, not a Phase 4 workaround.
-- **Magic number (blended)** (caveated): Both sides exist and the variance IS computed, but the LEVELS are not on the same footing and the readout must not present the gap as a business finding on its own. (1) SCOPE OF S&M COST. mart_gtm_plan's anchor is the QA plan's benchmark Magic Number band (Commercial and Enterprise ~0.7-0.9), a figure for a fully scoped S&M line. The actual's S&M cost is the metric tree's three-part definition: rep fully-loaded cost (incl. ramp, with a management/ops allocation in the loading factor) plus marketing program spend. Marketing-team headcount, which the raw data does not carry, is outside it, so the denominator is a floor and the actual a ceiling against the benchmark. (2) BASIS. The actual is a trailing-twelve-month ratio of net new ARR (new logo + expansion - contraction - churn, so it includes usage-driven expansion) to the prior-month S&M cost over the same twelve months, blended over Commercial and Enterprise only (SMB carries no rep cost and is 'n/a' in the benchmark table), the same population the plan blend uses. (3) TREND. Net new ARR compounds with a revenue base growing ~88% a year while quota-carrying and AM headcount is close to flat, so the actual climbs through the window (roughly 0.9 to 2.5) against a plan that moves ~3% a year: the gap widens with scale rather than tracking any one month. Read the sign, the trend and the Layer-2 drill-down, not the level.
-- **Consumption payback (blended)** (caveated): Both sides exist and the variance IS computed, but the LEVELS are not on the same footing and the readout must not present the gap as a business finding. mart_gtm_plan's anchor is the QA plan's benchmark payback band (Commercial ~14-18mo, Enterprise ~9-13mo), which assumes a fully-loaded CAC. mart_efficiency's actual CAC comes from fact_marketing_spend only -- generators/config.py records that outbound_sdr's channel spend 'covers tooling/data enrichment only, NOT rep headcount cost', so the actual numerator systematically excludes sales headcount. The actual's denominator is also average utilised margin across the whole installed base rather than per NEW account. Both push the computed actual far below the benchmark band. The Layer-2 drill-down is unaffected: it ranks each leg against its own trailing baseline, which is immune to a constant level offset.
-- **AM efficiency (blended)** (caveated): Both sides exist and the variance IS computed; three differences in footing are stated rather than applied silently. (1) UNITS AND BASIS: the tree defines the ratio as Expansion consumption revenue / AM cost; both are read as monthly flows (monthly expansion MRR movement over the same month's AM cost), the basis generators/gtm_plan.py's anchor uses, and the actual is a trailing-twelve-month aggregate of them because a single month carries the raw data's Q4 seasonality. (2) POPULATION: the plan anchor's numerator is built on the company-wide revenue base (SMB included; see generators/gtm_plan.py's KNOWN DIVERGENCE note), while the actual is blended over Commercial and Enterprise, the only segments with an AM, so the actual sits below a like-for-like plan by roughly SMB's share of expansion. (3) SCOPE OF EXPANSION: int_revenue_movements buckets any month-on-month usage increase as expansion, the same gross-bucket definition that caveats NRR/GRR. The actual rises through the window (roughly 0.8 to 2.6) toward a plan that is nearly flat, so the negative gap narrows over time. Read the sign, the trend and the Layer-2 drill-down, not the level.
-- **NRR** (caveated): Two adjustments, both stated rather than applied silently. (1) UNITS: mart_gtm_plan's nrr is an annual-equivalent decimal rate while mart_durability exposes a monthly rate -- this engine compounds the trailing 12 company-wide monthly rates before diffing, per mart_gtm_plan's own header instruction. (2) SCOPE OF THE CONTRACTION BUCKET. The plan side is internally consistent: generators/gtm_plan.py derives its monthly expansion and contraction+churn shares of base FROM the benchmark-blended nrr/grr anchors (1 - grr**(1/12), and nrr**(1/12) - 1 + that), so the plan's flow rows and its durability rows are two readings of one identity rather than two independent guesses. The remaining gap is on the ACTUALS side and is definitional, not performance. Over the twelve months to 2025-11 the marts carry gross contraction+churn at ~5.4% of starting revenue per month against gross expansion at ~10.8%, of which outright churn is only ~0.2%: int_revenue_movements buckets ANY month-on-month usage decline as contraction, so in a consumption business whose base grows ~88% a year both gross legs are large and largely offsetting, while a benchmark NRR/GRR band describes durable downsell in a mature base. That one difference drives both signs at once -- TTM GRR lands ~0.51 against a 0.93 plan while TTM NRR lands ~1.82 against a 1.17 plan. Logo retention, which has no gross-flow bucket, reconciles to plan within 2%, which is the evidence that the churn leg is sound and it is the contraction bucket's SCOPE that differs. Read the Layer-2 drill-down, which ranks each leg against its own trailing baseline and is immune to a definitional level offset.
-- **GRR** (caveated): Same two adjustments as NRR -- see the NRR entry.
+- **Activation (TTFA, blended)** (no_plan_by_design): No plan row exists for Activation, so it is compared with its trailing 3-month baseline. Blended time to first Action is 0 in every month, so the baseline is 0 and no variance is computable.
+- **Magic number (blended)** (caveated): Caveated: the plan is a benchmark for a fully scoped S&M line, while the actual excludes marketing-team headcount and is a trailing-12-month ratio. The level gap against plan is definitional.
+- **Consumption payback (blended)** (caveated): Caveated: the plan band assumes a fully loaded CAC, while the actual CAC is marketing spend only. The actual sits far below the band by definition.
+- **AM efficiency (blended)** (caveated): Caveated: the actual covers Commercial and Enterprise over a trailing 12 months and counts any usage increase as expansion, while the plan includes SMB expansion.
+- **NRR** (caveated): Caveated: the contraction bucket counts any month-on-month usage decline, so gross expansion and contraction are both large, while the plan benchmark describes durable downsell. Trailing-12-month NRR and GRR differ from plan by definition.
+- **GRR** (caveated): Caveated: same contraction-bucket scope and unit adjustments as NRR.
 
 ## This period's drill-downs (9)
 
-_Variable length: one drill-down per Layer-1 node that actually breached the variance threshold this period, and none for any node that did not. Never padded to a fixed count, never truncated. The Layer-2 outlier in each entry is the engine's own ranking of that node's TRUE siblings against their own trailing baselines, and Layer-3 evidence appears only where the branch genuinely has a Layer 3 that a mart can compute._
+_One drill-down per Layer-1 node that breached the variance threshold this period; none for nodes that did not. The Layer-2 outlier in each entry is the engine's ranking of that node's siblings against their own trailing baselines. Layer-3 evidence appears only where the branch has a Layer 3 that can be computed._
 
 ### 1. New logo consumption revenue - $15.6K vs. $17.2K plan (-9.0%, plan_diff)
 
-- **Layer 2 coverage:** 3 of 3 children of this node have a mart-computable actual.
-- **Layer 2 outlier:** Win rate (layer 2, child of `new_logo_consumption_revenue`) - 0.425 this period vs. a 0.2563 trailing baseline (+65.8%), ranked by `relative_deviation`; computability: computable.
+- **Layer 2 coverage:** 3 of 3 children of this node have a computable actual.
+- **Layer 2 outlier:** Win rate (layer 2) - 0.425 this period vs. a 0.2563 trailing baseline (+65.8%), ranked by relative deviation; computability: computable.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -69,35 +72,35 @@ _Variable length: one drill-down per Layer-1 node that actually breached the var
 | 2 | Pipeline generated | 2 | 69 | 54.38 | +26.9% | computable |
 | 3 | Avg initial commitment | 2 | 5.503e+04 | 5.688e+04 | -3.3% | computable |
 
-- **Layer 3:** the tree has Layer-3 children here (branch depth 3), but none is computable from any `mart_*` table this period.
-- _Note:_ Pipeline generated is read from analytics/marketing_attribution.py as a monthly flow: leads that converted to a PQL (this funnel's signup) in the month, by the lead's sourcing sub-channel (organic / paid / community), company-wide. It covers inbound-marketing-sourced accounts only, across all three segments (SMB included), and is indexed by conversion month rather than lead-creation month so the latest month is not right-censored. Win rate and Avg initial commitment are measured on rep-sold Commercial/Enterprise opportunities, a different population and unit, so this engine ranks Pipeline generated against its own trailing baseline like any sibling but does not multiply the three legs into a New logo figure (the governance module's New-logo product edge stays NOT_COMPUTABLE for the same reason).
-- _Note:_ win_rate does have Layer-3 children in the tree, but none is computable from any mart_* table; see layer3_evidence's missing list for the reasons.
+- **Layer 3:** the tree has Layer-3 children here (branch depth 3), but none is computable from the reporting tables this period.
+- Note: Pipeline generated counts inbound-sourced leads converting to signup (PQL) across all three segments; Win rate and Avg initial commitment cover Commercial and Enterprise opportunities. Each sibling is ranked against its own trailing baseline and the three are not multiplied into a New logo figure.
+- Note: Win rate has Layer-3 children in the tree, but none is computable from the reporting tables; the missing leaves and reasons are listed with the drill-down.
 
 ### 2. Expansion consumption revenue - $491.2K vs. $129.1K plan (+280.5%, plan_diff)
 
-- **Layer 2 coverage:** 0 of 2 children of this node have a mart-computable actual - single-candidate read, not an outlier selection among siblings.
-- **Layer 2 outlier:** none identifiable - no child of this node has a mart-computable actual with a usable trailing baseline. The Layer-1 variance stands on its own.
+- **Layer 2 coverage:** 0 of 2 children of this node have a computable actual (single-candidate read, no sibling comparison).
+- **Layer 2 outlier:** none identified - no child of this node has a computable actual with a usable trailing baseline. The Layer-1 variance stands alone.
 
-- **Layer 3:** not reached - Layer-3 evidence hangs off a Layer-2 outlier, and none was identifiable here. The branch runs 3 layers deep in the tree.
-- _Note:_ No Layer-2 child of expansion_consumption_revenue has a mart-computable actual with a usable trailing baseline, so no outlier can be identified. The Layer-1 variance stands on its own; see sibling_coverage for which children are missing and why.
+- **Layer 3:** not reached - Layer-3 evidence hangs off a Layer-2 outlier and none was identified. The branch is 3 layers deep in the tree.
+- Note: No Layer-2 child of Expansion consumption revenue has a computable actual with a usable trailing baseline, so no outlier is identified. The Layer-1 variance stands alone; the missing children and reasons are listed with the drill-down.
 
 ### 3. Contraction + churned revenue - $394.2K vs. $43.8K plan (+800.1%, plan_diff)
 
-- **Layer 2 coverage:** 1 of 4 children of this node have a mart-computable actual - single-candidate read, not an outlier selection among siblings.
-- **Layer 2 outlier:** Cyclical/planned usage dip vs. structural churn (layer 2, child of `contraction_churned_revenue`) - 0.0299 this period vs. a 0.02753 trailing baseline (+8.6%), ranked by `relative_deviation`; computability: partial.
+- **Layer 2 coverage:** 1 of 4 children of this node have a computable actual (single-candidate read, no sibling comparison).
+- **Layer 2 outlier:** Cyclical/planned usage dip vs. structural churn (layer 2) - 0.0299 this period vs. a 0.02753 trailing baseline (+8.6%), ranked by relative deviation; computability: partial.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
 | 1 | Cyclical/planned usage dip vs. structural churn | 2 | 0.0299 | 0.02753 | +8.6% | partial |
 
-- **Layer 3:** the tree has Layer-3 children here (branch depth 3), but none is computable from any `mart_*` table this period.
-- _Note:_ Only 1 of 4 Layer-2 siblings under contraction_churned_revenue have a mart-computable actual, so this is a single-candidate read rather than a genuine outlier selection among siblings.
-- _Note:_ cyclical_vs_structural_usage_dip does have Layer-3 children in the tree, but none is computable from any mart_* table; see layer3_evidence's missing list for the reasons.
+- **Layer 3:** the tree has Layer-3 children here (branch depth 3), but none is computable from the reporting tables this period.
+- Note: Single-candidate read: only 1 of 4 Layer-2 children of Contraction + churned revenue has a computable actual, so no sibling comparison is possible.
+- Note: Cyclical/planned usage dip vs. structural churn has Layer-3 children in the tree, but none is computable from the reporting tables; the missing leaves and reasons are listed with the drill-down.
 
 ### 4. Magic number (blended) - 1.54x vs. 0.78x plan (+95.9%, plan_diff)
 
-- **Layer 2 coverage:** 1 of 1 children of this node have a mart-computable actual - single-candidate read, not an outlier selection among siblings.
-- **Layer 2 outlier:** S&M cost (layer 2, child of `magic_number`) - 1.475e+06 this period vs. a 1.425e+06 trailing baseline (+3.5%), ranked by `relative_deviation`; computability: computable.
+- **Layer 2 coverage:** 1 of 1 children of this node have a computable actual (single-candidate read, no sibling comparison).
+- **Layer 2 outlier:** S&M cost (layer 2) - 1.475e+06 this period vs. a 1.425e+06 trailing baseline (+3.5%), ranked by relative deviation; computability: computable.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -109,82 +112,84 @@ _Variable length: one drill-down per Layer-1 node that actually breached the var
 |---|---|---|---|---|---|
 | 1 | Rep fully-loaded cost, incl. ramp | 3 | 1.45e+06 | 1.403e+06 | +3.4% |
 | 2 | Marketing spend allocation by channel | 3 | 2.518e+04 | 2.24e+04 | +12.4% |
-- _Note:_ Both sides exist and the variance IS computed, but the LEVELS are not on the same footing and the readout must not present the gap as a business finding on its own. (1) SCOPE OF S&M COST. mart_gtm_plan's anchor is the QA plan's benchmark Magic Number band (Commercial and Enterprise ~0.7-0.9), a figure for a fully scoped S&M line. The actual's S&M cost is the metric tree's three-part definition: rep fully-loaded cost (incl. ramp, with a management/ops allocation in the loading factor) plus marketing program spend. Marketing-team headcount, which the raw data does not carry, is outside it, so the denominator is a floor and the actual a ceiling against the benchmark. (2) BASIS. The actual is a trailing-twelve-month ratio of net new ARR (new logo + expansion - contraction - churn, so it includes usage-driven expansion) to the prior-month S&M cost over the same twelve months, blended over Commercial and Enterprise only (SMB carries no rep cost and is 'n/a' in the benchmark table), the same population the plan blend uses. (3) TREND. Net new ARR compounds with a revenue base growing ~88% a year while quota-carrying and AM headcount is close to flat, so the actual climbs through the window (roughly 0.9 to 2.5) against a plan that moves ~3% a year: the gap widens with scale rather than tracking any one month. Read the sign, the trend and the Layer-2 drill-down, not the level.
-- _Note:_ Only 1 of 1 Layer-2 siblings under magic_number have a mart-computable actual, so this is a single-candidate read rather than a genuine outlier selection among siblings.
+- Note: Caveated: the plan is a benchmark for a fully scoped S&M line, while the actual excludes marketing-team headcount and is a trailing-12-month ratio. The level gap against plan is definitional.
+- Note: Single-candidate read: only 1 of 1 Layer-2 children of Magic number (blended) has a computable actual, so no sibling comparison is possible.
 
 ### 5. Consumption payback (blended) - 0.11 mo vs. 12.21 mo plan (-99.1%, plan_diff)
 
-- **Layer 2 coverage:** 2 of 2 children of this node have a mart-computable actual.
-- **Layer 2 outlier:** CAC by channel (unblended) (layer 2, child of `consumption_payback`) - 544.6 this period vs. a 768.2 trailing baseline (-29.1%), ranked by `relative_deviation`; computability: partial.
+- **Layer 2 coverage:** 2 of 2 children of this node have a computable actual.
+- **Layer 2 outlier:** CAC by channel (unblended) (layer 2) - 544.6 this period vs. a 768.2 trailing baseline (-29.1%), ranked by relative deviation; computability: partial.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
 | 1 | CAC by channel (unblended) | 2 | 544.6 | 768.2 | -29.1% | partial |
 | 2 | Utilized vs. committed Action volume | 2 | 2.211e+04 | 2.276e+04 | -2.9% | partial |
 
-- **Layer 3:** none - this branch is genuinely 2 layers deep in the metric tree. No Layer 3 is fabricated to force symmetry.
-- _Note:_ Both sides exist and the variance IS computed, but the LEVELS are not on the same footing and the readout must not present the gap as a business finding. mart_gtm_plan's anchor is the QA plan's benchmark payback band (Commercial ~14-18mo, Enterprise ~9-13mo), which assumes a fully-loaded CAC. mart_efficiency's actual CAC comes from fact_marketing_spend only -- generators/config.py records that outbound_sdr's channel spend 'covers tooling/data enrichment only, NOT rep headcount cost', so the actual numerator systematically excludes sales headcount. The actual's denominator is also average utilised margin across the whole installed base rather than per NEW account. Both push the computed actual far below the benchmark band. The Layer-2 drill-down is unaffected: it ranks each leg against its own trailing baseline, which is immune to a constant level offset.
-- _Note:_ cac_by_channel has no Layer-3 children in the metric tree -- this branch is genuinely two layers deep. No Layer 3 is fabricated to force symmetry.
+- **Layer 3:** none - this branch is 2 layers deep in the metric tree.
+- Note: Caveated: the plan band assumes a fully loaded CAC, while the actual CAC is marketing spend only. The actual sits far below the band by definition.
+- Note: CAC by channel (unblended) has no Layer-3 children in the metric tree; this branch is two layers deep.
 
 ### 6. Onboarding/CS efficiency (blended) - 5.26e-06 touches/Action vs. 6.16e-06 touches/Action plan (-14.7%, plan_diff)
 
-- **Layer 2 coverage:** 2 of 2 children of this node have a mart-computable actual.
-- **Layer 2 outlier:** Automated Action volume delivered (layer 2, child of `onboarding_cs_efficiency`) - 1.359e+08 this period vs. a 1.154e+08 trailing baseline (+17.8%), ranked by `relative_deviation`; computability: computable.
+- **Layer 2 coverage:** 2 of 2 children of this node have a computable actual.
+- **Layer 2 outlier:** Automated Action volume delivered (layer 2) - 1.359e+08 this period vs. a 1.154e+08 trailing baseline (+17.8%), ranked by relative deviation; computability: computable.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
 | 1 | Automated Action volume delivered | 2 | 1.359e+08 | 1.154e+08 | +17.8% | computable |
 | 2 | AM touchpoint volume | 2 | 715 | 636.1 | +12.4% | computable |
 
-- **Layer 3:** none - this branch is genuinely 2 layers deep in the metric tree. No Layer 3 is fabricated to force symmetry.
-- _Note:_ automated_action_volume has no Layer-3 children in the metric tree -- this branch is genuinely two layers deep. No Layer 3 is fabricated to force symmetry.
+- **Layer 3:** none - this branch is 2 layers deep in the metric tree.
+- Note: Automated Action volume delivered has no Layer-3 children in the metric tree; this branch is two layers deep.
 
 ### 7. AM efficiency (blended) - 2.00x vs. 2.76x plan (-27.8%, plan_diff)
 
-- **Layer 2 coverage:** 1 of 2 children of this node have a mart-computable actual - single-candidate read, not an outlier selection among siblings.
-- **Layer 2 outlier:** AM cost by segment (layer 2, child of `am_efficiency`) - 2.209e+05 this period vs. a 2.048e+05 trailing baseline (+7.9%), ranked by `relative_deviation`; computability: computable.
+- **Layer 2 coverage:** 1 of 2 children of this node have a computable actual (single-candidate read, no sibling comparison).
+- **Layer 2 outlier:** AM cost by segment (layer 2) - 2.209e+05 this period vs. a 2.048e+05 trailing baseline (+7.9%), ranked by relative deviation; computability: computable.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
 | 1 | AM cost by segment | 2 | 2.209e+05 | 2.048e+05 | +7.9% | computable |
 
-- **Layer 3:** none - this branch is genuinely 2 layers deep in the metric tree. No Layer 3 is fabricated to force symmetry.
-- _Note:_ Both sides exist and the variance IS computed; three differences in footing are stated rather than applied silently. (1) UNITS AND BASIS: the tree defines the ratio as Expansion consumption revenue / AM cost; both are read as monthly flows (monthly expansion MRR movement over the same month's AM cost), the basis generators/gtm_plan.py's anchor uses, and the actual is a trailing-twelve-month aggregate of them because a single month carries the raw data's Q4 seasonality. (2) POPULATION: the plan anchor's numerator is built on the company-wide revenue base (SMB included; see generators/gtm_plan.py's KNOWN DIVERGENCE note), while the actual is blended over Commercial and Enterprise, the only segments with an AM, so the actual sits below a like-for-like plan by roughly SMB's share of expansion. (3) SCOPE OF EXPANSION: int_revenue_movements buckets any month-on-month usage increase as expansion, the same gross-bucket definition that caveats NRR/GRR. The actual rises through the window (roughly 0.8 to 2.6) toward a plan that is nearly flat, so the negative gap narrows over time. Read the sign, the trend and the Layer-2 drill-down, not the level.
-- _Note:_ Only 1 of 2 Layer-2 siblings under am_efficiency have a mart-computable actual, so this is a single-candidate read rather than a genuine outlier selection among siblings.
-- _Note:_ am_cost_by_segment has no Layer-3 children in the metric tree -- this branch is genuinely two layers deep. No Layer 3 is fabricated to force symmetry.
+- **Layer 3:** none - this branch is 2 layers deep in the metric tree.
+- Note: Caveated: the actual covers Commercial and Enterprise over a trailing 12 months and counts any usage increase as expansion, while the plan includes SMB expansion.
+- Note: Single-candidate read: only 1 of 2 Layer-2 children of AM efficiency (blended) has a computable actual, so no sibling comparison is possible.
+- Note: AM cost by segment has no Layer-3 children in the metric tree; this branch is two layers deep.
 
 ### 8. NRR - 171.6% vs. 117.9% plan (+45.5%, plan_diff)
 
-- **Layer 2 coverage:** 3 of 3 children of this node have a mart-computable actual.
-- **Layer 2 outlier:** Expansion (share of starting revenue) (layer 2, child of `nrr`) - 0.07275 this period vs. a 0.1044 trailing baseline (-30.3%), ranked by `additive_share`; computability: computable.
-  - This node is the tree's cross-reference to `expansion_consumption_revenue` under Growth, not an independent driver.
+- **Layer 2 coverage:** 3 of 3 children of this node have a computable actual.
+- **Layer 2 outlier:** See Growth: Expansion (share of starting revenue) (layer 2) - 0.07275 this period vs. a 0.1044 trailing baseline (-30.3%), ranked by additive share; computability: computable.
+  - Cross-reference to Expansion consumption revenue under Growth, not an independent driver.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
-| 1 | Expansion (share of starting revenue) | 2 | 0.07275 | 0.1044 | -30.3% | computable |
-| 2 | Contraction (share of starting revenue) | 2 | 0.05692 | 0.0555 | +2.6% | computable |
-| 3 | Churn (share of starting revenue) | 2 | 0.001462 | 0.001735 | -15.7% | computable |
+| 1 | See Growth: Expansion (share of starting revenue) | 2 | 0.07275 | 0.1044 | -30.3% | computable |
+| 2 | See Growth: Contraction (share of starting revenue) | 2 | 0.05692 | 0.0555 | +2.6% | computable |
+| 3 | See Growth: Churn (share of starting revenue) | 2 | 0.001462 | 0.001735 | -15.7% | computable |
 
-- **Layer 3:** none - this branch is genuinely 2 layers deep in the metric tree. No Layer 3 is fabricated to force symmetry.
-- _Note:_ Two adjustments, both stated rather than applied silently. (1) UNITS: mart_gtm_plan's nrr is an annual-equivalent decimal rate while mart_durability exposes a monthly rate -- this engine compounds the trailing 12 company-wide monthly rates before diffing, per mart_gtm_plan's own header instruction. (2) SCOPE OF THE CONTRACTION BUCKET. The plan side is internally consistent: generators/gtm_plan.py derives its monthly expansion and contraction+churn shares of base FROM the benchmark-blended nrr/grr anchors (1 - grr**(1/12), and nrr**(1/12) - 1 + that), so the plan's flow rows and its durability rows are two readings of one identity rather than two independent guesses. The remaining gap is on the ACTUALS side and is definitional, not performance. Over the twelve months to 2025-11 the marts carry gross contraction+churn at ~5.4% of starting revenue per month against gross expansion at ~10.8%, of which outright churn is only ~0.2%: int_revenue_movements buckets ANY month-on-month usage decline as contraction, so in a consumption business whose base grows ~88% a year both gross legs are large and largely offsetting, while a benchmark NRR/GRR band describes durable downsell in a mature base. That one difference drives both signs at once -- TTM GRR lands ~0.51 against a 0.93 plan while TTM NRR lands ~1.82 against a 1.17 plan. Logo retention, which has no gross-flow bucket, reconciles to plan within 2%, which is the evidence that the churn leg is sound and it is the contraction bucket's SCOPE that differs. Read the Layer-2 drill-down, which ranks each leg against its own trailing baseline and is immune to a definitional level offset.
-- _Note:_ Grain note: nrr's Layer-1 figure is the trailing-12-month compounded rate (to match mart_gtm_plan's annual-equivalent units), while its Layer-2 drivers are read at monthly grain -- the grain at which a driver actually moves. A driver can therefore point the opposite way to the annualised parent in any single month; read the driver ranking as 'what moved this month', not as a decomposition of the twelve-month figure.
-- _Note:_ nrr_expansion_rate has no Layer-3 children in the metric tree -- this branch is genuinely two layers deep. No Layer 3 is fabricated to force symmetry.
+- **Layer 3:** none - this branch is 2 layers deep in the metric tree.
+- Note: Caveated: the contraction bucket counts any month-on-month usage decline, so gross expansion and contraction are both large, while the plan benchmark describes durable downsell. Trailing-12-month NRR and GRR differ from plan by definition.
+- Note: Tree definition: NRR's child in the metric tree is a single reference, 'See Growth — expansion, contraction, churn drivers'. The engine expands that reference into the named drivers, each shown as a share of starting revenue and linked to the Growth driver it mirrors.
+- Note: Grain: the NRR figure is the trailing-12-month compounded rate (annual-equivalent, as in the plan), while the drivers are read monthly. A driver can point opposite to the annualised parent in a single month, so the driver ranking shows what moved this month, not a decomposition of the 12-month figure.
+- Note: See Growth: Expansion (share of starting revenue) has no Layer-3 children in the metric tree; this branch is two layers deep.
 
 ### 9. GRR - 50.8% vs. 92.8% plan (-45.2%, plan_diff)
 
-- **Layer 2 coverage:** 2 of 2 children of this node have a mart-computable actual.
-- **Layer 2 outlier:** Contraction (share of starting revenue) (layer 2, child of `grr`) - 0.05692 this period vs. a 0.0555 trailing baseline (+2.6%), ranked by `additive_share`; computability: computable.
-  - This node is the tree's cross-reference to `contraction_churned_revenue` under Growth, not an independent driver.
+- **Layer 2 coverage:** 2 of 2 children of this node have a computable actual.
+- **Layer 2 outlier:** See Growth: Contraction (share of starting revenue) (layer 2) - 0.05692 this period vs. a 0.0555 trailing baseline (+2.6%), ranked by additive share; computability: computable.
+  - Cross-reference to Contraction + churned revenue under Growth, not an independent driver.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
-| 1 | Contraction (share of starting revenue) | 2 | 0.05692 | 0.0555 | +2.6% | computable |
-| 2 | Churn (share of starting revenue) | 2 | 0.001462 | 0.001735 | -15.7% | computable |
+| 1 | See Growth: Contraction (share of starting revenue) | 2 | 0.05692 | 0.0555 | +2.6% | computable |
+| 2 | See Growth: Churn (share of starting revenue) | 2 | 0.001462 | 0.001735 | -15.7% | computable |
 
-- **Layer 3:** none - this branch is genuinely 2 layers deep in the metric tree. No Layer 3 is fabricated to force symmetry.
-- _Note:_ Same two adjustments as NRR -- see the NRR entry.
-- _Note:_ Grain note: grr's Layer-1 figure is the trailing-12-month compounded rate (to match mart_gtm_plan's annual-equivalent units), while its Layer-2 drivers are read at monthly grain -- the grain at which a driver actually moves. A driver can therefore point the opposite way to the annualised parent in any single month; read the driver ranking as 'what moved this month', not as a decomposition of the twelve-month figure.
-- _Note:_ grr_contraction_rate has no Layer-3 children in the metric tree -- this branch is genuinely two layers deep. No Layer 3 is fabricated to force symmetry.
+- **Layer 3:** none - this branch is 2 layers deep in the metric tree.
+- Note: Caveated: same contraction-bucket scope and unit adjustments as NRR.
+- Note: Tree definition: GRR's child in the metric tree is a single reference, 'See Growth — contraction, churn drivers'. The engine expands that reference into the named drivers, each shown as a share of starting revenue and linked to the Growth driver it mirrors.
+- Note: Grain: the GRR figure is the trailing-12-month compounded rate (annual-equivalent, as in the plan), while the drivers are read monthly. A driver can point opposite to the annualised parent in a single month, so the driver ranking shows what moved this month, not a decomposition of the 12-month figure.
+- Note: See Growth: Contraction (share of starting revenue) has no Layer-3 children in the metric tree; this branch is two layers deep.
 
 ## Automated playbook triggers (1404)
 
@@ -1599,11 +1604,37 @@ _Whatever fired this period, unranked (binary, not prioritized) -- build spec Se
 
 ## Forecast
 
-**Status: not_yet_built.** Forecast (sales bottoms-up + ML/regression + CRO overlay) is a Wave 2 artifact, not yet built -- build spec Section 8 places it in the wave after this one, and its entry in docs/acme-corp-analytics-methods.md is still TBD. The section is carried here with this status so the readout's structure stays forward-compatible; no forecast number is fabricated to fill it.
+**Forecast call:** 2025-06-27 - the latest weekly forecast call on or before the 2025-06-30 period end - covering 2025-Q2 (Commercial and Enterprise), 3 days before that quarter ends.
+
+_Values are read from the forecast artifact's output at the selected call date: four lenses per segment (Commercial and Enterprise), shown side by side with the artifact's own divergence flag and never collapsed into one number. A fresh run of the forecast artifact is compared with this section field by field._
+
+_The readout reports a month; the forecast is quarter-grain. The section carries the forecast call that was current at the reporting period's end: the latest weekly forecast call (a Friday forecast snapshot) on or before the period end, and the quarter that call falls in. The one field read from after the call is each open deal's close date, used only to decide which quarter the deal belongs to (the data has no separate expected-close field); no outcome after the call is read._
+
+| Segment | Open deals | Open pipeline | Bottoms-up (rep) | Bottoms-up (manager) | ML | CRO-adjusted | Lens spread | Divergence |
+|---|---|---|---|---|---|---|---|---|
+| Commercial | 2 | $38.5K | $8.8K | $9.2K | $11.9K | $126.8K | 301.3% | diverges materially (widest: CRO-adjusted vs Bottoms-up (rep)) |
+
+- **Commercial:** CRO override +$117.6K filed (rep sandbagging pattern).
+- **No open deals scoped to 2025-Q2 after this call:** Enterprise.
+- **ML lens context:** out-of-time holdout AUC 0.859 against a 0.70-0.85 target (above the 0.70-0.85 target range), manager-category lookup baseline AUC 0.832, calibration gap -0.014 against +/-0.05 (within); fitted on 1,143 past forecast calls and held out on 381; model AUC is 1.032x the leak-proof manager-lookup AUC on the same held-out rows; not all pre-registered ML targets met.
+- **Divergence threshold:** spread > 25% of the mean of the computable lenses; proposed, not yet confirmed (non-vacuous and non-trivial on the backtest per the Forecast entry of the analytics methods document, not a derived number).
+- **Versus plan or quota:** not available - No plan or quota exists at the forecast's grain and unit (closed-won opportunity amount for Commercial and Enterprise, per quarter). The plan table states monthly MRR-movement plans at company grain, and quota history is per rep across all segments, so neither is comparable without a conversion that this readout and the forecast artifact do not own. The forecast artifact's own variance logic is the divergence flag between its lenses.
+- **Data window:** Forecast submissions end 2025-12-26 and the last opportunity closes 2025-12-28. This call's quarter (2025-Q2) ends before the window does, so the end-of-window effect on open-deal scoping does not apply.
+
+Forecast caveats:
+
+- Commercial and Enterprise only. SMB has no weekly forecast cadence (no-touch, 0-7 day motion) and is not forecast here or folded into a company total.
+- Quarter grain, and the lenses forecast what is still open: each is the expected closed-won amount of the deals open at the call date whose close lands in the call date's quarter. There is no forward-quarter forecast. A call made in a quarter's final days therefore prices only the few deals still open, and the CRO override, a quarter-level logged dollar delta, is not scaled down to that shrinking pipeline, so the CRO-adjusted lens can exceed the remaining open pipeline late in a quarter.
+- Dollars are opportunity amounts as recorded in the CRM (closed-won deal value), not the monthly MRR movements the Layer-1 scorecard reports; the two are not comparable and are never added.
+- The four lenses are reconciled, not collapsed: no lens is 'the' forecast. The divergence flag marks where they disagree materially, and the threshold behind it is proposed, not confirmed.
+- The ML lens excludes the manager's forecast category by design. Its backtested under-forecast from out-of-time calibration drift (mix shift) is documented and deliberately not corrected; the Forecast entry of the analytics methods document gives the backtested accuracy of every lens, which this section does not recompute.
+- The CRO overlay is applied, never explained or validated: the logged reason is carried through, not reproduced. Where no override was filed the adjustment is exactly 0.
+- The Commercial new-business categories barely discriminate in this data, so a Commercial new-business Commit is not meaningfully stronger than a Pipeline call.
+- ML lens values vary slightly across database rebuilds, because the marts' final selects have no fixed row order and the model sees the rows in a different order. Measured between a committed run and a fresh run after a rebuild: up to about 0.5% on a lens value (0.53% on the CRO-adjusted ML lens) and about 0.001 on holdout AUC; divergence flags, widest pairs and target verdicts were unchanged.
 
 ## Watchlist (25 accounts)
 
-_Accounts whose composite health score breaches the risk threshold (risk_tier == 'High'), ranked by estimated ARR at risk, then by churn probability -- analytics/variance_diagnostic.py's build_watchlist(), which consumes analytics/health_score.py's scored output directly._
+_Accounts whose composite health score breaches the High-risk threshold, ranked by estimated ARR at risk, then by churn probability. Source: the account health score's scored output._
 
 | # | Account | Segment | Risk tier | Churn probability | Health score | Est. ARR at risk |
 |---|---|---|---|---|---|---|
@@ -1633,9 +1664,9 @@ _Accounts whose composite health score breaches the risk threshold (risk_tier ==
 | 24 | ACC-003163 | Commercial | High | 0.782 | 21.8 | $26.2K |
 | 25 | ACC-000292 | Commercial | High | 0.781 | 21.9 | $26.2K |
 
-- est_arr_at_risk_usd is the account's SEGMENT-AVERAGE ARR for the evaluation month (mart_durability starting_mrr / starting_accounts x 12), not its own contracted ARR -- no mart_* table exposes ARR at account grain. It orders the watchlist correctly across segments and by risk within a segment, but it is an estimate and is named as one.
-- risk_tier is quantile-based over the scored active population, so the watchlist's segment mix follows the tier definition rather than an ARR-ranking judgement.
-- churn_probability is a ranking signal, not a calibrated probability: class_weight='balanced' shifts the health model's predicted probabilities up systematically (see the health score's calibration note in docs/acme-corp-analytics-methods.md). It must not be read as a literal likelihood of churn.
+- Estimated ARR at risk is the account's segment-average ARR for the evaluation month (starting MRR divided by starting accounts, times 12), not its own contracted ARR; no reporting table exposes ARR at account grain. It orders the list correctly across segments and by risk within a segment, but it is an estimate.
+- Risk level is quantile-based over the scored active population, so the watchlist's segment mix follows the risk-level definition, not an ARR ranking.
+- Churn probability is a ranking signal, not a calibrated probability: class weighting in the health model shifts predicted probabilities upward systematically (see the health score's calibration note in docs/acme-corp-analytics-methods.md). It is not a literal likelihood of churn.
 
 ## Provenance
 
@@ -1646,6 +1677,8 @@ Assembled by `analytics/weekly_readout.py`. Computation performed during assembl
 | layer1_scorecard | `analytics/variance_diagnostic.py` | `run_diagnostic()['layer1_scorecard']` |
 | drilldowns | `analytics/variance_diagnostic.py` | `run_diagnostic()['drilldowns']` |
 | watchlist | `analytics/variance_diagnostic.py -> analytics/health_score.py` | `run_diagnostic()['watchlist'] (build_watchlist -> score_accounts)` |
+| playbook_triggers | `analytics/playbook_triggers.py` | `run_playbook_triggers(as_of_date) + with_known_outcomes()` |
+| forecast | `analytics/forecast.py` | `latest_forecast_call_date(reporting_period_end); run_forecast(forecast_call_date)` |
 | source_coverage | `analytics/variance_diagnostic.py` | `run_diagnostic()['coverage']` |
 | data_window | `analytics/variance_diagnostic.py` | `run_diagnostic()['data_window']` |
 

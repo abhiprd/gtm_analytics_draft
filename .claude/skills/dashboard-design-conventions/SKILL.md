@@ -135,13 +135,14 @@ The same underlying metric tree serves at least three different readers on this 
 **Ad hoc / exploratory (Ask the Metric Tree)**
 - Open-ended question, unknown shape of answer.
 - Needs conversational/query-driven access to the same underlying metric registry, not a fixed layout — this page is correctly built differently from the other two (chat-style interface over the MCP semantic layer) and doesn't need the visual density rules below, but its *answers*, when they render a chart or number, still follow every rule in Sections 2–3.
+- **An answer about any non-leaf metric must include its immediate children, not just its own value.** A question about win rate should render win rate's own number alongside its Layer-3 drivers (stage-to-stage conversion, POC pass rate, rep capacity/ramp mix, loss-reason mix) in the same response — "what is win rate" and "why is win rate declining" are the same question from this dashboard's reader, and a bare number forces a second question the system already had the answer to. Default to one level of children below whatever the query resolves to; let the reader drill further from there rather than re-asking for the breakdown separately. See 4.7 for the standing tree panel this pairs with.
 
 ### 4.2 What actually changes between exec and analyst pages
 
 | Dimension | Exec page (Digest) | Analyst page (Segment Efficiency, etc.) |
 |---|---|---|
 | Default depth shown | Layer 1 only, Layer 2 on click-through | Layer 2/3 visible by default |
-| Number of charts above the fold | 3–5 scorecards max, one hero chart | As many as needed to diagnose — density is a feature here, not a flaw |
+| Number of charts above the fold | 3–5 scorecards max outside the verdict row (the verdict row itself is the 11 Layer-1 scorecards, Section 4.3), one hero chart | As many as needed to diagnose — density is a feature here, not a flaw |
 | Table usage | Avoid; use scorecards/cards instead | Tables are appropriate and expected |
 | Language | Plain business language ("New logo revenue is $2.1M, 4% below plan") | Can use metric-tree terminology and formula references directly |
 | Filters/controls | Minimal — as-of-date and maybe segment | Full filter set: segment, channel, rep, date range, grain |
@@ -175,7 +176,46 @@ Forecast doesn't fit cleanly into any of the three tiers in 4.1 and needed its o
 
 4.2 says exec pages avoid tables. Digest's watchlist and automated-playbook-trigger sections are a deliberate, narrow exception: a short, ranked, named-account action list is exactly the case that rule should bend for — a card layout would either hide the account IDs a CRO needs to act on, or cost far more vertical space for the same handful of rows. The exception is narrow: full-width, stacked sections (never side-by-side columns, which truncate on a normal viewport), capped to what the underlying selection rule actually returns (never padded), and reserved for the "what needs a decision" tier of the inverted pyramid (4.3, item 4) — not a general license to drop a table onto an exec page wherever it's convenient.
 
+### 4.7 The metric tree must be visible, not just answerable
+
+A chat box with no visible sense of what's in scope fails the same way an empty search bar does — the reader doesn't know what's askable, so they either ask too narrow a question or give up. **The Ask the Metric Tree page must show the tree itself, always, alongside the chat interface** — not only as an answer to a question, but as a standing navigational element:
+
+- A persistent tree/outline panel (sidebar, or a collapsible panel above the chat) listing all 11 Layer-1 nodes under their three pillars, expandable to Layer 2/3 — the same hierarchy `acme-corp-gtm-metric-tree.md` defines, not a redesigned or simplified version of it.
+- Clicking any node in that panel populates the chat with a ready question about it (e.g., clicking "Win rate" asks "What is win rate and what's driving it?") rather than requiring the reader to type a well-formed question from nothing — this is what turns the tree panel from a reference into the actual on-ramp for the page.
+- This panel is not optional polish — it's the fix for the specific failure mode named above: a blank canvas with unlimited possible questions and no visible boundary on what's actually in the registry.
+
 ---
+
+### 4.8 Generated narrative block
+
+The Digest's executive summary is model-written prose, so it carries its own presentation and gating rules:
+
+- **Gate before render.** Prose renders only when the slot's status is `generated`, its validation passed, every statement is well-formed, and its input hash matches the readout it sits in. The gate is a pure function (`dashboard/lib/exec_summary_view.py`) so it is unit-testable without Streamlit. Every other state renders no prose.
+- **Generated state.** One white grid card (`.grid-card`): the first statement as the lead (1.1rem, weight 500), the rest as 0.95rem body, then one gray provenance line inside the card (model, generated date, "figures validated against the readout"). The card's fill bleeds 20px, so a spacer follows it.
+- **Completeness suffix.** Until the narrative step is `built_and_validated` in `dashboard/project_status.json`, the provenance line states its status ("narrative step status: in progress (not yet independently validated)"). The suffix disappears when the status flips.
+- **Citations.** They live in a collapsed "Sources and checks" expander as neutral gray chips, never colored: a citation is provenance, not a status judgment (Palette B). The expander also carries the caveat that validated figures are not the same as a correct explanation.
+- **Not-generated state.** The reason is plain language in an info box above the fold, never a raw reason code or dict. "Why this is blank" shows reason, what is needed and the component status only: no status-file text, file paths, CLI commands or reason codes (the generate command lives in `dashboard/README.md`). Failed-check names may be listed; validator detail text is never rendered.
+
+### 4.9 Scorecards, the tree panel and chat answers
+
+- **Equal-height card rows** are one CSS grid in a single markdown call (`theme.scorecard_row`), not `st.columns` plus per-card containers: forcing equal height on Streamlit's containers produced a border-without-fill artifact.
+- **Scorecard anatomy:** the label block always reserves two lines; optional gray footer lines (unit, baseline) sit inside the card; a long value keeps its number large and sets the unit small. A card with no comparison says "No comparison loaded for this metric" rather than showing a bare number.
+- **Tree panel (Ask the Metric Tree):** a sidebar with tertiary, left-aligned buttons and a pillar heading with its dot and tagline. Each node carries a gray "Layer N · status" line using a six-state vocabulary: ● Queryable, ◐ Queryable (partial), ○ Not computable, ◌ No variation in data, ◇ Non-additive overlay, ↗ Cross-reference. The panel uses no judgment color.
+- **Chat avatars** are neutral gray: Streamlit's default red and orange fills read as Palette B status colors.
+- **Answer layout:** resolved-metric identity card, formula (inline only up to 220 characters, otherwise under "Query details"), a grain/filter/split line, headline cards, chart, data table, then the immediate-children table. Guardrail rejections, overlays and not-computable results use a neutral `st.info`, never an error box. The newest exchange stays on screen and earlier ones collapse.
+- **Notes helper:** `theme.notes_and_assumptions` accepts only the labels Assumption, Scope and Data gap; `theme.escape_md` makes text render literally in markdown (dollar signs, underscores, asterisks).
+- **Charts and grain:** NRR and GRR charts are windowed to 24 months wherever they appear. Quarter-grain content (the forecast) is labelled with its grain and segment scope above the block, separate from the monthly scorecard.
+
+### 4.10 Caveated, degenerate and partial values
+
+- **Caveated comparisons.** A row whose plan comparison is flagged `caveated` shows the signed gap and plan value in neutral gray with no arrow, and a gray "Caveated comparison" tag inside the card. A period-over-period move on the same basis keeps its status color and carries the tag. Do not tag a row the readout does not flag.
+- **Constant series.** A value identical in every period is a gap, not a result: show "Not computable" with the reason and "No variation in data" tag, no number, no flat chart (extends the all-null rule in Section 7). The tree panel uses the "◌ No variation in data" state.
+- **Basis line on every card.** Digest: "Month of YYYY-MM" or "Trailing 12 months to YYYY-MM". Segment Efficiency: "Monthly". Ask: "Basis: last complete month".
+- **Truncated final month.** The data's last month is a partial artifact. It is excluded from Ask headlines and the Segment Efficiency default, drawn as an open marker labelled "Partial month", and flagged in data tables. Read it from the readout's `data_window.last_month_in_marts`, never hard-coded.
+- **Zero and rate deltas.** A delta that rounds to zero at its displayed precision has no color or arrow. Rate changes are labelled "pp".
+- **Reader-facing text.** Table names, file paths, error codes and CLI commands never reach the page; guardrail codes map to plain labels. Notes show one short line per item with a "Details" toggle (inline `<details>`, since Streamlit forbids nested expanders) for the rest.
+- **Charts.** Bars sort largest on top on every page. A reference line is labelled when a natural baseline exists (for example 100% on retention). Axis ranges fit the data.
+- **AUC wording.** "Above the target range" is neutral gray; "below" is unfavorable; "within" is favorable.
 
 ## 5. Information hierarchy and layout
 
@@ -230,15 +270,15 @@ The current Digest page already does two things worth treating as a standing req
 1. **"Executive summary narrative: not yet generated" with a "why this is blank" expander**, rather than either fabricating a narrative or silently omitting the section. This is the correct pattern for *any* component whose underlying model or generation step hasn't actually run — never render a plausible-looking placeholder, and never just delete the section as if it were never planned. Show the honest empty state with a one-line reason.
 2. **Explicit as-of-date, grain, and variance-threshold display** in a visible info row, not hidden in a settings panel — the reader should never have to guess what window or resolution they're looking at.
 
-**Extend this pattern to every model-backed component on every page:** if a component's underlying artifact is `planned` or `in-progress` per `project-status`'s 4-state model (not yet `built-and-validated`), the page must say so visibly, not render it as if it were live. This is the dashboard-level equivalent of the project's no-fabrication rule, and it's the single most important thing `dashboard-visual-qa` checks for (see that agent's file) — a good-looking chart backed by a model that doesn't exist yet is worse than an honest blank, because it's actively misleading anyone who screenshots it.
+**Extend this pattern to every model-backed component on every page:** if a component's underlying artifact is `planned` or `in-progress` per `dashboard/project_status.json`'s 4-state model (not yet `built-and-validated`; fall back to `docs/acme-corp-analytics-methods.md`'s own Target/Achieved entry or the build spec's built/simulated marker for anything not yet tracked in that file), the page must say so visibly, not render it as if it were live. This is the dashboard-level equivalent of the project's no-fabrication rule, and it's the single most important thing `dashboard-visual-qa` checks for (see that agent's file) — a good-looking chart backed by a model that doesn't exist yet is worse than an honest blank, because it's actively misleading anyone who screenshots it.
 
 Never show a number without a comparison point (vs. plan, vs. prior period, vs. benchmark) unless there genuinely isn't one yet — and if there isn't one yet, say that explicitly rather than showing a bare number that invites the reader to assume it's fine.
 
 **A "no comparison" gray card and a "within-threshold, real comparison" gray card are not the same state, and must not render identically.** The variance-diagnostic engine emits four statuses (Ahead/Behind/On track/Not computable), not two — "On track" has a real value and a real comparison point that simply falls inside the variance threshold; "Not computable" has neither. Collapsing both to the same neutral color *and* the same arrow glyph (found live as a real readability bug — a reader can't tell them apart at the 5-second pace Section 1 designs for) fails this section's own standard just as badly as a fabricated favorable/unfavorable color would. Resolution: keep both neutral-gray (neither gets a directional favorable/unfavorable judgment), but give them distinct glyphs/text — e.g. a plain dot + "On track" + the real comparison value for the former, and an explicit "n/a" + "Not computable" with no directional glyph at all for the latter, since there is genuinely nothing to compare.
 
-**A component whose *artifact* is `built_and_validated` but whose *value* is a genuine structural data gap (e.g. Magic Number/AM Efficiency — no rep-cost data exists anywhere in the raw sources) is not the same case as a `planned`/`in-progress` component, and must not go through the same pending-state treatment.** The artifact isn't missing — it correctly computed NULL, which is itself the honest answer. Render this as an explicit stated gap on the card/value itself ("Not computable" + the real reason), not the generic `render_pending()` treatment, which would misleadingly imply the artifact itself doesn't exist yet. Check `project_status.json`'s own `note` field on the component before deciding which of the two this is — don't guess from the fact that a value happens to be null.
+**A component whose *artifact* is `built_and_validated` but whose *value* is a genuine structural data gap (e.g. MQL → SAL acceptance rate — the lead source carries no stage or disposition field) is not the same case as a `planned`/`in-progress` component, and must not go through the same pending-state treatment.** The artifact isn't missing — it correctly computed NULL, which is itself the honest answer. Render this as an explicit stated gap on the card/value itself ("Not computable" + the real reason), not the generic `render_pending()` treatment, which would misleadingly imply the artifact itself doesn't exist yet. Check `project_status.json`'s own `note` field on the component before deciding which of the two this is — don't guess from the fact that a value happens to be null.
 
-**When a chart's underlying query can return every value null** (the same structural-gap case as above, reached through a query interface rather than a fixed page layout — e.g. Ask the Metric Tree resolving to Magic Number), check for an all-null result *before* attempting to plot anything, and show the honest-gap message first. An empty chart axis and a table of blank rows, with the real explanation appearing only afterward as a warning, is the wrong order — found live as a real bug — even though the explanation was accurate and present. The reader's first signal should be the gap, not a confusing blank plot they have to scroll past to understand.
+**When a chart's underlying query can return every value null** (the same structural-gap case as above, reached through a query interface rather than a fixed page layout — e.g. Ask the Metric Tree resolving to MQL → SAL acceptance rate), check for an all-null result *before* attempting to plot anything, and show the honest-gap message first. An empty chart axis and a table of blank rows, with the real explanation appearing only afterward as a warning, is the wrong order — found live as a real bug — even though the explanation was accurate and present. The reader's first signal should be the gap, not a confusing blank plot they have to scroll past to understand.
 
 ---
 
@@ -282,7 +322,8 @@ If a page ever needs to show a monthly metric next to its weekly-capable drivers
 - **Expanders** (`st.expander`) for: methodology/"why this is blank" (Section 7), Layer-2/3 drill-down detail on analyst pages, any content below the audience's default depth (Section 4.4).
 - **Caching:** any page pulling from the MCP semantic layer or a dbt mart should cache query results (`st.cache_data`) keyed on the as-of-date/grain/filter selection — don't re-query on every widget interaction if the underlying data hasn't changed.
 - **Theming:** set the palette and fonts once in a shared `theme.py`/`config.toml` (Streamlit's native theming config) rather than repeating hex codes inline on every page — this is the mechanical enforcement of "consistency across pages" and should be the first thing `dashboard-page-builder` checks exists before building a new page. This project's `dashboard/theme.py` and `dashboard/.streamlit/config.toml` are that implementation; import from `theme.py` rather than hardcoding a hex/font on any new page.
-- **Bordered-card white fill — a real, verified Streamlit limitation, not a style choice:** in the Streamlit version this project uses (1.64.0), `st.container(border=True)` renders its border and radius correctly out of the box (and already picks up `primaryColor` from `.streamlit/config.toml`), but its *background* stays transparent, and there is no stable `data-testid`/class distinguishing a bordered container from an unbordered one — the differentiating class is a content-hashed `st-emotion-cache-*` name, not a semantic attribute, confirmed by inspecting the live DOM. Don't try to CSS-target a bordered container from the outside; it doesn't work reliably (a `stVerticalBlockBorderWrapper`-style selector renders as dead code that matches nothing on this version). The working fix, implemented in `theme.py` as the `.theme-card-fill` class: wrap the card's own content in `<div class="theme-card-fill">...</div>`, and let a CSS rule bleed it to the container's edges via a negative margin larger than the container's own padding, then re-apply that padding inside. **This only holds up as ONE single `st.markdown(..., unsafe_allow_html=True)` call containing the div's full open tag, all content, and its close tag together** — verified working for `theme.scorecard()`'s single atomic HTML block, and verified *broken* (visible seams/gaps at the border edges) when the open/close tags are split across multiple `st.markdown()` calls, or when native Streamlit widgets (`st.columns()`, `st.plotly_chart`, `st.caption`) sit between them, since each of those carries its own internal spacing that a blanket negative margin can't account for. For a container whose content genuinely needs `st.columns()` or a chart: either (a) build the card's content as one HTML string with a CSS grid instead of `st.columns()` when it's pure text/markdown (see Digest's as-of-date/grain/threshold info row), or (b) drop the outer border entirely and let a nested `theme.scorecard()` be the card, with the rest of that section's content sitting in plain whitespace-separated space below/beside it rather than double-bordered (see Forecast's per-segment section) — never leave a bordered-but-transparent outer container sitting next to (or nesting) a white-filled inner one, which produces a visibly broken two-tone card.
+- **Cards:** `theme.scorecard_row` (one CSS grid in a single markdown call) is the only card implementation for scorecards on every page, and `.grid-card` is used for info rows and text cards. `st.container(border=True)` with a fill override is not used: Streamlit 1.64 exposes no stable selector for a bordered container, so the fill cannot be applied reliably.
+- **Test/QA data overrides:** any environment override of a page's data source (e.g. `ACME_DASHBOARD_OUTPUTS_DIR`) must show a visible warning on every page it affects, so a fixture can never be mistaken for real output.
 
 ---
 
@@ -297,7 +338,53 @@ Before a page is reported done, verify:
 - [ ] Inverted-pyramid order on exec pages: verdict → what changed → what's coming → what needs a decision (Section 4.3)
 - [ ] No grain mixing without explicit visual separation; no grain toggle offered where no finer grain actually exists (Section 8)
 - [ ] Every Layer label (1/2/3) matches the metric tree's actual depth, verified against `acme-corp-gtm-metric-tree.md` directly
-- [ ] Every model-backed component whose artifact isn't `built-and-validated` per `project-status` shows an honest blank/pending state, not a fabricated or placeholder-looking value (Section 7)
+- [ ] Every model-backed component whose artifact isn't `built-and-validated` per `dashboard/project_status.json` (or the methods doc/build spec for anything not yet tracked there) shows an honest blank/pending state, not a fabricated or placeholder-looking value (Section 7)
 - [ ] As-of-date, grain, and any threshold/filter state are visibly displayed, not hidden
 - [ ] Fonts match Section 5.4 (Source Serif 4 / Inter), pulled from shared theme config, not hardcoded per-page
 - [ ] The page was actually rendered and visually inspected (screenshot), not just checked for code correctness — see `dashboard-page-builder`'s process requirements
+- [ ] No assistant-voice hedging language anywhere on the page (Section 11.1) — check specifically for "quietly assumed," "not guessed at," "to be safe," or any phrase narrating the system's own uncertainty
+- [ ] No directional editorializing on a metric's movement — the number, comparison, and Palette B color/arrow carry the judgment, not a sentence (Section 11.2)
+- [ ] Every assumption/caveat/methodology note lives in a single "Notes & assumptions" section per page, not as inline hedges (Section 11.3)
+- [ ] Ask the Metric Tree: a persistent, clickable tree panel is visible alongside the chat, and any answer about a non-leaf metric includes its immediate children (Sections 4.1, 4.7)
+
+---
+
+## 11. Dashboard copy voice — production language, not assistant language
+
+Every piece of text on a dashboard page — labels, captions, tooltips, generated narrative, empty-state messages, methodology notes — must read like it was written by a BI tool's product team, not by an assistant explaining its own reasoning to the person who asked for it. This is a distinct failure mode from Section 7's honesty patterns: Section 7 says *what* has to be disclosed (a gap, an assumption, a pending state); this section says *how* to write it once you've decided to.
+
+### 11.1 The tell: hedging language that narrates the system's own uncertainty
+
+Phrases like "quietly assumed," "not guessed at," "we're assuming," "to be safe," or any construction that explains the system's own epistemic state read as a chatbot talking about itself, not a dashboard stating a fact. A production dashboard states the assumption as a fact with a label, full stop — it doesn't narrate the deliberation behind it.
+
+| Don't write | Write instead |
+|---|---|
+| "This was quietly assumed to be 80% margin, not guessed at from thin air" | "Assumption: 80% gross margin" |
+| "We're not fabricating a number here — it's genuinely not computable" | "Not computable — no stage or disposition field in the lead source" |
+| "To be safe, we're showing this as pending rather than claiming it's done" | "Status: In progress" |
+| "This number went from bad to good, which is worth noting positively" | "$2.1M, up from $1.8M (+17% vs. prior period)" |
+
+### 11.2 No directional editorializing
+
+Never narrate a metric's own improvement or decline as commentary ("this is genuinely good news," "unfortunately this is trending the wrong way," "positive-to-negative framing here"). State the number, the comparison, and let Palette B's color/arrow (Section 2.3) carry the judgment. A reader infers "good" or "bad" from the status color and the delta sign — a sentence editorializing on top of that is redundant at best and presumptuous at worst ("good news" for whom, exactly — the reader might be the one accountable for the miss).
+
+### 11.3 Notes and assumptions get one clear, consistent section — never inline hedges
+
+Every page with an assumption, caveat, or methodology note surfaces it in the same place, styled the same way, every time — not scattered as parenthetical hedges inside sentences. Use a labeled "Notes & assumptions" block (an `st.expander`, per Section 9, consistent with the existing "why this is blank" pattern in Section 7) with one line per item, each starting with a plain label:
+
+```
+Notes & assumptions
+- Assumption: 80% gross margin (reused across Consumption Payback and LTV)
+- Scope: CAC excludes sales headcount cost — marketing spend only
+- Data gap: MQL → SAL acceptance rate is not computable — no stage or disposition field in the lead source
+```
+
+On the Ask the Metric Tree page, where one page renders many answers, the data caveats of every answer go into the page's single expander; guardrail rejections, non-additive overlays and all-null gaps stay as plain statements above the fold with the answer (Section 7's gap-first rule).
+
+Never bury an assumption inside the narrative sentence above a chart ("assuming an 80% margin, which we think is reasonable, the payback period is..."). The chart/number stands on its own; the assumption lives in its own section, so a reader auditing methodology knows exactly where to look, every time, on every page.
+
+### 11.4 Plain professional language, not conversational register
+
+No first person ("we," "I"), no rhetorical questions, no conversational connectors ("so," "basically," "here's the thing"). Write the way an existing enterprise BI tool's UI copy reads — short declarative sentences, a label before a value, a reason after a gap. If a sentence would sound out of place printed on a Salesforce or Tableau dashboard, rewrite it.
+
+This applies to every generated narrative on the dashboard (the exec-summary sentence in Section 4.2, chat answers on the Ask the Metric Tree page per Sections 4.1/4.7, methodology expanders per Section 7) — generated text is not exempt from this voice just because a model wrote it at render time rather than a human writing it at build time.

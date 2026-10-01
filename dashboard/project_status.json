@@ -5,83 +5,150 @@
       "built_and_validated": "The artifact is built and has passed its stated validation (analytics-model-validator, a dbt test suite, or equivalent). Safe to render as a live value.",
       "in_progress": "Partially built or being actively worked on. The page must show an honest pending state, never a partial/fabricated value.",
       "planned": "Named in the build spec but no work has started. The page must show an honest pending state.",
-      "deferred": "A deliberate, documented design decision to build this later or not at all right now -- distinct from planned, which implies it's simply not yet scheduled. See CLAUDE.md's 'Current phase' section for the two deferred Claude API seams this project carries on purpose."
+      "deferred": "A deliberate, documented design decision to build this later or not at all right now -- distinct from planned, which implies it's simply not yet scheduled. See CLAUDE.md's 'Current phase' section for the remaining deferred Claude API seam (the chat page's live NL routing)."
     },
     "source_of_truth": "CLAUDE.md's 'Current phase' section and docs/acme-corp-analytics-methods.md are authoritative; this file is a dashboard-consumable projection of that state, not a second source of truth -- update it whenever either changes.",
-    "last_reviewed": "2025-09-29"
+    "last_reviewed": "2026-10-01"
   },
   "components": {
     "weekly_readout": {
       "status": "built_and_validated",
       "artifact": "analytics/weekly_readout.py",
-      "shown_on": ["Digest"]
+      "shown_on": [
+        "Digest"
+      ],
+      "note": "The readout's forecast section is a real section (status 'present', or 'unavailable' with a reason code and detail and no figures), not an unbuilt placeholder: it carries analytics/forecast.py's four lenses per segment for the weekly forecast call current at the reporting month's end, which is quarter-grain and earlier than the period end (forecast_as_of_date, period, call_to_quarter_end_days), with the artifact's divergence flag, ML-lens context, caveats and a plan_comparison of not_available. Render it from the JSON; do not branch on 'not_yet_built'."
     },
     "account_health_score": {
       "status": "built_and_validated",
       "artifact": "analytics/health_score.py",
-      "shown_on": ["Digest"],
+      "shown_on": [
+        "Digest"
+      ],
       "note": "Feeds the Digest page's watchlist via analytics/variance_diagnostic.py's build_watchlist()."
     },
     "variance_diagnostic_engine": {
       "status": "built_and_validated",
       "artifact": "analytics/variance_diagnostic.py",
-      "shown_on": ["Digest"],
+      "shown_on": [
+        "Digest"
+      ],
       "note": "Feeds the Layer-1 scorecard and drill-downs. New logo's Layer-2 ranking includes Pipeline generated (monthly converted-lead flow read from analytics/marketing_attribution.py, company-wide) with organic/paid/community as its Layer-3 legs. The marketing-sales handoff nodes (MQL response SLA, MQL to SAL acceptance, lead recycling) are not computable: no MQL/SAL lifecycle exists in any source, and the page must render them as an explicit gap."
     },
     "playbook_triggers": {
       "status": "built_and_validated",
       "artifact": "analytics/playbook_triggers.py",
-      "shown_on": ["Digest"],
+      "shown_on": [
+        "Digest"
+      ],
       "note": "Each trigger carries a resolved outcome (resolved / unresolved / pending / not_evaluable, per the rule's own success criterion), an owning rep where the source data supports one, and an SLA clock. The Digest table shows the trigger list as fired; it does not show outcome, owner or SLA."
     },
     "executive_summary_narrative": {
-      "status": "deferred",
-      "artifact": "Claude API prose generation, build spec Section 5",
-      "shown_on": ["Digest"],
-      "note": "assemble_readout() in analytics/weekly_readout.py returns the fully-assembled structured readout as the seam this step consumes; no LLM is called and no template substitutes for one. This is the project's own established honesty pattern, not new to the dashboard."
+      "status": "in_progress",
+      "artifact": "analytics/executive_summary.py",
+      "shown_on": [
+        "Digest"
+      ],
+      "note": "Built and tested with a fake client, but not yet independently validated (analytics-model-validator) and never run against the live API in this repository, so the committed readouts carry executive_summary.status 'not_generated' (reason no_api_key). Flip to built_and_validated after the validator pass and a first live run. The pipeline step analytics/executive_summary.py writes the summary into the readout JSON's executive_summary slot; the dashboard only reads that slot and never calls the API. Render prose only when executive_summary.status is 'generated' (every statement passed the deterministic validator -- figures appear in cited readout objects within displayed rounding and unit, with label binding checked where implemented; it does not verify causal explanation -- and input_hash matches the readout). For 'not_generated' (reasons: no_api_key, pending_generation, stale_summary_no_api_key, api_error, anthropic_sdk_not_installed) or 'validation_failed', show the status and its reason and no prose."
     },
     "forecast": {
       "status": "built_and_validated",
       "artifact": "analytics/forecast.py",
-      "shown_on": ["Forecast"]
+      "shown_on": [
+        "Forecast"
+      ]
     },
     "segment_growth_bridge": {
       "status": "built_and_validated",
       "artifact": "mart_growth_bridge",
-      "shown_on": ["Segment Efficiency"]
+      "shown_on": [
+        "Segment Efficiency"
+      ]
     },
     "segment_efficiency_pillar": {
       "status": "built_and_validated",
       "artifact": "mart_efficiency",
-      "shown_on": ["Segment Efficiency"],
+      "shown_on": [
+        "Segment Efficiency"
+      ],
       "note": "Magic Number and AM Efficiency are computed from rep fully-loaded cost (fact_rep_monthly_cost) and marketing spend. They are NULL only where undefined: Magic Number before a prior-period S&M cost exists (before 2023-02), AM Efficiency for SMB (no AM). The page must render those as an explicit gap, not a blank pending state. Monthly values are seasonal; the Digest reads them trailing-twelve-month."
     },
     "segment_durability_pillar": {
       "status": "built_and_validated",
       "artifact": "mart_durability",
-      "shown_on": ["Segment Efficiency"]
+      "shown_on": [
+        "Segment Efficiency"
+      ]
     },
     "segment_migration": {
       "status": "built_and_validated",
       "artifact": "mart_segment_migration",
-      "shown_on": ["Segment Efficiency"]
+      "shown_on": [
+        "Segment Efficiency"
+      ]
     },
     "semantic_layer_query": {
       "status": "built_and_validated",
       "artifact": "semantic/server.py (list_metrics, get_metric_definition, query_metric)",
-      "shown_on": ["Ask the Metric Tree"]
+      "shown_on": [
+        "Ask the Metric Tree"
+      ]
     },
     "chat_deterministic_nl_routing": {
-      "status": "built_and_validated",
-      "artifact": "dashboard/lib/semantic_bridge.py's parse_question()",
-      "shown_on": ["Ask the Metric Tree"],
-      "note": "Deterministic keyword/substring routing against the registry's own whitelisted names -- built and working as exactly that, not a stand-in for the live LLM version below."
+      "status": "in_progress",
+      "artifact": "dashboard/lib/routing.py (route_question) via dashboard/lib/semantic_bridge.py's parse_question()",
+      "shown_on": [
+        "Ask the Metric Tree"
+      ],
+      "note": "Deterministic keyword routing against the registry's names, keys and aliases, now a pure function with unit tests (tests/test_dashboard_routing.py): left-to-right longest match, whole-token matching, dash and multiplication-sign normalization, dimension extraction (including channel), and pass-through of unrecognized segment qualifiers to the semantic layer's guardrail. Built and tested; the revised router has not had an independent validator pass (semantic-layer-validator). Not a stand-in for the deferred live LLM routing."
     },
     "chat_live_llm_routing": {
       "status": "deferred",
       "artifact": "Claude API as the NL query interface via MCP, build spec Section 3",
-      "shown_on": ["Ask the Metric Tree"],
+      "shown_on": [
+        "Ask the Metric Tree"
+      ],
       "note": "The documented open seam -- see dashboard/README.md's 'chat demo's NL routing' section. The page must not imply a live LLM is answering; the deterministic-router disclosure already on this page is the correct, required honesty pattern."
+    },
+    "metric_tree_panel": {
+      "status": "in_progress",
+      "artifact": "dashboard/pages/4_Ask_the_Metric_Tree.py (sidebar panel), dashboard/lib/answers.py",
+      "shown_on": [
+        "Ask the Metric Tree"
+      ],
+      "note": "Standing sidebar tree built from the semantic layer's registry (semantic/metric_registry.json): all 11 Layer-1 nodes under Growth, Efficiency and Durability, expandable to Layers 2 and 3, each labelled queryable, partial, not computable, non-additive overlay, cross-reference or no variation in data (a queryable node whose registry note says its series is constant). A node click submits a ready question. Built and rendered; not independently validated since the latest fixes (dashboard-visual-qa)."
+    },
+    "chat_children_answers": {
+      "status": "in_progress",
+      "artifact": "dashboard/lib/answers.py (build_answer)",
+      "shown_on": [
+        "Ask the Metric Tree"
+      ],
+      "note": "An answer about a non-leaf metric carries its own value and one row per immediate child, each queried through query_metric(); children that cannot be queried are listed with their registry reason and no value. The headline is the last complete period (the truncated final month of the data window is excluded, drawn as an open marker and labeled partial), a registry gap note on a live metric is shown above the chart, and a constant series is shown as Not computable instead of a number. Guardrail messages are shown as clean sentences with a readable label. Built and unit-tested with a fake query function; not independently validated. Display units are assigned by the dashboard (the registry has no unit field)."
+    },
+    "digest_forecast_section": {
+      "status": "in_progress",
+      "artifact": "dashboard/pages/1_Digest.py, dashboard/lib/forecast_view.py (renders the weekly readout JSON's forecast section)",
+      "shown_on": [
+        "Digest"
+      ],
+      "note": "Renders the readout's forecast section verbatim (four lenses per segment for Commercial and Enterprise, quarter grain, divergence flag with its proposed-threshold note, plan comparison not available), or its unavailable state with the plain-language detail. The headline card is labeled CRO-adjusted and carries an on-card note when the lens exceeds the open pipeline it prices. The Forecast page shares the segment rendering, reports whether its figures match the readout for the same call date (an ML-lens difference within 1% is informational, any other difference a warning) and words the AUC position as within, above or below the target range. The underlying analytics/forecast.py and the readout section are built_and_validated; this dashboard rendering has had a builder-side render pass and an independent QA pass whose findings were then fixed, but no second independent visual-QA pass since."
+    },
+    "digest_verdict_row": {
+      "status": "in_progress",
+      "artifact": "dashboard/pages/1_Digest.py, dashboard/lib/verdict.py (renders the weekly readout's layer1_scorecard rows)",
+      "shown_on": [
+        "Digest"
+      ],
+      "note": "Cards for rows whose plan_comparability is caveated carry a Caveated comparison tag and show the gap to plan without a status color or arrow; a Not-computable row whose actual, prior value and baseline are identical shows Not computable instead of a number; every card states its basis (single month or trailing 12 months) and its Layer from the readout. Built, unit-tested and rendered for both committed readout dates; no independent visual-QA pass since these changes."
+    },
+    "segment_efficiency_cards": {
+      "status": "in_progress",
+      "artifact": "dashboard/pages/3_Segment_Efficiency.py",
+      "shown_on": [
+        "Segment Efficiency"
+      ],
+      "note": "Cards use the shared grid (one card per segment per metric, Layer and basis in the footer); rate moves are labeled pp; a move that rounds to zero is neutral; Consumption payback carries a caveat tag (CAC is marketing spend only); the SMB win-rate card carries the structural-gap tag. The underlying marts are built_and_validated; this rendering has not had an independent visual-QA pass since these changes."
     }
   }
 }

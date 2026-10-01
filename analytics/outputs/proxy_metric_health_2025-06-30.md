@@ -1,13 +1,13 @@
 # Proxy-metric health / analytics investment prioritization -- as of 2025-06-30
 
-**Headline finding**: no genuine drift/decay claim is possible yet for anything in this project. Every model with any logged checkpoint has between 1 and 1 real checkpoints (15 models total) -- see 'Checkpoint depth by model' below. This artifact is a governance catalog and framework, not a time-series drift tool; it becomes more useful as `drift-monitor` actually runs on a recurring cadence.
+**Headline finding**: no genuine drift/decay claim is possible yet for anything in this project. Every model with any logged checkpoint has between 1 and 1 real checkpoints (16 models total) -- see 'Checkpoint depth by model' below. This artifact is a governance catalog and framework, not a time-series drift tool; it becomes more useful as `drift-monitor` actually runs on a recurring cadence.
 
 This module's own correctness checks: 3 of 3 pass (ALL PASS).
 
 ## Correctness checks
-- Hooks trace to real doc text: 29 of 29
+- Hooks trace to real doc text: 30 of 30
 - Cited data-gap node keys are live in variance_diagnostic.py's `_TREE`: 20 of 20
-- Checkpoint counts reconcile against an independent CSV parse: PASS (15 models checked)
+- Checkpoint counts reconcile against an independent CSV parse: PASS (16 models checked)
 - Variance-engine computability markings agree with `marketing_attribution.py`'s validated coverage: PASS
 
 ## Checkpoint depth by model (as of 2025-06-30)
@@ -17,6 +17,7 @@ This module's own correctness checks: 3 of 3 pass (ALL PASS).
 | capacity_planning | 1 | 2025-06-30 |
 | data_quality_governance | 1 | 2025-06-30 |
 | deal_diagnostics | 1 | 2025-06-30 |
+| executive_summary_narrative | 1 | 2025-06-30 |
 | experimentation_platform | 1 | 2025-06-30 |
 | marketing_attribution | 1 | 2025-06-30 |
 | mmm_incrementality | 1 | 2025-06-30 |
@@ -88,7 +89,7 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 | Account-specific baseline deviation (`account_specific_baseline_deviation`) | 3 | E_not_a_real_gap | False | 1 |
 
 ## Validation-maturity summary (self-proposed vs. independently confirmed thresholds)
-1 artifact section(s) carry a threshold CONFIRMED by `analytics-model-validator`; 16 carry at least one threshold still PROPOSED, not yet confirmed.
+1 artifact section(s) carry a threshold CONFIRMED by `analytics-model-validator`; 17 carry at least one threshold still PROPOSED, not yet confirmed.
 
 | Artifact section | PROPOSED mentions | CONFIRMED mentions |
 |---|---|---|
@@ -98,9 +99,10 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 | Forecast (sales bottoms-up / ML / CRO overlay reconciliation) | 1 | 0 |
 | Variance-diagnostic engine | 1 | 0 |
 | Weekly executive readout | 1 | 0 |
+| Executive summary narrative | 3 | 0 |
 | Capacity planning | 1 | 0 |
 | Data quality / metric governance | 1 | 0 |
-| Automated playbook triggers | 3 | 0 |
+| Automated playbook triggers | 4 | 0 |
 | Deal-level diagnostics | 1 | 0 |
 | Rep productivity & coaching diagnostics | 1 | 0 |
 | Pricing / packaging analytics | 2 | 0 |

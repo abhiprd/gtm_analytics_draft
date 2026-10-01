@@ -26,3 +26,6 @@ duckdb==1.4.3
 pytest==8.4.2
 dbt-core==1.10.23
 dbt-duckdb==1.10.0
+# Claude API client for analytics/executive_summary.py (imported lazily: the
+# pipeline and every test run without it being called; no key, no API call).
+anthropic==0.86.0
