@@ -102,9 +102,11 @@ class TestRealGraph:
 
     def test_log_writers_precede_their_readers(self):
         names = _names(select(NODES))
-        # weekly_readout reads data/playbook_triggers.csv and runs the variance engine
+        # weekly_readout reads data/playbook_triggers.csv, runs the variance engine and
+        # calls the forecast artifact for its forecast section
         assert names.index("playbook_triggers") < names.index("weekly_readout")
         assert names.index("variance_diagnostic") < names.index("weekly_readout")
+        assert names.index("forecast") < names.index("weekly_readout")
         # variance_diagnostic imports marketing_attribution's pipeline_generated node
         assert names.index("marketing_attribution") < names.index("variance_diagnostic")
         assert names.index("variance_diagnostic") < names.index("scenario_planning")
@@ -118,6 +120,20 @@ class TestRealGraph:
     def test_monitor_profile_is_empty_until_a_monitor_node_is_registered(self):
         with pytest.raises(DagError, match="selects no nodes"):
             select(NODES, profile="monitor")
+
+    def test_executive_summary_runs_after_the_readout_and_before_proxy_health(self):
+        names = _names(select(NODES))
+        assert names.index("weekly_readout") < names.index("executive_summary") \
+            < names.index("proxy_metric_health")
+        n = BY_NAME["executive_summary"]
+        assert n.kind == "analytics" and "weekly_readout" in n.deps
+        assert "executive_summary" in BY_NAME["proxy_metric_health"].deps
+        assert n.skip_patterns and n.skip_is_expected  # no key = explicit, expected skip
+        assert "analytics/outputs/weekly_readout_2025-11-30.json" in n.requires
+        assert "data/acme_gtm.duckdb" not in n.requires  # summarises the published JSON only
+
+    def test_only_the_executive_summary_node_declares_a_self_skip(self):
+        assert [n.name for n in NODES if n.skip_patterns] == ["executive_summary"]
 
     def test_venv_nodes_declare_their_interpreter(self):
         assert BY_NAME["semantic_smoke"].interpreter == "semantic"
@@ -134,11 +150,24 @@ class TestSelection:
     def test_only_includes_required_upstream_but_never_generators(self):
         names = _names(select(NODES, only=["weekly_readout"]))
         for required in ("qa_raw", "dbt_build", "governance_gate", "variance_diagnostic",
-                         "playbook_triggers", "health_score", "marketing_attribution"):
+                         "playbook_triggers", "health_score", "marketing_attribution",
+                         "forecast"):
             assert required in names
         assert "proxy_metric_health" not in names
         assert not any(n.startswith("gen_") for n in names)
         assert names[-1] == "weekly_readout"
+
+    def test_the_readout_depends_on_the_forecast_artifact_in_both_the_dag_and_the_contract(self):
+        assert "forecast" in BY_NAME["weekly_readout"].deps
+        entry = next(a for a in load_contract()["artifacts"] if a["name"] == "weekly_readout")
+        assert "forecast" in entry["depends_on"]
+        assert "forecast section" in entry["fresh_means"]
+        # the edge keeps the graph acyclic and the forecast ahead of the readout
+        names = _names(select(NODES, only=["weekly_readout"]))
+        assert names.index("forecast") < names.index("weekly_readout")
+        # and nothing the forecast needs depends back on the readout
+        down = {n.name for n in NODES if "weekly_readout" in n.deps}
+        assert "forecast" not in down
 
     def test_only_no_deps_runs_exactly_the_named_node(self):
         assert _names(select(NODES, only=["forecast"], with_deps=False)) == ["forecast"]
@@ -251,6 +280,39 @@ class TestRunner:
         monkeypatch.setitem(runner._VENV_PYTHON, "dashboard", str(tmp_path / "no" / "python"))
         s = Node("s", "dashboard", "s", _py("pass"), interpreter="dashboard")
         assert runner.execute(_sel(s), strict=True, runs_dir=str(tmp_path)) == runner.EXIT_STRICT_SKIP
+
+    def test_self_reported_skip_is_a_skip_not_a_pass(self, tmp_path, capsys):
+        a = Node("a", "analytics", "a", _py("print('[SKIP] a: no ANTHROPIC_API_KEY')"),
+                 skip_patterns=(r"^\s*\[SKIP\]",), skip_is_expected=True)
+        b = Node("b", "qa", "b", _py("pass"), deps=("a",))
+        assert runner.execute(_sel(a, b), runs_dir=str(tmp_path)) == runner.EXIT_OK
+        manifest = json.loads((tmp_path / "latest.json").read_text())
+        assert [n["status"] for n in manifest["nodes"]] == ["skipped", "passed"]
+        assert manifest["nodes"][0]["reason"] == "[SKIP] a: no ANTHROPIC_API_KEY"
+        assert manifest["nodes"][0]["skip_expected"] is True
+        assert manifest["counts"]["skipped"] == 1 and manifest["counts"]["passed"] == 1
+        assert "SKIPPED: a -- [SKIP] a: no ANTHROPIC_API_KEY" in capsys.readouterr().out
+
+    def test_strict_fails_on_an_unexpected_skip_but_not_on_a_declared_expected_one(self, tmp_path):
+        code = "print('[SKIP] x')"
+        expected = Node("a", "analytics", "a", _py(code), skip_patterns=(r"^\[SKIP\]",),
+                        skip_is_expected=True)
+        unexpected = Node("a", "analytics", "a", _py(code), skip_patterns=(r"^\[SKIP\]",))
+        assert runner.execute(_sel(expected), strict=True, runs_dir=str(tmp_path)) == runner.EXIT_OK
+        assert runner.execute(_sel(unexpected), strict=True,
+                              runs_dir=str(tmp_path)) == runner.EXIT_STRICT_SKIP
+
+    def test_a_failed_check_outranks_a_skip_line(self, tmp_path):
+        a = Node("a", "analytics", "a", _py("print('[SKIP] x'); print('[FAIL] grounding')"),
+                 fail_patterns=(r"^\s*\[FAIL\]",), skip_patterns=(r"^\s*\[SKIP\]",),
+                 skip_is_expected=True)
+        assert runner.execute(_sel(a), runs_dir=str(tmp_path)) == runner.EXIT_NODE_FAILED
+
+    def test_output_without_a_skip_line_still_passes(self, tmp_path):
+        a = Node("a", "analytics", "a", _py("print('[PASS] ok')"),
+                 skip_patterns=(r"^\s*\[SKIP\]",), skip_is_expected=True)
+        assert runner.execute(_sel(a), strict=True, runs_dir=str(tmp_path)) == runner.EXIT_OK
+        assert json.loads((tmp_path / "latest.json").read_text())["nodes"][0]["status"] == "passed"
 
     def test_unmet_precondition_fails_with_an_actionable_message(self, tmp_path):
         a = Node("a", "analytics", "a", _py("pass"), requires=("data/acme_gtm.duckdb.nope",))

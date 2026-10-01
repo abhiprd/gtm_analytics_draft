@@ -486,7 +486,8 @@
         "dbt_marts",
         "variance_diagnostic",
         "playbook_triggers",
-        "health_score"
+        "health_score",
+        "forecast"
       ],
       "entrypoint_as_of": [
         "2025-11-30"
@@ -503,8 +504,34 @@
           "label": "performance_log/weekly_executive_readout"
         }
       ],
-      "fresh_means": "A readout JSON/Markdown pair exists for the last complete month, and its trigger section was built from the current playbook log.",
+      "fresh_means": "A readout JSON/Markdown pair exists for the last complete month, its trigger section was built from the current playbook log, and its forecast section carries the forecast call current at that month end (or declares itself unavailable with a reason).",
       "sla_rationale": "Weekly operating cadence (build spec Section 8, Wave 1). One week plus a 3-day slip. The scorecard inside it is monthly-only (dashboard grain table), so it is anchored to the last complete month rather than the truncated final month."
+    },
+    {
+      "name": "executive_summary",
+      "kind": "analytics",
+      "node": "executive_summary",
+      "module": "analytics.executive_summary",
+      "owner": "RevOps",
+      "cadence": "weekly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 10,
+      "depends_on": [
+        "dbt_marts",
+        "weekly_readout"
+      ],
+      "entrypoint_as_of": [
+        "2025-11-30"
+      ],
+      "evidence": [
+        {
+          "type": "perf_log",
+          "model_name": "executive_summary_narrative",
+          "label": "performance_log/executive_summary_narrative"
+        }
+      ],
+      "fresh_means": "The narrative step has evaluated the readout for the last complete month: it either published a grounding-validated summary or recorded, in the readout's executive_summary slot and in the performance log (narrative_generated = 0), that none was generated. Fresh does NOT mean prose exists: a run without ANTHROPIC_API_KEY is fresh and reports not_generated (reason no_api_key), so a missing key never turns the contract red but is never hidden either -- read narrative_generated in the performance log or executive_summary.status in the readout JSON.",
+      "sla_rationale": "The step runs immediately after weekly_readout in every pipeline run and is only meaningful against that run's readout, so it inherits the weekly readout's cadence and SLA: one week plus a 3-day slip."
     },
     {
       "name": "proxy_metric_health",
@@ -535,7 +562,8 @@
         "variance_diagnostic",
         "scenario_planning",
         "playbook_triggers",
-        "weekly_readout"
+        "weekly_readout",
+        "executive_summary"
       ],
       "entrypoint_as_of": [
         "2025-12-31"

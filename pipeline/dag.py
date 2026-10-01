@@ -65,6 +65,17 @@ class Node:
                     findings rather than defects (for example a regression
                     artifact reporting honestly that a channel's effect is
                     not significant); matching lines do not fail the node.
+    skip_patterns   Regexes; a line in the output of an otherwise passing
+                    (exit 0, no failed check) node matching one marks the
+                    node SKIPPED with that line as the reason, for a node
+                    that detects at run time that it cannot do its optional
+                    work (the executive summary without an API key). It is
+                    never reported as passed.
+    skip_is_expected
+                    True when such a skip is a normal configuration state
+                    rather than a broken environment: --strict then does
+                    not turn it into exit 3. It is still listed as SKIPPED
+                    in the output and the manifest.
     """
     name: str
     kind: str
@@ -80,6 +91,8 @@ class Node:
     as_of: Tuple[str, ...] = ()
     fail_patterns: Tuple[str, ...] = ()
     expected_fail: Tuple[str, ...] = ()
+    skip_patterns: Tuple[str, ...] = ()
+    skip_is_expected: bool = False
     timeout_s: int = 1800
 
 

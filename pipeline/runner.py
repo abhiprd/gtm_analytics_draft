@@ -10,7 +10,9 @@ Exit codes (shared with pipeline/cli.py):
   0  every selected node passed (or was skipped without --strict)
   1  a node failed; later nodes are reported not_run
   2  invalid invocation or DAG error (raised before anything runs)
-  3  --strict and at least one node was skipped
+  3  --strict and at least one node was skipped (a skip the node declares
+     expected, such as the executive summary without an API key, is listed
+     but does not count)
 """
 from __future__ import annotations
 
@@ -42,7 +44,8 @@ _VENV_PYTHON = {
 }
 
 # Nodes that produce each required path, for an actionable precondition error.
-_PRODUCER = {"data/acme_gtm.duckdb": "dbt_build"}
+_PRODUCER = {"data/acme_gtm.duckdb": "dbt_build",
+             "analytics/outputs/weekly_readout_2025-11-30.json": "weekly_readout"}
 
 
 @dataclass
@@ -55,6 +58,7 @@ class NodeResult:
     log: str = ""
     argv: List[str] = field(default_factory=list)
     interpreter: str = "root"
+    skip_expected: bool = False
 
 
 def interpreter_path(kind: str) -> Optional[str]:
@@ -201,13 +205,21 @@ def execute(selection: Selection, *, strict: bool = False, runs_dir: str = RUNS_
             if hit:
                 res.reason = f"output reported a failed check: {hit.strip()[:160]}"
             else:
-                res.status = "passed"
+                self_skip = _first_match(log_path, node.skip_patterns)
+                if self_skip:
+                    res.status = "skipped"
+                    res.reason = self_skip.strip()[:200]
+                    res.skip_expected = node.skip_is_expected
+                else:
+                    res.status = "passed"
         elif not res.reason:
             res.reason = f"exit code {res.exit_code}"
 
         results.append(res)
         if res.status == "passed":
             say(f"{tag}  passed   {res.seconds:.1f}s")
+        elif res.status == "skipped":
+            say(f"{tag}  SKIPPED  {res.seconds:.1f}s  {res.reason}")
         else:
             failed = res
             say(f"{tag}  FAILED   {res.seconds:.1f}s  {res.reason}")
@@ -219,7 +231,7 @@ def execute(selection: Selection, *, strict: bool = False, runs_dir: str = RUNS_
     code = EXIT_OK
     if failed is not None:
         code = EXIT_NODE_FAILED
-    elif strict and skipped:
+    elif strict and any(not r.skip_expected for r in skipped):
         code = EXIT_STRICT_SKIP
 
     manifest = {
@@ -259,7 +271,21 @@ def execute(selection: Selection, *, strict: bool = False, runs_dir: str = RUNS_
         say(f"SKIPPED: {r.name} -- {r.reason}")
     if code == EXIT_STRICT_SKIP:
         say("--strict: skipped nodes are treated as failures")
+    elif strict and skipped:
+        say("--strict: the skip above is declared expected by its node and does not fail the run")
     return code
+
+
+def _first_match(path: str, patterns: Sequence[str]) -> Optional[str]:
+    """First output line matching any of `patterns`, or None."""
+    if not patterns:
+        return None
+    compiled = [re.compile(p) for p in patterns]
+    with open(path, errors="replace") as f:
+        for line in f:
+            if any(c.search(line) for c in compiled):
+                return line
+    return None
 
 
 def _matches_fail_pattern(path: str, patterns: Sequence[str],
