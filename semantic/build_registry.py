@@ -44,6 +44,8 @@ consumer of query_metric() results can know which tree shape they queried
 against, per this project's versioning requirement. A tree-file edit only
 takes effect after this script is re-run.
 """
+import argparse
+import ast
 import hashlib
 import json
 import os
@@ -54,6 +56,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(_HERE)
 _TREE_PATH = os.path.join(_REPO_ROOT, "docs", "acme-corp-gtm-metric-tree.md")
 _REGISTRY_PATH = os.path.join(_HERE, "metric_registry.json")
+_SERVER_PATH = os.path.join(_HERE, "server.py")
 _CHANGELOG_PATH = os.path.join(_HERE, "CHANGELOG.md")
 
 PILLARS_EXPECTED = ("Growth", "Efficiency", "Durability")
@@ -418,10 +421,12 @@ _SOURCE_MART_MAP = {
     "am_efficiency": {
         "source_mart": "mart_efficiency", "aggregation": "ratio",
         "numerator": "case when am_cost > 0 then am_expansion_arr / 12.0 end",
-        "denominator": "am_cost",
+        "denominator": "am_cost", "segments": ["Commercial", "Enterprise"],
         "note": "Ratio of summed monthly expansion MRR movement (am_expansion_arr / 12) to summed AM "
-                "cost, over rows where an AM exists. SMB has no AM, so it returns NULL by design "
-                "rather than a gap. Month grain is seasonal; use grain=year for a stable read.",
+                "cost, over rows where an AM exists. Commercial and Enterprise only: SMB has no AM, so "
+                "the ratio is undefined there and a request for SMB is rejected as segment_not_available "
+                "rather than returned as an empty value. Month grain is seasonal; use grain=year for a "
+                "stable read.",
     },
     "nrr": {
         "source_mart": "mart_durability", "aggregation": "ratio",
@@ -450,8 +455,11 @@ _SOURCE_MART_MAP = {
     "onboarding_completion_rate": {
         "source_mart": "mart_growth_bridge", "aggregation": "ratio",
         "numerator": "activated_count", "denominator": "signup_cohort_size",
+        "computability": "partial",
         "note": "Identically 1.0 in every month of the current generated data -- every account "
-                "produces a first Action in its signup month. A real data property, not a query bug.",
+                "produces a first Action in its signup month (usage is recorded monthly), so the "
+                "series carries no variance signal. Partial, matching the variance-diagnostic "
+                "engine.",
     },
     "am_touchpoint_volume": {
         "source_mart": "mart_efficiency", "column": "am_touchpoint_count", "aggregation": "sum",
@@ -500,6 +508,130 @@ _SOURCE_MART_MAP = {
                 "channel split is not exposed by any mart_* table, so `channel` is listed in "
                 "allowed_dimensions per the tree but is NOT in queryable_dimensions.",
     },
+    # --- deal-level and workflow/overage nodes (mart_deal_funnel,
+    # mart_workflow_chain_health, mart_consumption_utilization). `segments`
+    # lists the segments the mart carries rows for; query_metric rejects a
+    # segment filter outside it instead of returning an empty result.
+    "poc_pass_rate": {
+        "source_mart": "mart_deal_funnel", "aggregation": "ratio",
+        "numerator": "poc_pass_count", "denominator": "poc_pass_count + poc_fail_count",
+        "computability": "partial", "segments": ["Enterprise"],
+        "segment_unavailable_reason": (
+            "has no POC data for segment '{segment}': proof-of-concept outcomes exist only in the "
+            "Enterprise motion, so the source mart ({source_mart}) has no POC outcomes for any other "
+            "segment; the metric is defined for {queryable_segments} only."
+        ),
+        "note": "Enterprise only, as the tree specifies: passed POCs over closed new-business "
+                "opportunities (won or lost) with a POC outcome, by close month. Monthly n is small "
+                "(about 10-15 from 2023, fewer before), so a single month is noisy; read it by "
+                "quarter or year for a stable figure. A POC can fail on a won deal (22 of 113 Enterprise wins).",
+    },
+    "rep_capacity_ramp_mix": {
+        "source_mart": "mart_deal_funnel", "aggregation": "ratio",
+        "numerator": "closed_by_ramping_rep_count",
+        "denominator": "new_business_won_count + new_business_lost_count",
+        "computability": "partial", "segments": ["Commercial", "Enterprise"],
+        "note": "Share of closed new-business opportunities created within 180 days of the owning "
+                "rep's hire date. Approximate: the owner is the current rep after any reassignment on "
+                "a departure, so ramp attribution is not exact. Commercial and Enterprise only (SMB "
+                "has no rep).",
+    },
+    "loss_reason_mix": {
+        "source_mart": "mart_deal_funnel", "aggregation": "ratio",
+        "numerator": "lost_competitive_count", "denominator": "new_business_lost_count",
+        "computability": "partial", "segments": ["Commercial", "Enterprise"],
+        "note": "Scalar view of a three-way mix: the competitive share of lost new-business "
+                "opportunities. The tree names competitive, no-decision and price; the mart carries "
+                "all four reason counts (competitive, no-decision, price, other) but this node serves "
+                "the competitive share only.",
+    },
+    "discount_rate_vs_list": {
+        "source_mart": "mart_deal_funnel", "aggregation": "ratio",
+        "numerator": "won_list_price_sum - won_amount_sum", "denominator": "won_list_price_sum",
+        "computability": "partial", "segments": ["Commercial", "Enterprise"],
+        "note": "Amount-weighted discount on won new-business deals (1 - won amount / won list price). "
+                "List price is generated as amount / (1 - discount rate), so this is an identity up to "
+                "rounding rather than an independent check on pricing.",
+    },
+    "deal_size_trend_within_segment_band": {
+        "source_mart": "mart_deal_funnel", "aggregation": "ratio",
+        "numerator": "share_won_at_band_floor * new_business_won_count",
+        "denominator": "case when share_won_at_band_floor is not null then new_business_won_count end",
+        "computability": "partial", "segments": ["Commercial", "Enterprise"],
+        "note": "Won-count-weighted share of won new-business deals at or below the segment's ACV band "
+                "floor. Deal amounts are clipped to the band at generation, so this measures how often "
+                "the clip binds: 53% of Commercial wins sit at the floor and no Enterprise win does. "
+                "Variation inside the band is compressed.",
+    },
+    "renewal_win_rate": {
+        "source_mart": "mart_deal_funnel", "aggregation": "ratio",
+        "numerator": "renewal_won_count", "denominator": "renewal_won_count + renewal_lost_count",
+        "segments": ["Commercial", "Enterprise"],
+        "note": "Closed-won renewals over closed renewals (opportunity_type = renewal), by close "
+                "month. Commercial and Enterprise only (SMB has no renewal opportunities). Renewal "
+                "opportunities close from 2021-02 for Commercial and from 2022-07 for Enterprise, "
+                "so earlier months are empty.",
+    },
+    "workflow_chain_under_utilization": {
+        "source_mart": "mart_workflow_chain_health", "aggregation": "ratio",
+        "numerator": "partial_chain_account_count", "denominator": "accounts_with_chain",
+        "computability": "partial",
+        "note": "Share of accounts with a workflow chain whose full-chain completion rate is below the "
+                "0.70 threshold (the playbook rule's value, proposed and not confirmed). Partial "
+                "chains exist only in the 5 months before a churn, and churns after the end of the "
+                "data window are not observed, so the series falls away across the last 5 months of "
+                "the window (partial-chain accounts fall from about 300 a month in mid-2025 to 4 in "
+                "2025-12); the variance engine blanks those 5 months, this query does not.",
+    },
+    "ingestion_without_completion_rate": {
+        "source_mart": "mart_workflow_chain_health", "aggregation": "ratio",
+        "numerator": "ingestion_without_completion_actions_sum", "denominator": "upstream_actions_sum",
+        "note": "Actions-weighted: 1 - downstream Actions / upstream Actions (a ratio of sums, so it "
+                "weights accounts by volume).",
+    },
+    "mid_chain_workflow_abandonment": {
+        "source_mart": "mart_workflow_chain_health", "aggregation": "ratio",
+        "numerator": "sustained_partial_account_count", "denominator": "accounts_with_chain",
+        "computability": "partial",
+        "note": "Share of chain accounts partial in this month and in the calendar-prior month (the "
+                "playbook rule's two-consecutive-month idea; 0.70 threshold proposed, not "
+                "confirmed). Subject to the same end-of-window fall-away as the parent node.",
+    },
+    "declining_share_of_full_chain_vs_partial_chain_runs": {
+        "source_mart": "mart_workflow_chain_health", "aggregation": "ratio",
+        "numerator": "full_chain_account_count", "denominator": "accounts_with_chain",
+        "computability": "partial",
+        "note": "Share of chain accounts at or above the 0.70 completion threshold: exactly the "
+                "complement of workflow_chain_under_utilization, so it adds no information beyond it.",
+    },
+    "overage_realization": {
+        "source_mart": "mart_consumption_utilization", "aggregation": "ratio",
+        "numerator": "overage_mrr", "denominator": "total_mrr",
+        "computability": "partial", "segments": ["Commercial", "Enterprise"],
+        "note": "Overage MRR as a share of total MRR, in dollars. A realization rate is "
+                "100% on every account-month (billed MRR = unit price x the larger of committed and utilized Actions, "
+                "so all overage usage is billed); the dollar share is the series with "
+                "variance in it. Commercial and Enterprise only (SMB carries no commitment).",
+    },
+    "support_ticket_volume_severity": {
+        "source_mart": "mart_account_health", "aggregation": "ratio",
+        "numerator": "ticket_count * coalesce(avg_ticket_severity_score, 0)", "denominator": "1",
+        "computability": "partial",
+        "note": "Severity-weighted ticket load per active account-month: ticket count times average "
+                "severity (low=1 to critical=4), summed, over the number of account-months. One scalar "
+                "for two attributes; the mart carries volume and severity separately.",
+    },
+    "engagement_login_frequency": {
+        "source_mart": "mart_account_health", "column": "login_count", "aggregation": "avg",
+        "note": "Mean logins per active account-month (a real 0 where an account had no login).",
+    },
+    "am_sentiment_notes": {
+        "source_mart": "mart_account_health", "column": "avg_am_sentiment_score", "aggregation": "avg",
+        "computability": "partial",
+        "note": "Mean AM sentiment score over the account-months that have one. Sentiment exists only "
+                "where an AM touchpoint was logged: absent for 96% of SMB account-months, 53% of "
+                "Commercial and 28% of Enterprise, so an SMB cut is nearly empty.",
+    },
     # ---------------------------------------------------------------- L3
     "tenure_at_churn": {
         "source_mart": "mart_account_health", "column": "account_tenure_days", "aggregation": "avg_special",
@@ -541,23 +673,39 @@ _NO_LEAD_RECYCLING_HISTORY = (
     "per lead with no status changes, and fact_lead_scoring_history's re-scores are not a "
     "re-qualification event."
 )
-_NO_OPPORTUNITY_DETAIL_MART = (
-    "Needs opportunity-level detail (stage history, loss_reason, list_price, or "
-    "opportunity_type='renewal' scoping) that lives in fact_opportunities / "
-    "fact_opportunity_stage_history -- fact_* tables outside a mart_* rollup for this cut."
+_STAGE_CONVERSION_DEGENERATE = (
+    "Degenerate by construction: every new-business deal logs every stage of its segment's path "
+    "(SAL, SQO, Proposal/Negotiation, plus POC for Enterprise), won or lost, so the share of deals "
+    "advancing at each hop is 100% in every month and carries no variance signal. Deals differ in "
+    "how long they spend in each stage (mart_deal_funnel.avg_days_in_*), not in whether they reach it."
+)
+_NO_LOUD_SILENT_CHURN_FLAG = (
+    "Needs each churn classified as an explicit cancellation (loud) or a non-renewal (silent). No "
+    "record carries that classification: subscription status is active, churned, renewed, expanded "
+    "or contracted with no reason or mode field, and a lost renewal opportunity records a loss_reason "
+    "(price, no_decision, competitive, other) that is not a cancellation-versus-lapse flag."
+)
+_NO_CHURN_REASON_CATEGORY = (
+    "Needs a churn reason per churned account, loud (explicit cancellation) versus silent "
+    "(non-renewal). No churn, subscription or account record carries a reason or mode field; "
+    "tenure_at_churn is the only churn-event attribute available."
 )
 _NO_CHANNEL_ACTIVITY_MART = (
     "Cost per channel activity (cost/MQL, cost/SDR meeting) needs channel spend joined to per-channel "
     "lead and meeting counts. The cost side exists (mart_efficiency.sm_cost), and fact_leads / "
     "fact_sales_activities exist, but no mart_* table joins channel cost to those counts."
 )
-_NO_WORKFLOW_CHAIN_MART = (
-    "fact_workflow_chain_events exists but no mart_* table exposes upstream-vs-downstream Action "
-    "completion at this grain."
-)
 _NO_HEALTH_SCORE_SERIES = (
-    "The account health score is a fitted model output (analytics/health_score.py), not a plain "
-    "mart_* column -- querying it needs the scoring model, not a SQL aggregation."
+    "The account health score is a fitted model output (analytics/health_score.py) computed at a "
+    "single as-of date over the active accounts, not a mart_* column and not held as a monthly "
+    "history -- querying it needs the scoring model, not a SQL aggregation. Its four inputs are "
+    "queryable separately where a mart column carries them."
+)
+_USAGE_TREND_COMPUTED_IN_ENGINE = (
+    "The account-relative usage signal (the share of active accounts whose trailing 3-month mean "
+    "Actions sits below 70% of their own cumulative mean) is computed by "
+    "analytics/variance_diagnostic.py from mart_account_health's actions_consumed, not a plain mart "
+    "column, so query_metric cannot serve it as a SQL aggregation."
 )
 
 _GAP_NOTE_OVERRIDES = {
@@ -565,20 +713,18 @@ _GAP_NOTE_OVERRIDES = {
     "organic_content": _PIPELINE_COMPUTED_OUTSIDE_MARTS,
     "paid": _PIPELINE_COMPUTED_OUTSIDE_MARTS,
     "community_events": _PIPELINE_COMPUTED_OUTSIDE_MARTS,
-    "outbound_sdr_and_segment_graduation_volume": (
-        "Not a separately computed leaf by the tree's own instruction -- 'tracked under win rate and "
-        "the company model's migration branch, not duplicated here'. Query win_rate or "
-        "mart_segment_migration instead."
+    "outbound_sdr_and_segment_graduation_volume_tracked_under_win_rate_and_the_company_model_s_migration_branch_not_duplicated_here": (
+        "Not a separately computed leaf: the tree tracks outbound SDR and segment-graduation volume "
+        "under win rate and the company model's segment-migration branch rather than duplicating it "
+        "here. Query win_rate for the closed-deal side; segment graduation is carried by "
+        "mart_segment_migration, which query_metric does not serve."
     ),
-    "stage_to_stage_conversion": _NO_OPPORTUNITY_DETAIL_MART,
-    "poc_pass_rate": _NO_OPPORTUNITY_DETAIL_MART,
-    "rep_capacity_ramp_mix": (
-        "Needs rep-level quota/ramp joined to deal ownership. dim_reps carries quota/ramp but no "
-        "mart_* table exposes win rate cut by rep ramp status."
+    "ltv_by_segment_acquisition_channel": (
+        "A non-additive diagnostic overlay on Consumption payback with no mart-backed series: it is "
+        "a modeled lifetime view (retention curves, CAC and expansion drivers) that, when built, is "
+        "computed outside the mart engine rather than served from a mart_* table. Query "
+        "consumption_payback for the single-window recovery read it extends."
     ),
-    "loss_reason_mix": _NO_OPPORTUNITY_DETAIL_MART,
-    "discount_rate_vs_list": _NO_OPPORTUNITY_DETAIL_MART,
-    "deal_size_trend_within_segment_band": _NO_OPPORTUNITY_DETAIL_MART,
     "marketing_sales_handoff_quality": _NO_MQL_SAL_LIFECYCLE,
     "mql_response_sla": _NO_MQL_RESPONSE_SLA,
     "mql_sal_acceptance_rate": _NO_MQL_SAL_ACCEPTANCE,
@@ -610,30 +756,22 @@ _GAP_NOTE_OVERRIDES = {
     "existing_account_community_engagement_depth": (
         "The build spec's community_membership source was never generated."
     ),
-    "overage_realization": (
-        "Committed-vs-utilized Action volume exists only in fact_committed_vs_utilized_monthly, a "
-        "fact_* table not exposed as realised overage billing by any mart_* rollup."
-    ),
-    "workflow_chain_under_utilization": _NO_WORKFLOW_CHAIN_MART,
-    "ingestion_without_completion_rate": _NO_WORKFLOW_CHAIN_MART,
-    "mid_chain_workflow_abandonment": _NO_WORKFLOW_CHAIN_MART,
-    "declining_share_of_full_chain_vs_partial_chain_runs": _NO_WORKFLOW_CHAIN_MART,
     "account_health_score": _NO_HEALTH_SCORE_SERIES,
-    "usage_trend": _NO_HEALTH_SCORE_SERIES,
-    "support_ticket_volume_severity": _NO_HEALTH_SCORE_SERIES,
-    "engagement_login_frequency": _NO_HEALTH_SCORE_SERIES,
-    "am_sentiment_notes": _NO_HEALTH_SCORE_SERIES,
+    "usage_trend": _USAGE_TREND_COMPUTED_IN_ENGINE,
+    "stage_to_stage_conversion": _STAGE_CONVERSION_DEGENERATE,
     "account_specific_baseline_deviation": (
-        "No mart_* table exposes an account-relative usage baseline series at this grain."
+        "Restates its parent rather than adding a series: usage-dip breadth, the parent's value, is "
+        "already the aggregated account-relative baseline deviation, and it is computed in "
+        "analytics/variance_diagnostic.py, not served from a mart_* table. A separate leaf would "
+        "repeat it."
     ),
     "cohort_comparison": (
         "No mart_* table exposes an account-type x usage-cycle cohort baseline."
     ),
-    "renewal_win_rate": _NO_OPPORTUNITY_DETAIL_MART,
     "time_to_respond_on_churn_risk_flag": (
         "Needs a churn-risk flag event joined to AM response; no mart_* table exposes it."
     ),
-    "loud_explicit_cancellation_vs_silent_non_renewal_mix": _NO_OPPORTUNITY_DETAIL_MART,
+    "loud_explicit_cancellation_vs_silent_non_renewal_mix": _NO_LOUD_SILENT_CHURN_FLAG,
     "cost_per_channel_activity": _NO_CHANNEL_ACTIVITY_MART,
     "see_growth_expansion_revenue_drivers": (
         "Defined by reference in the tree ('See Growth -- expansion revenue drivers'), not a leaf "
@@ -653,8 +791,11 @@ _GAP_NOTE_OVERRIDES = {
         "cohort baseline that no mart_* table exposes; only the underlying account-relative usage "
         "signal exists (mart_account_health), and it is not pre-aggregated into a queryable ratio."
     ),
-    "churn_reason_category": _NO_OPPORTUNITY_DETAIL_MART,
+    "churn_reason_category": _NO_CHURN_REASON_CATEGORY,
 }
+
+
+_ALL_SEGMENTS = ["SMB", "Commercial", "Enterprise"]
 
 
 def _apply_source_mart(node: dict) -> dict:
@@ -664,6 +805,8 @@ def _apply_source_mart(node: dict) -> dict:
         node["source_mart"] = override["source_mart"]
         node["computable"] = True
         node["computability"] = override.get("computability", "full")
+        node["queryable_segments"] = list(override.get("segments", _ALL_SEGMENTS))
+        node["segment_unavailable_reason"] = override.get("segment_unavailable_reason")
         if override["aggregation"] == "ratio":
             query = {
                 "aggregation": "ratio",
@@ -676,6 +819,8 @@ def _apply_source_mart(node: dict) -> dict:
         node["gap_note"] = override.get("note")
     else:
         node["source_mart"] = None
+        node["queryable_segments"] = []
+        node["segment_unavailable_reason"] = None
         node["computable"] = False
         node["computability"] = "not_computable"
         node["query"] = None
@@ -772,6 +917,27 @@ def build_registry() -> dict:
     }
 
 
+def _server_aliases() -> dict:
+    """The literal `_ALIASES` table in semantic/server.py, read with ast so the
+    build needs neither the mcp package nor a server import."""
+    with open(_SERVER_PATH, "r", encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "_ALIASES" for t in node.targets):
+            return ast.literal_eval(node.value)
+    raise ValueError("_ALIASES not found in semantic/server.py")
+
+
+def _check_aliases(registry: dict) -> None:
+    """Every alias must point at a registered metric. Aliases are suggestions
+    only (the server never substitutes one metric for another), but a stale
+    target would suggest a metric that no longer exists."""
+    missing = {a: t for a, t in _server_aliases().items() if t not in registry["metrics"]}
+    if missing:
+        raise ValueError(f"server.py _ALIASES target metric(s) not in the registry: {missing}")
+
+
 def _load_existing_registry():
     if not os.path.exists(_REGISTRY_PATH):
         return None
@@ -811,7 +977,16 @@ def _diff_summary(old: dict, new: dict) -> str:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Regenerate semantic/metric_registry.json from the tree file.")
+    parser.add_argument(
+        "--summary",
+        help="Changelog text for this regeneration (what changed and why). Defaults to a "
+             "generated added/removed/changed node list.",
+    )
+    args = parser.parse_args()
+
     new_registry = build_registry()
+    _check_aliases(new_registry)
     existing = _load_existing_registry()
 
     l1 = [m for m in new_registry["metrics"].values() if m["layer"] == 1]
@@ -838,7 +1013,7 @@ def main():
             f"{len(computable)} directly queryable against dbt marts)."
         )
     else:
-        summary = _diff_summary(existing, new_registry)
+        summary = args.summary or _diff_summary(existing, new_registry)
     _append_changelog(version, summary)
     print(f"Wrote {_REGISTRY_PATH} as v{version}; appended semantic/CHANGELOG.md.")
 
