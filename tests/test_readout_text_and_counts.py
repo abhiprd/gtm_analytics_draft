@@ -202,7 +202,7 @@ class TestVoice:
         assert vd.PIPELINE_GENERATED_SCOPE_NOTE in entries["new_logo_consumption_revenue"]["notes"]
         assert any(i["detail"] == vd.PIPELINE_GENERATED_SCOPE_DETAIL
                    for i in entries["new_logo_consumption_revenue"]["notes_detail"])
-        single = [n for n in entries["contraction_churned_revenue"]["notes"]
+        single = [n for n in entries["expansion_consumption_revenue"]["notes"]
                   if n.startswith("Single-candidate read")]
         assert single and "no sibling comparison" in single[0]
 

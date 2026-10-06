@@ -50,24 +50,25 @@ def _no_key_by_default(monkeypatch):
 GOLDEN = {
     "2025-11-30": [
         {"text": "In November 2025, Contraction + churned revenue is the largest miss: $502.4K "
-                 "against a $49.3K plan (+919.1%), status Behind. The drill-down is a "
-                 "single-candidate read: the only computable Layer-2 child, Cyclical/planned "
-                 "usage dip vs. structural churn, is 0.0119 against a 0.0277 trailing baseline "
-                 "(-56.9%), lower than its baseline, so it does not itself account for the gap.",
+                 "against a $49.3K plan (+919.1%), status Behind. The drill-down ranks "
+                 "Cyclical/planned usage dip vs. structural churn first, at 0.0119 against a "
+                 "0.0277 trailing baseline (-56.9%), lower than its baseline, so it does not "
+                 "itself account for the gap.",
          "cites": ["header", "scorecard:contraction_churned_revenue",
                    "drilldown:contraction_churned_revenue"]},
         {"text": "No Layer 3 is computable for that branch, so the readout cannot say which "
                  "accounts or usage patterns sit behind the contraction and churn.",
          "cites": ["drilldown:contraction_churned_revenue"]},
         {"text": "On the other side, Expansion consumption revenue was $760.6K against a "
-                 "$173.8K plan (+337.6%), status Ahead; no Layer-2 outlier is identifiable there "
-                 "(0 of 2 children computable).",
+                 "$173.8K plan (+337.6%), status Ahead; the engine's Layer-2 outlier is Overage "
+                 "realization at 0.4119 against a 0.3763 trailing baseline (+9.5%), a "
+                 "single-candidate read (1 of 2 children computable).",
          "cites": ["scorecard:expansion_consumption_revenue",
                    "drilldown:expansion_consumption_revenue"]},
         {"text": "New logo consumption revenue was $45.2K against a $19.8K plan (+128.2%), "
                  "status Ahead; the engine's Layer-2 outlier is Avg initial commitment at "
-                 "$121,963.53 against a $60,529.48 trailing baseline (+101.5%), with no "
-                 "computable Layer 3.",
+                 "$121,963.53 against a $60,529.48 trailing baseline (+101.5%), with Layer-3 "
+                 "evidence from Deal-size trend within segment band and Discount rate vs. list.",
          "cites": ["scorecard:new_logo_consumption_revenue",
                    "drilldown:new_logo_consumption_revenue"]},
         {"text": "Magic number (blended) reads 2.51x against a 0.77x plan (+225.9%), but that "
@@ -79,10 +80,9 @@ GOLDEN = {
     ],
     "2025-06-30": [
         {"text": "In June 2025, Contraction + churned revenue is the largest miss: $394.2K "
-                 "against a $43.8K plan (+800.1%), status Behind. The drill-down is a "
-                 "single-candidate read: the only computable Layer-2 child, Cyclical/planned "
-                 "usage dip vs. structural churn, is 0.0299 against a 0.0275 trailing baseline "
-                 "(+8.6%), a small move that does not by itself account for the gap.",
+                 "against a $43.8K plan (+800.1%), status Behind. The drill-down ranks Renewal "
+                 "win rate first, at 0.72 against a 0.9205 trailing baseline (-21.8%), below "
+                 "its baseline, so it does not itself account for the gap.",
          "cites": ["header", "scorecard:contraction_churned_revenue",
                    "drilldown:contraction_churned_revenue"]},
         {"text": "No Layer 3 is computable for that branch, so the readout cannot say which "
@@ -90,12 +90,14 @@ GOLDEN = {
          "cites": ["drilldown:contraction_churned_revenue"]},
         {"text": "New logo consumption revenue was $15.6K against a $17.2K plan (-9.0%), status "
                  "Behind; the engine's Layer-2 outlier is Win rate at 0.425 against a 0.2563 "
-                 "trailing baseline (+65.8%), with no computable Layer 3.",
+                 "trailing baseline (+65.8%), with Layer-3 evidence from Rep capacity / ramp mix "
+                 "and POC pass rate (Enterprise).",
          "cites": ["scorecard:new_logo_consumption_revenue",
                    "drilldown:new_logo_consumption_revenue"]},
         {"text": "On the other side, Expansion consumption revenue was $491.2K against a "
-                 "$129.1K plan (+280.5%), status Ahead; no Layer-2 outlier is identifiable there "
-                 "(0 of 2 children computable).",
+                 "$129.1K plan (+280.5%), status Ahead; the engine's Layer-2 outlier is Overage "
+                 "realization at 0.3647 against a 0.3709 trailing baseline (-1.7%), a "
+                 "single-candidate read (1 of 2 children computable).",
          "cites": ["scorecard:expansion_consumption_revenue",
                    "drilldown:expansion_consumption_revenue"]},
         {"text": "Magic number (blended) reads 1.54x against a 0.78x plan (+95.9%), but that "
@@ -111,7 +113,7 @@ GOLDEN = {
 MONEY = {"2025-11-30": ("$502.4K", "$520.4K"), "2025-06-30": ("$394.2K", "$349.2K")}
 LAYER2_LABEL = {"2025-11-30": "Avg initial commitment at", "2025-06-30": "Win rate at"}
 DATES = ["2025-06-30", "2025-11-30"]
-N_CHECKS = 18  # grounding checks the validator runs
+N_CHECKS = 19  # grounding checks the validator runs
 
 
 def _failed(report):
@@ -170,8 +172,9 @@ class TestHeadlineSelection:
         view = es.build_prompt_view(readouts[d])
         head = view["narrative_focus"]["headline_driver"]
         assert head["layer1_metric_key"] == "contraction_churned_revenue"
-        assert head["layer2_outlier_label"].startswith("Cyclical/planned usage dip")
-        assert head["is_genuine_sibling_comparison"] is False
+        assert head["layer2_outlier_label"].startswith(
+            {"2025-06-30": "Renewal win rate", "2025-11-30": "Cyclical/planned usage dip"}[d])
+        assert head["is_genuine_sibling_comparison"] is True
         assert head["layer1_plan_comparability"] == "comparable"
         assert head["cite"] in view["valid_cites"]
         # the headline's Layer-2 outlier is what the engine itself ranked first
@@ -196,12 +199,16 @@ class TestHeadlineSelection:
         assert es.validate_statements(r, one)["passed"]
 
     def test_a_drilldown_without_an_outlier_is_never_the_headline(self, readouts):
-        r = readouts["2025-11-30"]
+        r = copy.deepcopy(readouts["2025-11-30"])
+        entry = next(e for e in r["drilldowns"]["entries"]
+                     if e["layer1"]["metric_key"] == "expansion_consumption_revenue")
+        entry["layer2_outlier"] = None  # a branch with no computable Layer-2 child
         view = es.build_prompt_view(r)
         keys = [view["narrative_focus"]["headline_driver"]["layer1_metric_key"]] + [
             o["layer1_metric_key"]
             for o in view["narrative_focus"]["other_drilldowns_in_priority_order"]]
-        assert "expansion_consumption_revenue" not in keys  # 0 of 2 children computable
+        assert "expansion_consumption_revenue" not in keys
+        assert "contraction_churned_revenue" in keys
 
 
 # --------------------------------------------------------------------------
@@ -323,11 +330,19 @@ class TestValidatorRealData:
 
     @pytest.mark.parametrize("d", DATES)
     def test_single_candidate_wording_is_required(self, readouts, d):
-        bad = _tamper(GOLDEN[d], lambda s: s[0].update(
-            text=s[0]["text"].replace("single-candidate read", "read")))
-        rep = es.validate_statements(readouts[d], bad)
+        # The committed contraction branches rank 2-3 siblings; make it a single-candidate
+        # read in a copy so the wording rule is still exercised on real readout content.
+        r = copy.deepcopy(readouts[d])
+        entry = next(e for e in r["drilldowns"]["entries"]
+                     if e["layer1"]["metric_key"] == "contraction_churned_revenue")
+        entry["sibling_coverage"]["is_genuine_sibling_comparison"] = False
+        entry["sibling_ranking"] = entry["sibling_ranking"][:1]
+        rep = es.validate_statements(r, GOLDEN[d])
         assert "top_driver_named" in _failed(rep)
         assert any("single-candidate" in e for e in rep["errors"])
+        ok = _tamper(GOLDEN[d], lambda s: s[0].update(
+            text=s[0]["text"].replace("The drill-down ranks", "The drill-down is a single-candidate read and ranks")))
+        assert "top_driver_named" not in _failed(es.validate_statements(r, ok))
 
     @pytest.mark.parametrize("d", DATES)
     def test_missing_caveat_is_rejected(self, readouts, d):
@@ -459,12 +474,14 @@ class TestValidatorRealData:
         assert rep["passed"] is False and "schema_valid" in _failed(rep)
 
     def test_wrong_driver_named_for_the_headline_branch_is_rejected(self, readouts):
-        """Synthetic: drop the contraction drill-down so New logo becomes the
+        """Synthetic: drop the contraction and expansion drill-downs so New logo becomes the
         headline (3 real siblings), then present a non-outlier sibling as THE
         outlier."""
         r = copy.deepcopy(readouts["2025-11-30"])
-        r["drilldowns"]["entries"] = [e for e in r["drilldowns"]["entries"]
-                                      if e["layer1"]["metric_key"] != "contraction_churned_revenue"]
+        r["drilldowns"]["entries"] = [
+            e for e in r["drilldowns"]["entries"]
+            if e["layer1"]["metric_key"] not in ("contraction_churned_revenue",
+                                                 "expansion_consumption_revenue")]
         r["drilldowns"]["count"] = len(r["drilldowns"]["entries"])
         head = es.build_prompt_view(r)["narrative_focus"]["headline_driver"]
         assert head["layer1_metric_key"] == "new_logo_consumption_revenue"
@@ -472,8 +489,9 @@ class TestValidatorRealData:
         good = [
             {"text": "New logo consumption revenue was $45.2K against a $19.8K plan (+128.2%); "
                      "the largest outlier among its siblings is Avg initial commitment at "
-                     "$121,963.53 against a $60,529.48 trailing baseline (+101.5%), with no "
-                     "computable Layer 3.",
+                     "$121,963.53 against a $60,529.48 trailing baseline (+101.5%), with "
+                     "Layer-3 evidence from Deal-size trend within segment band and Discount "
+                     "rate vs. list.",
              "cites": ["scorecard:new_logo_consumption_revenue",
                        "drilldown:new_logo_consumption_revenue"]},
             {"text": "25 accounts are on the watchlist.", "cites": ["watchlist"]},
@@ -1000,7 +1018,7 @@ class TestReadoutIntegration:
         a = wr.run_build_time_validation(date(2025, 11, 30), log=False, out_dir=str(out))
         assert a["readout"]["executive_summary"]["status"] == "not_generated"
         assert a["readout"]["executive_summary"]["reason"] == "no_api_key"
-        assert a["checks_passed"] == a["checks_total"] == 26
+        assert a["checks_passed"] == a["checks_total"] == 33
         assert "executive_summary_slot_honors_contract" in {c["name"] for c in a["trace_checks"]}
         # the readout assembled here is what the narrative step summarises: fill the slot ...
         gen = es.run_executive_summary(date(2025, 11, 30),
@@ -1010,7 +1028,7 @@ class TestReadoutIntegration:
         # ... and re-assembling the readout (no API) keeps it, byte for byte
         b = wr.run_build_time_validation(date(2025, 11, 30), log=False, out_dir=str(out))
         assert b["readout"]["executive_summary"] == gen["slot"]
-        assert b["checks_passed"] == b["checks_total"] == 26
+        assert b["checks_passed"] == b["checks_total"] == 33
         assert GOLDEN[D][0]["text"] in b["markdown"]
 
     def test_assemble_readout_alone_never_carries_prose(self):
@@ -1071,7 +1089,7 @@ def _with_forecast(readouts, d, **kw):
 
 class TestForecastInSummary:
     def test_prompt_version_was_bumped_and_the_unbuilt_claim_is_gone(self):
-        assert es.PROMPT_VERSION == "exec-summary-v3"
+        assert es.PROMPT_VERSION == "exec-summary-v5"
         assert "is not built" not in es._SYSTEM_PROMPT
         for needle in ("forecast:<segment>", "forecast_as_of_date", "diverges_materially",
                        "never extrapolate", "unavailable"):
@@ -1186,7 +1204,7 @@ class TestForecastInSummary:
         d = "2025-11-30"
         slot = es.generate_executive_summary(readouts[d], client=FakeClient(tool_response(
             _with_forecast(readouts, d))))
-        assert slot["status"] == "generated" and slot["prompt_version"] == "exec-summary-v3"
+        assert slot["status"] == "generated" and slot["prompt_version"] == "exec-summary-v5"
         stale = copy.deepcopy(slot)
         stale["prompt_version"] = "exec-summary-v2"
         assert not es._reusable(stale, readouts[d])
@@ -1591,3 +1609,457 @@ class TestLateQuarterRead:
     def test_a_normal_quarter_call_needs_no_wording(self, readouts):
         d = "2025-11-30"
         assert es.validate_statements(readouts[d], _with_forecast(readouts, d))["passed"]
+
+
+# --------------------------------------------------------------------------
+# Persistence (prompt exec-summary-v5): a streak claim must match the cited
+# drill-down's own persistence record; the segment-mix section stays out of
+# the summary's evidence
+# --------------------------------------------------------------------------
+
+def _entry(readout, l1_key):
+    return next(e for e in readout["drilldowns"]["entries"] if e["layer1"]["metric_key"] == l1_key)
+
+
+def _streak_statement(readout, l1_key, template="%(label)s has been the adverse Layer-2 outlier "
+                      "for %(n)s consecutive months.", n=None, cites=None):
+    e = _entry(readout, l1_key)
+    p = e["persistence"]
+    text = template % {"label": p["driver_label"], "n": p["streak_months"] if n is None else n}
+    return {"text": text, "cites": cites or ["drilldown:%s" % l1_key]}
+
+
+def _with_streak(readouts, d, l1_key, **kw):
+    gold = copy.deepcopy(GOLDEN[d])
+    gold[5] = _streak_statement(readouts[d], l1_key, **kw)
+    return gold
+
+
+def _persistence_failed(readout, statements):
+    rep = es.validate_statements(readout, statements)
+    return "persistence_claims_match_cited_drilldown" in _failed(rep), rep
+
+
+class TestPersistenceInSummary:
+    def test_the_prompt_version_is_v4_and_the_prompt_states_the_streak_rule(self):
+        assert es.PROMPT_VERSION == "exec-summary-v5"
+        for needle in ("Persistence.", "streak_months", "threshold_months", "exact label",
+                       "not_applicable", "adverse months only", "first_month_of_streak",
+                       "the same driver has been the adverse outlier for N consecutive months",
+                       "unless `status` is \"flagged\"", "since YYYY-MM", "improvement words",
+                       "one-off", "evidence of a trend or a cause"):
+            assert needle in es._SYSTEM_PROMPT, needle
+
+    @pytest.mark.parametrize("d", DATES)
+    def test_the_view_and_the_cite_index_carry_the_persistence_fields(self, readouts, d):
+        v = es.build_prompt_view(readouts[d])
+        for e in v["drilldowns"]["entries"]:
+            p = e["persistence"]
+            assert set(p) >= {"status", "flagged", "threshold_months", "streak_months",
+                              "driver_key", "driver_label", "first_month_of_streak",
+                              "streak_detail", "streak_break", "reason", "note", "status_display"}
+            scope = es.cite_scopes(v)[e["cite"]]
+            assert scope["persistence"] == p
+        head = v["narrative_focus"]["headline_driver"]
+        entry = _entry(readouts[d], head["layer1_metric_key"])
+        assert head["persistence_status"] == entry["persistence"]["status"]
+        assert head["persistence_streak_months"] == entry["persistence"]["streak_months"]
+
+    @pytest.mark.parametrize("d", DATES)
+    def test_the_streak_numbers_are_typed_counts_and_grounded_in_their_drilldown(self, readouts, d):
+        v = es.build_prompt_view(readouts[d])
+        idx = es._Index(v)
+        for e in v["drilldowns"]["entries"]:
+            kinds = {path.split(".")[-1].split("[")[0]: k for path, x, k in idx.numbers(e["cite"])
+                     if path.split(".")[-1].split("[")[0] in ("streak_months", "threshold_months")}
+            assert set(kinds.values()) <= {es.COUNT}, (e["cite"], kinds)
+
+    @pytest.mark.parametrize("d", DATES)
+    def test_every_drilldowns_faithful_streak_statement_passes_and_n_plus_one_fails(
+            self, readouts, d):
+        r = readouts[d]
+        checked = 0
+        for e in r["drilldowns"]["entries"]:
+            key, p = e["layer1"]["metric_key"], e["persistence"]
+            if p["status"] == "not_applicable":
+                continue
+            idx = es._Index(es.build_prompt_view(r))
+            if p["streak_months"] >= 1:
+                good = _streak_statement(r, key)
+                assert es._persistence_errors([good], idx) == [], (key, good["text"])
+            bad = _streak_statement(r, key, n=p["streak_months"] + 1)
+            assert es._persistence_errors([bad], idx), (key, bad["text"])
+            checked += 1
+        assert checked >= 6
+
+    def test_a_faithful_flagged_streak_statement_passes_every_check_on_june(self, readouts):
+        d = "2025-06-30"
+        gold = _with_streak(readouts, d, "contraction_churned_revenue")
+        assert "Renewal win rate has been the adverse Layer-2 outlier for 3 consecutive months." \
+            == gold[5]["text"]
+        rep = es.validate_statements(readouts[d], gold)
+        assert rep["passed"], rep["errors"]
+        assert len(rep["checks"]) == N_CHECKS
+
+    def test_a_faithful_not_flagged_streak_statement_passes_on_november(self, readouts):
+        d = "2025-11-30"
+        gold = _with_streak(readouts, d, "nrr", template="%(label)s has been the adverse Layer-2 "
+                            "outlier for %(n)s consecutive month.")
+        rep = es.validate_statements(readouts[d], gold)
+        assert rep["passed"], rep["errors"]
+
+    def test_the_flagged_streaks_at_june_are_the_ones_the_validator_accepts(self, readouts):
+        d = "2025-06-30"
+        for key, n in (("contraction_churned_revenue", 3), ("nrr", 5), ("grr", 2)):
+            ok, rep = _persistence_failed(readouts[d], _with_streak(readouts, d, key))
+            assert not ok and rep["passed"], (key, rep["errors"])
+            assert _entry(readouts[d], key)["persistence"]["streak_months"] == n
+
+    @pytest.mark.parametrize("d,key", [("2025-06-30", "contraction_churned_revenue"),
+                                       ("2025-11-30", "nrr")])
+    def test_a_streak_length_that_disagrees_with_the_cited_object_is_rejected(
+            self, readouts, d, key):
+        # the threshold (2) is also a number in the cited object, so the figure itself is
+        # grounded; only the streak check can tell the length is wrong
+        n = _entry(readouts[d], key)["persistence"]["streak_months"]
+        wrong = 2 if n != 2 else 3
+        bad = _with_streak(readouts, d, key, n=wrong)
+        failed, rep = _persistence_failed(readouts[d], bad)
+        assert failed and not rep["passed"]
+        assert any("quote the streak length exactly" in e for e in rep["errors"])
+
+    def test_a_streak_claimed_for_a_driver_with_no_streak_is_rejected(self, readouts):
+        d = "2025-06-30"  # Win rate is New logo's outlier with an adverse streak of 0
+        bad = _with_streak(readouts, d, "new_logo_consumption_revenue", n=2)
+        failed, _ = _persistence_failed(readouts[d], bad)
+        assert failed
+
+    def test_calling_a_not_flagged_driver_persistent_is_rejected(self, readouts):
+        d = "2025-06-30"
+        bad = _with_streak(readouts, d, "new_logo_consumption_revenue",
+                           template="%(label)s is a persistent adverse outlier.")
+        failed, rep = _persistence_failed(readouts[d], bad)
+        assert failed and any("only a flagged status" in e for e in rep["errors"])
+
+    @pytest.mark.parametrize("text", [
+        "%(label)s has been the adverse Layer-2 outlier for 2 consecutive months.",
+        "%(label)s has been the adverse outlier for 2 months in a row.",
+        "%(label)s has been the adverse outlier for 2 months running.",
+        "%(label)s shows a 2-month streak.",
+        "%(label)s has a streak of 2.",
+        "%(label)s is a recurring and persistent outlier.",
+    ])
+    def test_a_single_candidate_read_has_no_streak_to_claim(self, readouts, text):
+        d = "2025-11-30"
+        bad = _with_streak(readouts, d, "expansion_consumption_revenue", template=text)
+        failed, _ = _persistence_failed(readouts[d], bad)
+        assert failed
+
+    def test_saying_persistence_is_not_applicable_is_accepted(self, readouts):
+        d = "2025-11-30"
+        ok = _with_streak(readouts, d, "expansion_consumption_revenue",
+                          template="Persistence is not applicable for %(label)s, a "
+                          "single-candidate read.")
+        failed, rep = _persistence_failed(readouts[d], ok)
+        assert not failed, rep["errors"]
+
+    def test_a_claim_that_does_not_name_the_driver_is_rejected(self, readouts):
+        d = "2025-06-30"
+        bad = _with_streak(readouts, d, "contraction_churned_revenue",
+                           template="The same driver has been adverse for %(n)s consecutive "
+                           "months.")
+        failed, rep = _persistence_failed(readouts[d], bad)
+        assert failed and any("by its exact label" in e for e in rep["errors"])
+
+    def test_a_claim_without_the_drilldown_cite_is_rejected(self, readouts):
+        d = "2025-06-30"
+        bad = _with_streak(readouts, d, "contraction_churned_revenue",
+                           cites=["scorecard:contraction_churned_revenue"])
+        failed, _ = _persistence_failed(readouts[d], bad)
+        assert failed
+
+    def test_a_driver_named_under_another_drilldowns_cite_is_rejected(self, readouts):
+        d = "2025-06-30"
+        bad = _with_streak(readouts, d, "contraction_churned_revenue",
+                           cites=["drilldown:grr"])  # GRR is flagged too, but not for this driver
+        failed, _ = _persistence_failed(readouts[d], bad)
+        assert failed
+
+    def test_denying_a_flagged_streak_is_rejected(self, readouts):
+        d = "2025-06-30"
+        bad = _with_streak(readouts, d, "contraction_churned_revenue",
+                           template="%(label)s has not persisted as the adverse outlier.")
+        failed, rep = _persistence_failed(readouts[d], bad)
+        assert failed and any("persistence is flagged" in e for e in rep["errors"])
+
+    def test_denying_a_longer_streak_than_the_object_has_is_accepted_and_a_shorter_one_is_not(
+            self, readouts):
+        d = "2025-06-30"
+        idx = es._Index(es.build_prompt_view(readouts[d]))
+        text = "%(label)s has not been the adverse outlier for %(n)s consecutive months."
+        longer = _streak_statement(readouts[d], "contraction_churned_revenue", text, n=4)
+        shorter = _streak_statement(readouts[d], "contraction_churned_revenue", text, n=3)
+        assert es._persistence_errors([longer], idx) == []
+        assert es._persistence_errors([shorter], idx)
+
+    def test_describing_the_streak_as_favorable_is_rejected(self, readouts):
+        d = "2025-06-30"
+        bad = _with_streak(readouts, d, "contraction_churned_revenue",
+                           template="%(label)s has been a favorable outlier for %(n)s "
+                           "consecutive months.")
+        failed, rep = _persistence_failed(readouts[d], bad)
+        assert failed and any("adverse months only" in e for e in rep["errors"])
+
+    def test_a_spelled_out_length_is_rejected_by_the_number_word_check(self, readouts):
+        d = "2025-06-30"
+        bad = _with_streak(readouts, d, "contraction_churned_revenue",
+                           template="%(label)s has been the adverse outlier for three "
+                           "consecutive months.")
+        assert "no_spelled_out_numbers_or_derived_quantities" in _failed(
+            es.validate_statements(readouts[d], bad))
+
+    def test_a_driver_label_containing_vs_is_not_split_into_two_sentences(self, readouts):
+        d = "2025-11-30"  # the contraction driver here is "Cyclical/planned usage dip vs. ..."
+        e = _entry(readouts[d], "contraction_churned_revenue")
+        assert "vs." in e["persistence"]["driver_label"]
+        bad = _streak_statement(readouts[d], "contraction_churned_revenue", n=2)
+        idx = es._Index(es.build_prompt_view(readouts[d]))
+        errs = es._persistence_errors([bad], idx)
+        assert len(errs) == 1 and "quote the streak length exactly" in errs[0]
+
+    def test_an_ordinary_statement_with_no_streak_wording_is_untouched(self, readouts):
+        for d in DATES:
+            rep = es.validate_statements(readouts[d], GOLDEN[d])
+            assert next(c for c in rep["checks"]
+                        if c["name"] == "persistence_claims_match_cited_drilldown")["passed"]
+
+    def test_the_streak_check_follows_the_object_not_the_wording_so_an_edit_flips_it(
+            self, readouts):
+        d = "2025-06-30"
+        r = copy.deepcopy(readouts[d])
+        _entry(r, "contraction_churned_revenue")["persistence"]["streak_months"] = 4
+        good = _with_streak(readouts, d, "contraction_churned_revenue")  # says 3
+        assert _persistence_failed(r, good)[0]
+
+
+class TestSegmentMixStaysOutOfTheSummary:
+    @pytest.mark.parametrize("d", DATES)
+    def test_the_section_is_in_the_readout_but_not_in_the_view_or_the_cites(self, readouts, d):
+        r = readouts[d]
+        assert r["segment_mix"]["status"] == "present"
+        v = es.build_prompt_view(r)
+        assert "segment_mix" not in v
+        assert not any("segment_mix" in c or c.startswith("segment") for c in v["valid_cites"])
+        blob = es.build_prompt(r)["messages"][0]["content"][0]["text"]
+        assert "segment_mix" not in blob and "upmarket_share" not in blob
+
+    @pytest.mark.parametrize("d", DATES)
+    def test_a_statement_cannot_cite_the_segment_mix_section(self, readouts, d):
+        bad = _tamper(GOLDEN[d], lambda s: s[5]["cites"].append("segment_mix"))
+        assert "cites_resolve" in _failed(es.validate_statements(readouts[d], bad))
+
+    @pytest.mark.parametrize("d", DATES)
+    def test_a_segment_mix_figure_is_not_groundable(self, readouts, d):
+        share = readouts[d]["segment_mix"]["upmarket_share"]["mrr_share_display"]
+        bad = _tamper(GOLDEN[d], lambda s: s[5].update(
+            text=s[5]["text"] + " Commercial and Enterprise hold %s of MRR." % share))
+        assert "numbers_grounded_in_cited_objects" in _failed(es.validate_statements(readouts[d], bad))
+
+    @pytest.mark.parametrize("d", DATES)
+    def test_the_golden_sets_are_valid_against_the_readouts_with_the_section(self, readouts, d):
+        assert es.validate_statements(readouts[d], GOLDEN[d])["passed"]
+
+
+class TestStalenessAfterPersistenceAndSegmentMix:
+    D = "2025-11-30"
+
+    def test_a_summary_generated_before_either_section_existed_is_stale(self, readouts):
+        r = readouts[self.D]
+        legacy = copy.deepcopy(r)
+        legacy.pop("segment_mix")
+        for e in legacy["drilldowns"]["entries"]:
+            e.pop("persistence")
+        old = es.generate_executive_summary(legacy, client=FakeClient(tool_response(GOLDEN[self.D])))
+        assert old["status"] == "generated"
+        assert old["input_hash"] != es.compute_input_hash(r)
+        assert not es._reusable(old, r)
+        stale = es.offline_slot(r, old)
+        assert stale["status"] == "not_generated" and stale["reason"] == "stale_summary_no_api_key"
+        assert stale["statements"] == [] and stale["previous_input_hash"] == old["input_hash"]
+        assert stale["input_hash"] == es.compute_input_hash(r)
+
+    def test_a_segment_mix_change_alone_changes_the_hash_but_not_the_prompt_view(self, readouts):
+        r = readouts[self.D]
+        changed = copy.deepcopy(r)
+        changed["segment_mix"]["segments"][0]["ending_mrr"] += 1.0
+        assert es.compute_input_hash(changed) != es.compute_input_hash(r)
+        assert es.build_prompt_view(changed) == es.build_prompt_view(r)
+
+    def test_a_persistence_change_changes_the_hash_and_the_view(self, readouts):
+        r = readouts[self.D]
+        changed = copy.deepcopy(r)
+        changed["drilldowns"]["entries"][0]["persistence"]["streak_months"] = 7
+        assert es.compute_input_hash(changed) != es.compute_input_hash(r)
+        assert es.build_prompt_view(changed) != es.build_prompt_view(r)
+
+    def test_with_a_key_the_stale_summary_is_pending_regeneration(self, readouts, monkeypatch):
+        r = readouts[self.D]
+        legacy = copy.deepcopy(r)
+        legacy.pop("segment_mix")
+        old = es.generate_executive_summary(legacy, client=FakeClient(tool_response(GOLDEN[self.D])))
+        monkeypatch.setenv(es.API_KEY_ENV, SENTINEL_KEY)
+        slot = es.offline_slot(r, old)
+        assert slot["reason"] == "pending_generation" and slot["previous_input_hash"] == old["input_hash"]
+        c = FakeClient(tool_response(GOLDEN[self.D]))
+        again = es.generate_executive_summary(r, client=c, existing=old)
+        assert len(c.calls) == 1 and again["input_hash"] == es.compute_input_hash(r)
+
+    def test_a_summary_of_the_current_readout_is_reused_with_no_call(self, readouts):
+        r = readouts[self.D]
+        cur = es.generate_executive_summary(r, client=FakeClient(tool_response(GOLDEN[self.D])))
+        c = FakeClient(RuntimeError("must not be called"))
+        assert es.generate_executive_summary(r, client=c, existing=cur) == cur and c.calls == []
+
+
+# --------------------------------------------------------------------------
+# Persistence gate: the bypasses a pattern check has to close, and what it accepts
+# --------------------------------------------------------------------------
+
+BYPASS_D = "2025-06-30"
+# June: Renewal win rate under Contraction + churned revenue is flagged for 3 months since
+# 2025-04 (adverse = down); NRR's expansion share for 5 since 2025-02 (adverse = down); GRR's
+# contraction share for 2 since 2025-05 (adverse = up); New logo's Win rate has streak 0.
+C_CITE, N_CITE, G_CITE = ("drilldown:contraction_churned_revenue", "drilldown:nrr", "drilldown:grr")
+L_CITE, E_CITE = "drilldown:new_logo_consumption_revenue", "drilldown:expansion_consumption_revenue"
+
+
+def _gate(readouts, text, cites):
+    r = readouts[BYPASS_D]
+    idx = es._Index(es.build_prompt_view(r))
+    return es._persistence_errors([{"text": text, "cites": list(cites)}], idx)
+
+
+REJECTED = [
+    # lengths in more phrasings
+    ("Renewal win rate has persisted for 4 months.", [C_CITE]),
+    ("Renewal win rate has been adverse for the last 4 months.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier over the past 6 months.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier for 4 months running.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier for 2 months in a row.", [C_CITE]),
+    ("Renewal win rate is the adverse outlier for the second month running.", [C_CITE]),
+    ("Renewal win rate is the adverse outlier for the fourth consecutive month.", [C_CITE]),
+    ("Renewal win rate is in its 2nd month as the adverse outlier.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier for 2 straight months.", [C_CITE]),
+    ("Renewal win rate has a 4-month streak.", [C_CITE]),
+    # since
+    ("Renewal win rate has been the adverse outlier since 2025-05.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier since 2025-03-01.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier since March 2025.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier since 2024-04.", [C_CITE]),
+    ("Win rate has been the adverse outlier since 2025-04.", [L_CITE]),  # streak 0: no first month
+    # improvement / direction
+    ("Renewal win rate has persistently risen against its baseline.", [C_CITE]),
+    ("Renewal win rate is recovering.", [C_CITE]),
+    ("Renewal win rate improved against its baseline.", [C_CITE]),
+    ("Renewal win rate has rebounded.", [C_CITE]),
+    ("GRR's contraction share has been falling for 2 consecutive months.", [G_CITE]),
+    ("NRR's expansion share has been climbing for 5 consecutive months.", [N_CITE]),
+    # one-off wording when flagged
+    ("Renewal win rate was an outlier only this month.", [C_CITE]),
+    ("The Renewal win rate move is not a repeat.", [C_CITE]),
+    ("Renewal win rate is a one-off outlier.", [C_CITE]),
+    ("Renewal win rate is an isolated outlier.", [C_CITE]),
+    ("Renewal win rate is a single-month outlier.", [C_CITE]),
+    # broad repeat words now trigger
+    ("Win rate is again the adverse outlier.", [L_CITE]),
+    ("Win rate has been a recurring outlier.", [L_CITE]),
+    ("Win rate has been a sustained outlier.", [L_CITE]),
+    ("Win rate has been a repeat outlier.", [L_CITE]),
+    ("Win rate keeps leading the adverse moves.", [L_CITE]),
+    ("Overage realization has been persistent.", [E_CITE]),
+    ("Overage realization has been the adverse outlier for 2 consecutive months.", [E_CITE]),
+    # bare denial of a flagged streak
+    ("Renewal win rate has not persisted.", [C_CITE]),
+    ("Renewal win rate has not repeated.", [C_CITE]),
+    ("Renewal win rate has not been a recurring outlier.", [C_CITE]),
+    # naming / citing
+    ("The same driver has been adverse for 3 consecutive months.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier for 3 consecutive months.", ["drilldown:grr"]),
+    ("Renewal win rate has been the adverse outlier for 3 consecutive months.", ["scorecard:grr"]),
+    # more than one driver: every one must match
+    ("Renewal win rate and NRR's expansion share have been the adverse outlier for "
+     "3 consecutive months.", [C_CITE, N_CITE]),
+    ("Renewal win rate and GRR's contraction share have persisted.", [C_CITE, L_CITE]),
+    ("Renewal win rate has been the adverse outlier for 5 consecutive months and NRR's "
+     "expansion share for 3 consecutive months.", [C_CITE, N_CITE]),
+    ("Renewal win rate and NRR's expansion share have persisted.", [C_CITE]),  # NRR not cited
+    ("Renewal win rate and NRR's expansion share have been adverse; the first for 3 "
+     "consecutive months.", [C_CITE, N_CITE]),  # the second clause names no driver
+]
+
+ACCEPTED = [
+    ("Renewal win rate has been the adverse outlier for 3 consecutive months.", [C_CITE]),
+    ("The same driver has been the adverse outlier for 3 consecutive months: Renewal win rate.",
+     [C_CITE]),
+    ("Renewal win rate has persisted for 3 months.", [C_CITE]),
+    ("Renewal win rate has been adverse for the last 3 months.", [C_CITE]),
+    ("Renewal win rate is the adverse outlier for the third month running.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier since 2025-04.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier since April 2025.", [C_CITE]),
+    ("Renewal win rate has been the adverse outlier since 2025-04-01 and has fallen.", [C_CITE]),
+    ("NRR's expansion share has been the adverse outlier for 5 consecutive months.", [N_CITE]),
+    ("NRR's expansion share has been the adverse outlier for 5 consecutive months, since 2025-02.",
+     [N_CITE]),
+    ("The expansion share has persisted for 5 months.", [N_CITE]),
+    ("GRR's contraction share has been the adverse outlier for 2 consecutive months.", [G_CITE]),
+    ("GRR's contraction share has risen for 2 consecutive months.", [G_CITE]),
+    ("Renewal win rate has been a recurring outlier.", [C_CITE]),           # flagged: allowed
+    ("Renewal win rate is lower than its trailing baseline.", [C_CITE]),
+    ("Renewal win rate has not persisted for 4 consecutive months.", [C_CITE]),
+    ("Persistence is not applicable for Overage realization, a single-candidate read.", [E_CITE]),
+    ("Win rate is not a recurring outlier.", [L_CITE]),
+    ("Renewal win rate has been the adverse outlier for 3 consecutive months and NRR's "
+     "expansion share for 5 consecutive months.", [C_CITE, N_CITE]),
+]
+
+
+class TestPersistenceGateBypasses:
+    @pytest.mark.parametrize("text,cites", REJECTED, ids=[t[0][:60] for t in REJECTED])
+    def test_rejected(self, readouts, text, cites):
+        assert _gate(readouts, text, cites), text
+
+    @pytest.mark.parametrize("text,cites", ACCEPTED, ids=[t[0][:60] for t in ACCEPTED])
+    def test_accepted(self, readouts, text, cites):
+        assert _gate(readouts, text, cites) == [], (text, _gate(readouts, text, cites))
+
+    def test_the_possessive_form_of_the_nrr_and_grr_drivers_is_a_named_driver(self, readouts):
+        # 'NRR's expansion share' is not the readout's label ("See Growth: Expansion (share of
+        # starting revenue)"), yet it names that driver; a wrong length for it is still caught
+        assert _gate(readouts, "NRR's expansion share has been the adverse outlier for 5 "
+                     "consecutive months.", [N_CITE]) == []
+        assert _gate(readouts, "NRR's expansion share has been the adverse outlier for 4 "
+                     "consecutive months.", [N_CITE])
+
+    def test_win_rate_inside_renewal_win_rate_is_not_a_second_driver(self, readouts):
+        assert _gate(readouts, "Renewal win rate has been the adverse outlier for 3 consecutive "
+                     "months.", [C_CITE]) == []
+
+    def test_labels_inside_words_do_not_read_as_claims(self, readouts):
+        # 'Growth' in "See Growth: ..." must not read as 'grow...'; a baseline sentence is fine
+        assert _gate(readouts, "See Growth: Expansion (share of starting revenue) is compared "
+                     "with its own trailing baseline.", [N_CITE]) == []
+
+    def test_a_streak_claim_through_the_whole_validator_is_rejected_for_each_bypass(self, readouts):
+        r = readouts[BYPASS_D]
+        for text, cites in REJECTED[:12]:
+            st = copy.deepcopy(GOLDEN[BYPASS_D])
+            st[5] = {"text": text, "cites": list(cites)}
+            rep = es.validate_statements(r, st)
+            assert "persistence_claims_match_cited_drilldown" in _failed(rep), text
+
+    def test_the_gate_is_a_pattern_check_that_a_paraphrase_can_evade(self, readouts):
+        # documented residual limit: wording none of the patterns covers is not caught
+        evasive = "Renewal win rate has led the adverse moves each month since the spring."
+        assert _gate(readouts, evasive, [C_CITE]) == []
+        pronoun = "It has been the adverse outlier for 9 consecutive months."
+        assert _gate(readouts, pronoun, [C_CITE])  # a count with no named driver is still caught

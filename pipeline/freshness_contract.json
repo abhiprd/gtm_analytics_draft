@@ -504,7 +504,7 @@
           "label": "performance_log/weekly_executive_readout"
         }
       ],
-      "fresh_means": "A readout JSON/Markdown pair exists for the last complete month, its trigger section was built from the current playbook log, and its forecast section carries the forecast call current at that month end (or declares itself unavailable with a reason).",
+      "fresh_means": "A readout JSON/Markdown pair exists for the last complete month, its trigger section was built from the current playbook log, and its forecast section carries the forecast call current at that month end (or declares itself unavailable with a reason), each drill-down carries its persistence record, and its segment-mix section is read from the marts at that month (or declares itself unavailable with a reason).",
       "sla_rationale": "Weekly operating cadence (build spec Section 8, Wave 1). One week plus a 3-day slip. The scorecard inside it is monthly-only (dashboard grain table), so it is anchored to the last complete month rather than the truncated final month."
     },
     {
@@ -644,6 +644,24 @@
           "table": "main_marts.mart_durability",
           "column": "month",
           "label": "mart_durability"
+        },
+        {
+          "type": "duckdb_max",
+          "table": "main_marts.mart_deal_funnel",
+          "column": "month",
+          "label": "mart_deal_funnel"
+        },
+        {
+          "type": "duckdb_max",
+          "table": "main_marts.mart_workflow_chain_health",
+          "column": "month",
+          "label": "mart_workflow_chain_health"
+        },
+        {
+          "type": "duckdb_max",
+          "table": "main_marts.mart_consumption_utilization",
+          "column": "month",
+          "label": "mart_consumption_utilization"
         },
         {
           "type": "duckdb_max",

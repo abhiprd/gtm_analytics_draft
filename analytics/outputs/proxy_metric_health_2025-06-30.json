@@ -11,8 +11,8 @@
     "models_with_any_checkpoint": 16,
     "min_checkpoints_across_models": 1,
     "max_checkpoints_across_models": 1,
-    "data_gap_roots_cataloged": 20,
-    "data_gap_roots_live_confirmed": 20,
+    "data_gap_roots_cataloged": 14,
+    "data_gap_roots_live_confirmed": 14,
     "pipeline_generated_stale_marking_confirmed": false,
     "artifacts_with_confirmed_threshold": 1,
     "artifacts_with_proposed_not_confirmed_threshold": 17
@@ -236,36 +236,11 @@
   },
   "data_gap_keys_live_check": {
     "passed": true,
-    "n_total": 20,
-    "n_passed": 20,
+    "n_total": 14,
+    "n_passed": 14,
     "results": [
       {
-        "node_key": "discount_rate_vs_list",
-        "exists_live": true,
-        "still_not_computable": true
-      },
-      {
-        "node_key": "deal_size_trend_within_band",
-        "exists_live": true,
-        "still_not_computable": true
-      },
-      {
-        "node_key": "loss_reason_mix",
-        "exists_live": true,
-        "still_not_computable": true
-      },
-      {
         "node_key": "stage_to_stage_conversion",
-        "exists_live": true,
-        "still_not_computable": true
-      },
-      {
-        "node_key": "poc_pass_rate",
-        "exists_live": true,
-        "still_not_computable": true
-      },
-      {
-        "node_key": "renewal_win_rate",
         "exists_live": true,
         "still_not_computable": true
       },
@@ -275,12 +250,12 @@
         "still_not_computable": true
       },
       {
-        "node_key": "overage_realization",
+        "node_key": "loud_vs_silent_churn_mix",
         "exists_live": true,
         "still_not_computable": true
       },
       {
-        "node_key": "workflow_chain_underutilization",
+        "node_key": "time_to_respond_churn_risk_flag",
         "exists_live": true,
         "still_not_computable": true
       },
@@ -311,11 +286,6 @@
       },
       {
         "node_key": "wallet_share_progression",
-        "exists_live": true,
-        "still_not_computable": true
-      },
-      {
-        "node_key": "rep_capacity_ramp_mix",
         "exists_live": true,
         "still_not_computable": true
       },
@@ -949,96 +919,6 @@
   ],
   "data_gap_ranking": [
     {
-      "node_key": "workflow_chain_underutilization",
-      "label": "Workflow chain under-utilization",
-      "layer": 2,
-      "parent_key": "contraction_churned_revenue",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 4,
-      "blocks_full_layer1_metric": false,
-      "rationale": "fact_workflow_chain_events already exists but is not exposed through any mart_* table. Closing this one mart gap would also close its three Layer-3 children (ingestion_without_completion_rate, mid_chain_abandonment, full_vs_partial_chain_share) -- notably, analytics/playbook_triggers.py's own ingestion_without_completion rule already computes a version of this signal for its own purpose, so this project's own other artifacts have already done some of this work."
-    },
-    {
-      "node_key": "renewal_win_rate",
-      "label": "Renewal win rate",
-      "layer": 2,
-      "parent_key": "contraction_churned_revenue",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 3,
-      "blocks_full_layer1_metric": false,
-      "rationale": "Same opportunity-detail mart-exposure gap. Blocks its own two Layer-3 children (time_to_respond_churn_risk_flag, loud_vs_silent_churn_mix) as well -- closing the parent mart gap would also need those two leaves' own source events (a churn-risk-flag timestamp, an AM response timestamp) which are a separate, smaller gap on top."
-    },
-    {
-      "node_key": "discount_rate_vs_list",
-      "label": "Discount rate vs. list",
-      "layer": 3,
-      "parent_key": "avg_initial_commitment",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 1,
-      "blocks_full_layer1_metric": false,
-      "rationale": "Already named and scoped in the Pricing/packaging analytics methods-doc entry as a separate, already-flagged piece of work: fact_opportunities is confirmed to expose list_price/discount_rate/loss_reason; the fix is a Phase 2 mart change (expose the columns through a mart), not new Phase 1 data."
-    },
-    {
-      "node_key": "deal_size_trend_within_band",
-      "label": "Deal-size trend within segment band",
-      "layer": 3,
-      "parent_key": "avg_initial_commitment",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 1,
-      "blocks_full_layer1_metric": false,
-      "rationale": "Same already-scoped fix as discount_rate_vs_list -- see that entry."
-    },
-    {
-      "node_key": "loss_reason_mix",
-      "label": "Loss-reason mix",
-      "layer": 3,
-      "parent_key": "win_rate",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 1,
-      "blocks_full_layer1_metric": false,
-      "rationale": "Same already-scoped fix as discount_rate_vs_list -- loss_reason is the field this leaf needs."
-    },
-    {
-      "node_key": "stage_to_stage_conversion",
-      "label": "Stage-to-stage conversion",
-      "layer": 3,
-      "parent_key": "win_rate",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 1,
-      "blocks_full_layer1_metric": false,
-      "rationale": "Needs fact_opportunity_stage_history's stage-transition detail exposed through a mart -- the raw fact already exists (fact_opportunity_stage_history), it is simply outside the mart_*-only read scope Phase 4 code operates under. Same root cause as poc_pass_rate, renewal_win_rate and churn_reason_category below -- one mart change could close several of these at once."
-    },
-    {
-      "node_key": "poc_pass_rate",
-      "label": "POC pass rate (Enterprise)",
-      "layer": 3,
-      "parent_key": "win_rate",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 1,
-      "blocks_full_layer1_metric": false,
-      "rationale": "Same stage-history mart-exposure gap as stage_to_stage_conversion."
-    },
-    {
-      "node_key": "churn_reason_category",
-      "label": "Churn reason category (loud vs. silent)",
-      "layer": 2,
-      "parent_key": "logo_retention",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 1,
-      "blocks_full_layer1_metric": false,
-      "rationale": "Same opportunity-detail (loss_reason) mart-exposure gap as the other opportunity-mart leaves."
-    },
-    {
-      "node_key": "overage_realization",
-      "label": "Overage realization",
-      "layer": 2,
-      "parent_key": "expansion_consumption_revenue",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 1,
-      "blocks_full_layer1_metric": false,
-      "rationale": "fact_committed_vs_utilized_monthly already exists and mart_efficiency already consumes it internally (exposing only a derived utilisation-haircut margin) -- realised overage billing itself just needs its own mart exposure, not new raw data."
-    },
-    {
       "node_key": "cost_per_channel_activity",
       "label": "Cost per channel activity",
       "layer": 3,
@@ -1049,24 +929,14 @@
       "rationale": "The cost side now exists (mart_efficiency.sm_cost, from fact_rep_monthly_cost and fact_marketing_spend), and so do the activity counts it divides by (fact_leads for cost/MQL, fact_sales_activities for cost/SDR meeting). What is missing is a mart that joins channel-level cost to per-channel lead and meeting counts -- a Phase 2 mart change, not new raw data. It is the one node left blocked under Magic number."
     },
     {
-      "node_key": "rep_capacity_ramp_mix",
-      "label": "Rep capacity / ramp mix",
-      "layer": 3,
-      "parent_key": "win_rate",
-      "tier": "B_phase2_mart_exposure_only",
-      "blocked_node_count": 1,
-      "blocks_full_layer1_metric": false,
-      "rationale": "dim_reps and int_rep_capacity_periods already exist with the needed ramp/quota detail; win rate cut by rep ramp status just needs a mart that joins deal ownership to that detail. Distinct root cause from the opportunity-detail group above -- a different mart, not the same fix."
-    },
-    {
       "node_key": "account_health_score",
       "label": "Account health score",
       "layer": 2,
       "parent_key": "contraction_churned_revenue",
       "tier": "C_phase4_code_or_design_fix",
-      "blocked_node_count": 5,
+      "blocked_node_count": 1,
       "blocks_full_layer1_metric": false,
-      "rationale": "No new data and no new mart needed -- mart_account_health already carries everything. analytics/health_score.py's score_accounts() defines its scored population by customer_status = 'Active' (a final-status field), which biases a historical trailing series. Gating the population on churn_month > month instead (a code change to health_score.py, out of the variance-diagnostic engine's own scope per that entry's explicit note) would close this node and its four Layer-3 children -- the single largest node count closed by a pure code fix with zero new data anywhere in this catalog."
+      "rationale": "No new data and no new mart needed -- mart_account_health already carries everything. analytics/health_score.py's score_accounts() defines its scored population by customer_status = 'Active' (a final-status field) at a single as-of date, so no monthly history exists and a historical series would be biased. Gating the population on churn_month > month instead (a code change to health_score.py, out of the variance-diagnostic engine's own scope per that entry's explicit note) would make the composite a series. Its four Layer-3 inputs are already computed from mart_account_health but cannot be reached from a drill-down while the composite is blocked, so closing this node is what makes them appear."
     },
     {
       "node_key": "marketing_sales_handoff_quality",
@@ -1096,7 +966,47 @@
       "tier": "D_genuine_new_phase1_data",
       "blocked_node_count": 4,
       "blocks_full_layer1_metric": false,
-      "rationale": "Needs an estimate of an account's non-Acme workflow footprint (the wallet-share denominator) -- nothing in this project's raw data or marts estimates it. This is Expansion consumption revenue's ONLY Layer-2 driver (0 of 2 computable per the variance-diagnostic engine's own coverage table, once overage_realization above is also counted) -- closing this is what it would take for the Expansion branch to produce any drill-down evidence at all when it breaches variance, which today it structurally cannot."
+      "rationale": "Needs an estimate of an account's non-Acme workflow footprint (the wallet-share denominator) -- nothing in this project's raw data or marts estimates it. Of Expansion consumption revenue's two Layer-2 drivers, overage_realization is now computed, so this is the one blocked (1 of 2 computable per the variance-diagnostic engine's own coverage table): until it closes, an Expansion drill-down is a single-candidate read, not a sibling comparison."
+    },
+    {
+      "node_key": "stage_to_stage_conversion",
+      "label": "Stage-to-stage conversion",
+      "layer": 3,
+      "parent_key": "win_rate",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Not a mart gap: mart_deal_funnel and fact_opportunity_stage_history both expose the stage path, and every new-business deal logs every stage of its segment's path (SAL, SQO, Proposal/Negotiation, plus POC for Enterprise), won or lost, so conversion is 100% at every hop in every month. A real series needs the generator to let lost deals stop at the stage where they died, which is a Phase 1 change with its own QA-plan tests."
+    },
+    {
+      "node_key": "churn_reason_category",
+      "label": "Churn reason category (loud vs. silent)",
+      "layer": 2,
+      "parent_key": "logo_retention",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "No churn, subscription or account record carries a reason or mode field (loud cancellation versus silent non-renewal); tenure at churn is the only churn-event attribute. Needs a churn-reason field in the raw data, the same gap as loud_vs_silent_churn_mix."
+    },
+    {
+      "node_key": "loud_vs_silent_churn_mix",
+      "label": "Loud vs. silent churn mix",
+      "layer": 3,
+      "parent_key": "renewal_win_rate",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Needs each churn classified as an explicit cancellation or a non-renewal. Subscription status carries no mode field and a lost renewal's loss_reason (price, no_decision, competitive, other) is not that flag; the generator's abrupt-versus-gradual usage-decline switch is not persisted. Same gap as churn_reason_category."
+    },
+    {
+      "node_key": "time_to_respond_churn_risk_flag",
+      "label": "Time-to-respond on churn-risk flag",
+      "layer": 3,
+      "parent_key": "renewal_win_rate",
+      "tier": "D_genuine_new_phase1_data",
+      "blocked_node_count": 1,
+      "blocks_full_layer1_metric": false,
+      "rationale": "Needs a churn-risk flag timestamp and an AM response timestamp. fact_am_activity records AM touches but no churn-risk flag event exists to measure a response against."
     },
     {
       "node_key": "time_to_first_integration",
@@ -1136,7 +1046,7 @@
       "tier": "E_not_a_real_gap",
       "blocked_node_count": 1,
       "blocks_full_layer1_metric": false,
-      "rationale": "Not a gap of its own: the tree defines this node by reference ('See Growth -- expansion revenue drivers'), so it is computable exactly when Expansion consumption revenue's own drivers (wallet_share_progression, overage_realization, both catalogued above) are. AM cost, the other side of AM efficiency, is already a real input. No separate investment closes it."
+      "rationale": "Not a gap of its own: the tree defines this node by reference ('See Growth -- expansion revenue drivers'), so it is computable exactly when Expansion consumption revenue's own drivers are. Overage realization is computed (partial); wallet_share_progression, catalogued below, is the one driver still blocked. AM cost, the other side of AM efficiency, is already a real input. No separate investment closes it."
     },
     {
       "node_key": "account_specific_baseline_deviation",

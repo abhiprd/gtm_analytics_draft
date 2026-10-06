@@ -65,6 +65,8 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 
 - **Layer 2 coverage:** 3 of 3 children of this node have a computable actual.
 - **Layer 2 outlier:** Win rate (layer 2) - 0.425 this period vs. a 0.2563 trailing baseline (+65.8%), ranked by relative deviation; computability: computable.
+- **Persistence:** Not flagged: streak 0 of 2 months. Win rate is the largest Layer-2 outlier but is moving in the favorable direction, so there is no adverse streak.
+  - Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -72,35 +74,50 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 | 2 | Pipeline generated | 2 | 69 | 54.38 | +26.9% | computable |
 | 3 | Avg initial commitment | 2 | 5.503e+04 | 5.688e+04 | -3.3% | computable |
 
-- **Layer 3:** the tree has Layer-3 children here (branch depth 3), but none is computable from the reporting tables this period.
+- **Layer 3 evidence:** Rep capacity / ramp mix (layer 3), POC pass rate (Enterprise) (layer 3).
+
+| Rank | Layer-3 leaf | Layer | Value | Trailing baseline | Deviation |
+|---|---|---|---|---|---|
+| 1 | Rep capacity / ramp mix | 3 | 0.05 | 0.1002 | -50.1% |
+| 2 | POC pass rate (Enterprise) | 3 | 0.2222 | 0.3564 | -37.6% |
+| 3 | Loss-reason mix | 3 | 0.3913 | 0.3487 | +12.2% |
 - Note: Pipeline generated counts inbound-sourced leads converting to signup (PQL) across all three segments; Win rate and Avg initial commitment cover Commercial and Enterprise opportunities. Each sibling is ranked against its own trailing baseline and the three are not multiplied into a New logo figure.
-- Note: Win rate has Layer-3 children in the tree, but none is computable from the reporting tables; the missing leaves and reasons are listed with the drill-down.
 
 ### 2. Expansion consumption revenue - $491.2K vs. $129.1K plan (+280.5%, plan_diff)
 
-- **Layer 2 coverage:** 0 of 2 children of this node have a computable actual (single-candidate read, no sibling comparison).
-- **Layer 2 outlier:** none identified - no child of this node has a computable actual with a usable trailing baseline. The Layer-1 variance stands alone.
-
-- **Layer 3:** not reached - Layer-3 evidence hangs off a Layer-2 outlier and none was identified. The branch is 3 layers deep in the tree.
-- Note: No Layer-2 child of Expansion consumption revenue has a computable actual with a usable trailing baseline, so no outlier is identified. The Layer-1 variance stands alone; the missing children and reasons are listed with the drill-down.
-
-### 3. Contraction + churned revenue - $394.2K vs. $43.8K plan (+800.1%, plan_diff)
-
-- **Layer 2 coverage:** 1 of 4 children of this node have a computable actual (single-candidate read, no sibling comparison).
-- **Layer 2 outlier:** Cyclical/planned usage dip vs. structural churn (layer 2) - 0.0299 this period vs. a 0.02753 trailing baseline (+8.6%), ranked by relative deviation; computability: partial.
+- **Layer 2 coverage:** 1 of 2 children of this node have a computable actual (single-candidate read, no sibling comparison).
+- **Layer 2 outlier:** Overage realization (layer 2) - 0.3647 this period vs. a 0.3709 trailing baseline (-1.7%), ranked by relative deviation; computability: partial.
+- **Persistence:** Not applicable. Only one Layer-2 child has a computable value, so there is no sibling comparison and no streak is tracked.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
-| 1 | Cyclical/planned usage dip vs. structural churn | 2 | 0.0299 | 0.02753 | +8.6% | partial |
+| 1 | Overage realization | 2 | 0.3647 | 0.3709 | -1.7% | partial |
+
+- **Layer 3:** none - this branch is 3 layers deep in the metric tree.
+- Note: Single-candidate read: only 1 of 2 Layer-2 children of Expansion consumption revenue has a computable actual, so no sibling comparison is possible.
+- Note: Overage realization has no Layer-3 children in the metric tree; this branch is two layers deep.
+
+### 3. Contraction + churned revenue - $394.2K vs. $43.8K plan (+800.1%, plan_diff)
+
+- **Layer 2 coverage:** 3 of 4 children of this node have a computable actual.
+- **Layer 2 outlier:** Renewal win rate (layer 2) - 0.72 this period vs. a 0.9205 trailing baseline (-21.8%), ranked by relative deviation; computability: computable.
+- **Persistence:** Flagged: 3 consecutive months. Renewal win rate has been the largest adverse Layer-2 outlier against its own trailing baseline for 3 consecutive months, since 2025-04.
+  - Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.
+
+| Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
+|---|---|---|---|---|---|---|
+| 1 | Renewal win rate | 2 | 0.72 | 0.9205 | -21.8% | computable |
+| 2 | Workflow chain under-utilization | 2 | 0.06064 | 0.055 | +10.2% | partial |
+| 3 | Cyclical/planned usage dip vs. structural churn | 2 | 0.0299 | 0.02753 | +8.6% | partial |
 
 - **Layer 3:** the tree has Layer-3 children here (branch depth 3), but none is computable from the reporting tables this period.
-- Note: Single-candidate read: only 1 of 4 Layer-2 children of Contraction + churned revenue has a computable actual, so no sibling comparison is possible.
-- Note: Cyclical/planned usage dip vs. structural churn has Layer-3 children in the tree, but none is computable from the reporting tables; the missing leaves and reasons are listed with the drill-down.
+- Note: Renewal win rate has Layer-3 children in the tree, but none is computable from the reporting tables; the missing leaves and reasons are listed with the drill-down.
 
 ### 4. Magic number (blended) - 1.54x vs. 0.78x plan (+95.9%, plan_diff)
 
 - **Layer 2 coverage:** 1 of 1 children of this node have a computable actual (single-candidate read, no sibling comparison).
 - **Layer 2 outlier:** S&M cost (layer 2) - 1.475e+06 this period vs. a 1.425e+06 trailing baseline (+3.5%), ranked by relative deviation; computability: computable.
+- **Persistence:** Not applicable. Only one Layer-2 child has a computable value, so there is no sibling comparison and no streak is tracked.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -119,6 +136,8 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 
 - **Layer 2 coverage:** 2 of 2 children of this node have a computable actual.
 - **Layer 2 outlier:** CAC by channel (unblended) (layer 2) - 544.6 this period vs. a 768.2 trailing baseline (-29.1%), ranked by relative deviation; computability: partial.
+- **Persistence:** Not flagged: streak 0 of 2 months. CAC by channel (unblended) is the largest Layer-2 outlier but is moving in the favorable direction, so there is no adverse streak.
+  - Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -133,6 +152,8 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 
 - **Layer 2 coverage:** 2 of 2 children of this node have a computable actual.
 - **Layer 2 outlier:** Automated Action volume delivered (layer 2) - 1.359e+08 this period vs. a 1.154e+08 trailing baseline (+17.8%), ranked by relative deviation; computability: computable.
+- **Persistence:** Not flagged: streak 0 of 2 months. Automated Action volume delivered is the largest Layer-2 outlier but is moving in the favorable direction, so there is no adverse streak.
+  - Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -146,6 +167,7 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 
 - **Layer 2 coverage:** 1 of 2 children of this node have a computable actual (single-candidate read, no sibling comparison).
 - **Layer 2 outlier:** AM cost by segment (layer 2) - 2.209e+05 this period vs. a 2.048e+05 trailing baseline (+7.9%), ranked by relative deviation; computability: computable.
+- **Persistence:** Not applicable. Only one Layer-2 child has a computable value, so there is no sibling comparison and no streak is tracked.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -161,6 +183,8 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 - **Layer 2 coverage:** 3 of 3 children of this node have a computable actual.
 - **Layer 2 outlier:** See Growth: Expansion (share of starting revenue) (layer 2) - 0.07275 this period vs. a 0.1044 trailing baseline (-30.3%), ranked by additive share; computability: computable.
   - Cross-reference to Expansion consumption revenue under Growth, not an independent driver.
+- **Persistence:** Flagged: 5 consecutive months. See Growth: Expansion (share of starting revenue) has been the largest adverse Layer-2 outlier against its own trailing baseline for 5 consecutive months, since 2025-02.
+  - Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -179,6 +203,8 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 - **Layer 2 coverage:** 2 of 2 children of this node have a computable actual.
 - **Layer 2 outlier:** See Growth: Contraction (share of starting revenue) (layer 2) - 0.05692 this period vs. a 0.0555 trailing baseline (+2.6%), ranked by additive share; computability: computable.
   - Cross-reference to Contraction + churned revenue under Growth, not an independent driver.
+- **Persistence:** Flagged: 2 consecutive months. See Growth: Contraction (share of starting revenue) has been the largest adverse Layer-2 outlier against its own trailing baseline for 2 consecutive months, since 2025-05.
+  - Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.
 
 | Rank | Layer-2 sibling | Layer | Value | Trailing baseline | Deviation | Computability |
 |---|---|---|---|---|---|---|
@@ -1612,11 +1638,11 @@ _The readout reports a month; the forecast is quarter-grain. The section carries
 
 | Segment | Open deals | Open pipeline | Bottoms-up (rep) | Bottoms-up (manager) | ML | CRO-adjusted | Lens spread | Divergence |
 |---|---|---|---|---|---|---|---|---|
-| Commercial | 2 | $38.5K | $8.8K | $9.2K | $11.9K | $126.8K | 301.3% | diverges materially (widest: CRO-adjusted vs Bottoms-up (rep)) |
+| Commercial | 2 | $38.5K | $8.8K | $9.2K | $12.2K | $126.8K | 300.8% | diverges materially (widest: CRO-adjusted vs Bottoms-up (rep)) |
 
 - **Commercial:** CRO override +$117.6K filed (rep sandbagging pattern).
 - **No open deals scoped to 2025-Q2 after this call:** Enterprise.
-- **ML lens context:** out-of-time holdout AUC 0.859 against a 0.70-0.85 target (above the 0.70-0.85 target range), manager-category lookup baseline AUC 0.832, calibration gap -0.014 against +/-0.05 (within); fitted on 1,143 past forecast calls and held out on 381; model AUC is 1.032x the leak-proof manager-lookup AUC on the same held-out rows; not all pre-registered ML targets met.
+- **ML lens context:** out-of-time holdout AUC 0.860 against a 0.70-0.85 target (above the 0.70-0.85 target range), manager-category lookup baseline AUC 0.832, calibration gap -0.015 against +/-0.05 (within); fitted on 1,143 past forecast calls and held out on 381; model AUC is 1.034x the leak-proof manager-lookup AUC on the same held-out rows; not all pre-registered ML targets met.
 - **Divergence threshold:** spread > 25% of the mean of the computable lenses; proposed, not yet confirmed (non-vacuous and non-trivial on the backtest per the Forecast entry of the analytics methods document, not a derived number).
 - **Versus plan or quota:** not available - No plan or quota exists at the forecast's grain and unit (closed-won opportunity amount for Commercial and Enterprise, per quarter). The plan table states monthly MRR-movement plans at company grain, and quota history is per rep across all segments, so neither is comparable without a conversion that this readout and the forecast artifact do not own. The forecast artifact's own variance logic is the divergence flag between its lenses.
 - **Data window:** Forecast submissions end 2025-12-26 and the last opportunity closes 2025-12-28. This call's quarter (2025-Q2) ends before the window does, so the end-of-window effect on open-deal scoping does not apply.
@@ -1668,6 +1694,32 @@ _Accounts whose composite health score breaches the High-risk threshold, ranked 
 - Risk level is quantile-based over the scored active population, so the watchlist's segment mix follows the risk-level definition, not an ARR ranking.
 - Churn probability is a ranking signal, not a calibrated probability: class weighting in the health model shifts predicted probabilities upward systematically (see the health score's calibration note in docs/acme-corp-analytics-methods.md). It is not a literal likelihood of churn.
 
+## Segment mix
+
+**Commercial and Enterprise hold 83.5% of ending MRR (+2.0 pp against 12 months earlier).**
+
+_Segment shares are shares of company ending MRR in the reporting month. Migration rates are events per account in the source segment; graduated MRR is shown as a share of the source segment's MRR._
+
+| Segment | Ending MRR | Share of MRR | vs. prior month | vs. 12 months earlier |
+|---|---|---|---|---|
+| SMB | $1.13M | 16.5% | -0.4 pp | -2.0 pp |
+| Commercial | $1.40M | 20.4% | +1.0 pp | +3.5 pp |
+| Enterprise | $4.34M | 63.2% | -0.6 pp | -1.5 pp |
+
+| Migration | Events (month) | Rate (month) | Events (12 months) | Rate (12 months) | Rate (12 months earlier) | Change | Graduated MRR (12 months) | Share of source-segment MRR (12 months) |
+|---|---|---|---|---|---|---|---|---|
+| SMB to Commercial | 38 | 1.0% | 253 | 7.7% | 5.4% | +2.3 pp | $436.2K | 47.3% |
+| Commercial to Enterprise | 2 | 0.3% | 21 | 4.6% | 5.1% | -0.4 pp | $306.4K | 32.0% |
+
+- **Basis:** Each segment's share of company ending MRR, with share changes against the prior month and the same month a year earlier, beside migration velocity (migration events divided by the source segment's accounts) and graduated MRR (MRR reclassified out of the source segment) as a share of the source segment's MRR. Monthly rates cover one month and trailing rates cover 12 months, so the two are not comparable with each other.
+- **Data window:** The evaluation month is a complete month before the final month of the data window; the final month, which is truncated, is not reported.
+- Migration only moves accounts up (SMB to Commercial, Commercial to Enterprise; there is no downgrade path), so migration counts and graduated MRR rise with the base. The rates and the segment shares are the comparable measures.
+- A segment's share of MRR also moves with expansion, contraction and churn inside each segment, not only with migration. A migrating account takes its whole MRR to the higher segment.
+- Velocity divides events by the source segment's average starting accounts over the window; graduated MRR is divided by the source segment's average starting MRR over the window. A 12-month flow against an average base can exceed 100% when the base is replenished by new logos and expansion.
+- The final month of the data window is not a representative month (each active account's last observed month is bucketed as contraction), so the section is unavailable for it.
+- Graduated MRR over 12 months is a flow set against an average base, so its share of the source segment's MRR can exceed 100%. The accounts that migrate are large for their segment: SMB accounts that moved to Commercial carried about 6 times the MRR of the average SMB account, and the $436K that left SMB is 39% of ending SMB MRR and 61% of SMB MRR 12 months earlier.
+- The upmarket share of MRR rises partly because existing accounts are reclassified upward: the $436K that moved from SMB to Commercial over 12 months is 6.4% of company ending MRR, more than the +2.0 pp change in the upmarket share over the same period. The share answers where MRR is booked more than who the company is selling to.
+
 ## Provenance
 
 Assembled by `analytics/weekly_readout.py`. Computation performed during assembly: **none** - every figure above is read verbatim from the artifact that owns it and is re-checked against that artifact field by field.
@@ -1679,9 +1731,10 @@ Assembled by `analytics/weekly_readout.py`. Computation performed during assembl
 | watchlist | `analytics/variance_diagnostic.py -> analytics/health_score.py` | `run_diagnostic()['watchlist'] (build_watchlist -> score_accounts)` |
 | playbook_triggers | `analytics/playbook_triggers.py` | `run_playbook_triggers(as_of_date) + with_known_outcomes()` |
 | forecast | `analytics/forecast.py` | `latest_forecast_call_date(reporting_period_end); run_forecast(forecast_call_date)` |
+| segment_mix | `analytics/segment_migration.py` | `compute_segment_mix(evaluation_month)` |
 | source_coverage | `analytics/variance_diagnostic.py` | `run_diagnostic()['coverage']` |
 | data_window | `analytics/variance_diagnostic.py` | `run_diagnostic()['data_window']` |
 
 - Metric definitions: docs/acme-corp-gtm-metric-tree.md (via variance_diagnostic._TREE)
 - Variance threshold: +/-8%, proposed and not yet confirmed -- build spec Section 7 lists the drill-down threshold as an open question. This readout consumes the engine's threshold; it does not set or override one.
-- Segment migration: analytics/segment_migration.py is Wave 1's third artifact and is not a source for any section of this readout. Its outputs (migration velocity, trigger-reason mix, graduated revenue) are population-level descriptive series that the build spec's readout structure has no section for -- graduated revenue is deliberately excluded from the source segment's churn/contraction, so it does not belong in the Growth scorecard rows either. Stated here rather than left as a silent omission.
+- Segment migration: analytics/segment_migration.py is the source of the segment-mix section only: migration velocity and graduated MRR beside each segment's share of ending MRR. Graduated revenue is deliberately excluded from the source segment's churn/contraction, so it does not enter the Growth scorecard rows, and the trigger-reason mix and time-in-segment distributions are not in the readout.

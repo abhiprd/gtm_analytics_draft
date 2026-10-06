@@ -366,7 +366,7 @@ class TestBuildTimeValidation:
         out = wr.run_build_time_validation(date(2025, 11, 30), write=False, log=True,
                                            out_dir=str(tmp_path))
         names = {c["name"]: c for c in out["trace_checks"] + out["render_checks"]}
-        assert out["checks_passed"] == out["checks_total"] == 26
+        assert out["checks_passed"] == out["checks_total"] == 33
         for n in ("forecast_section_is_built_and_declares_its_status",
                   "forecast_traces_exactly_to_a_fresh_run",
                   "forecast_section_rendered_per_status",

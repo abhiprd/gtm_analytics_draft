@@ -2,8 +2,10 @@
 evaluation month (company-wide/blended, matching what the Layer-1
 scorecard displays); source marts: mart_gtm_plan (plan side),
 mart_growth_bridge / mart_efficiency / mart_durability (actuals side, all
-segment x month, blended here), mart_account_health (Layer-2 evidence
-and the watchlist population), and, for Pipeline generated and its channel
+segment x month, blended here), mart_deal_funnel / mart_workflow_chain_health /
+mart_consumption_utilization (the deal-level, workflow-chain and overage
+Layer-2/3 evidence), mart_account_health (Layer-2 evidence, the account-health
+inputs and the watchlist population), and, for Pipeline generated and its channel
 legs, fact_leads / fact_campaign_engagement_events read through
 analytics/marketing_attribution.py's validated lead panel (never a second
 copy of that logic).
@@ -47,6 +49,20 @@ impossible here structurally rather than by care:
     `layer3_status="branch_depth_2"` and an empty evidence list -- a
     Layer 3 is never fabricated to force symmetry.
 
+PERSISTENCE -- IS IT WEATHER OR A TREND?
+-----------------------------------------
+Each drill-down also carries a `persistence` record (compute_persistence()):
+how many consecutive months, ending at the evaluation month, the SAME Layer-2
+driver has been the largest adverse outlier against its own trailing baseline,
+among at least 2 computable siblings. The record is flagged when that streak
+reaches K_PERSISTENCE (PROPOSED, not yet confirmed) and is `not_applicable` for
+a single-candidate read, a branch with no outlier, a driver with no defined
+adverse direction, or the truncated final month. It is computed here, not in
+the readout, and validated by a known-streak scenario suite
+(run_persistence_scenarios) and a real-data profile
+(measure_persistence_selectivity) whose result is recorded as measured in the
+methods doc.
+
 SCOPE RESOLUTION -- PLAYBOOK TRIGGERS ARE NOT BUILT HERE
 --------------------------------------------------------
 Build spec Section 5's Phase 4 prose bundles "playbook triggers" into
@@ -70,10 +86,11 @@ indirect: the watchlist calls analytics/health_score.py, which seeds its
 own model via that module's `_RANDOM_SEED = 42`. This module does not
 fit, re-fit, or replace that model; it consumes its scored output.
 """
+import math
 import os
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence
 
 import duckdb
 import numpy as np
@@ -158,6 +175,17 @@ _PAYBACK_BLEND_SEGMENTS = ("Commercial", "Enterprise")
 # cost and an AM (SMB is no-touch; the benchmark table marks it n/a for
 # magic number, and AM efficiency has no denominator there).
 _COST_BLEND_SEGMENTS = ("Commercial", "Enterprise")
+
+# PROPOSED, NOT YET CONFIRMED. The persistence flag (see compute_persistence()
+# below) fires when the SAME Layer-2 driver has been the adverse outlier
+# against its own trailing baseline for at least this many consecutive months,
+# counting back from the evaluation month. Two is the smallest streak that
+# separates "persisting" from "a single month's noise" and the owner's stated
+# decision for the "weather versus decision" question; it is not derived from a
+# loss function, and the real-data selectivity it produces is measured by
+# measure_persistence_selectivity() and recorded in
+# docs/acme-corp-analytics-methods.md rather than tuned to a target rate.
+K_PERSISTENCE = 2
 
 
 # =====================================================================
@@ -333,9 +361,25 @@ _NO_LEAD_RECYCLING_HISTORY = (
     "has one creation date and no status changes; lead re-scoring history carries no "
     "nurture or recycling disposition, so a re-score is not treated as a re-qualification."
 )
-_NO_OPPORTUNITY_MART = (
-    "Needs opportunity-level detail (stage history, loss reason, list price, renewal flag). "
-    "No reporting table exposes it; closing the gap needs a new reporting table."
+_STAGE_CONVERSION_DEGENERATE = (
+    "Degenerate by construction: every new-business deal logs every stage of its segment's "
+    "path (SAL, SQO, Proposal/Negotiation, plus POC for Enterprise), won or lost, so the "
+    "share of deals advancing at each hop is 100% in every month and carries no variance "
+    "signal. Deals differ in how long they spend in each stage, not in whether they reach "
+    "it. Same treatment as Onboarding completion rate, which is 1.0 in every month."
+)
+_NO_LOUD_SILENT_CHURN_FLAG = (
+    "Needs each churn classified as an explicit cancellation (loud) or a non-renewal "
+    "(silent). No record carries that classification: subscription status is "
+    "active, churned, renewed, expanded or contracted with no reason or mode field, and a "
+    "lost renewal opportunity records a loss reason (price, no decision, competitive, other) "
+    "that is not a cancellation-versus-lapse flag. The generator's abrupt-versus-gradual "
+    "usage-decline switch is not persisted in any table."
+)
+_NO_CHURN_REASON_CATEGORY = (
+    "Needs a churn reason per churned account, loud (explicit cancellation) versus silent "
+    "(non-renewal). No churn, subscription or account record carries a reason or mode "
+    "field, so tenure at churn is the only churn-event attribute available."
 )
 _NO_CHANNEL_ACTIVITY_MART = (
     "Cost per channel activity (cost per MQL, cost per SDR meeting) needs channel spend "
@@ -344,9 +388,97 @@ _NO_CHANNEL_ACTIVITY_MART = (
 )
 _NO_UPSTREAM_EXPANSION_DRIVERS = (
     "Defined by reference in the metric tree ('See Growth \u2014 expansion revenue "
-    "drivers'). The drivers, Wallet share progression and Overage realization, are not "
-    "computable (see their gap notes), so this node stays blocked. AM cost, the other side "
-    "of the ratio, is a computed input."
+    "drivers'), so it has no series of its own. Of the two drivers it points to, Overage "
+    "realization is computed (as overage share of MRR, partial), but Wallet share "
+    "progression has no footprint denominator (see its gap note), so the driver pair cannot "
+    "be recombined into the expansion figure and the reference stays blocked. AM cost, the "
+    "other side of the ratio, is a computed input."
+)
+
+# Computability notes for the nodes wired to mart_deal_funnel,
+# mart_workflow_chain_health and mart_consumption_utilization. Each states
+# the series definition and its limits; the registry mirrors the same
+# definitions in semantic/build_registry.py.
+_POC_PASS_NOTE = (
+    "Enterprise only, as the tree specifies: passed POCs over closed new-business "
+    "opportunities (won or lost) with a POC outcome, by close month. Monthly n is small "
+    "(about 10-15 per month from 2023, fewer before), so the series is noisy and months "
+    "with fewer than 5 outcomes are left blank. A POC can fail on a won deal (22 of 113 "
+    "Enterprise wins), so a failed POC is not a lost deal."
+)
+_LOSS_REASON_NOTE = (
+    "Scalar view of a three-way mix: the competitive share of lost new-business "
+    "opportunities (Commercial and Enterprise, by close month). The tree names competitive, "
+    "no-decision and price; a single share cannot show a shift between the other reasons, "
+    "which the mart carries as counts."
+)
+_RAMP_MIX_NOTE = (
+    "Share of closed (won or lost) new-business opportunities, Commercial and Enterprise "
+    "combined, that were created within 180 days of the owning rep's hire date (the "
+    "ramp window rep productivity uses). Approximate: the owner on an opportunity is the "
+    "current owner after any reassignment on a rep's departure, so ramp attribution is not "
+    "exact. Blank before 2023-01, the first month with a logged lost deal: earlier months "
+    "hold won deals only."
+)
+_DISCOUNT_NOTE = (
+    "Amount-weighted discount on won new-business deals (1 - won amount / won list price), "
+    "Commercial and Enterprise combined. List price is generated as amount / (1 - discount "
+    "rate), so discount versus list is an identity up to rounding rather than an "
+    "independent observation: it is a faithful read of the discount rate, not a separate "
+    "check on pricing."
+)
+_DEAL_SIZE_NOTE = (
+    "Share of won new-business deals (Commercial and Enterprise, won-count weighted) whose "
+    "amount sits at or below the segment's ACV band floor. Deal amounts are clipped to the "
+    "band at generation, so the share measures how often the clip binds: 53% of Commercial "
+    "wins sit at the floor and no Enterprise win does. Variation inside the band is "
+    "compressed, and the combined share also moves with the Commercial/Enterprise win mix."
+)
+_RENEWAL_WIN_NOTE = (
+    "Closed-won renewal opportunities over closed renewals, Commercial and Enterprise "
+    "(SMB has no renewal opportunities), by close month. Renewal opportunities begin in "
+    "2021-02."
+)
+_WORKFLOW_CHAIN_CENSOR_NOTE = (
+    " Partial chains are a pre-churn state (in the data only accounts within 5 months of "
+    "churning ever have one), so the series falls away at the end of the data window, "
+    "where future churners are not yet present; the last 5 months of the window are left "
+    "blank rather than read as an improvement."
+)
+_WORKFLOW_CHAIN_NOTE = (
+    "Breadth, not volume: the share of accounts with a workflow chain in the month whose "
+    "full-chain completion rate (downstream over upstream Actions) is below 0.70, all three "
+    "segments combined (SMB is most of the accounts). The 0.70 cut is the playbook rule's "
+    "value, proposed and not confirmed." + _WORKFLOW_CHAIN_CENSOR_NOTE
+)
+_INGESTION_NOTE = (
+    "Actions-weighted: 1 - downstream Actions / upstream Actions summed over all accounts, "
+    "all three segments combined. A ratio of sums, so it weights accounts by volume where "
+    "the Layer-2 breadth counts each account once." + _WORKFLOW_CHAIN_CENSOR_NOTE
+)
+_MID_CHAIN_NOTE = (
+    "Share of chain accounts partial (below 0.70 completion) in this month and in the "
+    "calendar-prior month, all segments combined. A subset of the Layer-2 breadth, using "
+    "the playbook rule's two-consecutive-month idea; the 0.70 cut is proposed, not "
+    "confirmed." + _WORKFLOW_CHAIN_CENSOR_NOTE
+)
+_FULL_VS_PARTIAL_NOTE = (
+    "Share of chain accounts at or above the 0.70 completion cut, all segments combined. "
+    "Exactly the complement of the Layer-2 breadth, so it adds no information beyond that "
+    "node's partial share; it is kept because the tree names it." + _WORKFLOW_CHAIN_CENSOR_NOTE
+)
+_OVERAGE_NOTE = (
+    "Overage billing realized against usage over committed minimums, as overage share of "
+    "MRR in dollars (overage MRR over total MRR), Commercial and Enterprise. A realization "
+    "rate is 100% on every account-month: billed MRR equals unit price times the larger of "
+    "committed and utilized Actions, so all overage usage is billed. The "
+    "dollar share is the series with variance in it. From 2021 it runs 16-42% of MRR "
+    "(mean 32%) because utilization exceeds commitment on about 90-93% of committed "
+    "Commercial and Enterprise account-months."
+)
+_HEALTH_INPUT_REACHABILITY = (
+    " This node sits under the Account health score, which is not computable, so it can "
+    "never be reached from a Layer-2 outlier and does not appear in a drill-down."
 )
 
 # ---------------------------------------------------------------- Growth
@@ -366,20 +498,17 @@ _child("community_events", "Community/events", "pipeline_generated", COMPUTABLE)
 
 _child("win_rate", "Win rate", "new_logo_consumption_revenue", COMPUTABLE)
 _child("stage_to_stage_conversion", "Stage-to-stage conversion", "win_rate",
-       NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
-_child("poc_pass_rate", "POC pass rate (Enterprise)", "win_rate",
-       NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
-_child("rep_capacity_ramp_mix", "Rep capacity / ramp mix", "win_rate",
-       NOT_COMPUTABLE,
-       "Needs rep-level quota and ramp joined to deal ownership; no reporting table "
-       "exposes win rate by rep ramp status.")
-_child("loss_reason_mix", "Loss-reason mix", "win_rate", NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
+       NOT_COMPUTABLE, _STAGE_CONVERSION_DEGENERATE)
+_child("poc_pass_rate", "POC pass rate (Enterprise)", "win_rate", PARTIAL, _POC_PASS_NOTE)
+_child("rep_capacity_ramp_mix", "Rep capacity / ramp mix", "win_rate", PARTIAL,
+       _RAMP_MIX_NOTE)
+_child("loss_reason_mix", "Loss-reason mix", "win_rate", PARTIAL, _LOSS_REASON_NOTE)
 
 _child("avg_initial_commitment", "Avg initial commitment", "new_logo_consumption_revenue", COMPUTABLE)
 _child("discount_rate_vs_list", "Discount rate vs. list", "avg_initial_commitment",
-       NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
+       PARTIAL, _DISCOUNT_NOTE)
 _child("deal_size_trend_within_band", "Deal-size trend within segment band",
-       "avg_initial_commitment", NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
+       "avg_initial_commitment", PARTIAL, _DEAL_SIZE_NOTE)
 
 _child("marketing_sales_handoff_quality", "Marketing-sales handoff quality",
        "new_logo_consumption_revenue", NOT_COMPUTABLE,
@@ -455,39 +584,50 @@ _child("existing_account_community_engagement", "Existing-account community enga
        "wallet_share_progression", NOT_COMPUTABLE,
        "The community-membership source in the build spec was not generated.")
 _child("overage_realization", "Overage realization", "expansion_consumption_revenue",
-       NOT_COMPUTABLE,
-       "Needs committed versus utilized Action volume, which no reporting table exposes (the "
-       "efficiency table uses it only inside a utilization-haircut margin, not as realized "
-       "overage billing). Closing the gap needs a new reporting table.")
+       PARTIAL, _OVERAGE_NOTE)
 
 _l1("contraction_churned_revenue", "Contraction + churned revenue", "growth",
     "lower", COMPARABLE)
 _child("workflow_chain_underutilization", "Workflow chain under-utilization",
-       "contraction_churned_revenue", NOT_COMPUTABLE,
-       "Workflow-chain events are not exposed through any reporting table, so "
-       "upstream-versus-downstream Action completion is not available.")
+       "contraction_churned_revenue", PARTIAL, _WORKFLOW_CHAIN_NOTE)
 _child("ingestion_without_completion_rate", "Ingestion-without-completion rate",
-       "workflow_chain_underutilization", NOT_COMPUTABLE, "Same gap as the parent node.")
+       "workflow_chain_underutilization", COMPUTABLE, _INGESTION_NOTE)
 _child("mid_chain_abandonment", "Mid-chain workflow abandonment",
-       "workflow_chain_underutilization", NOT_COMPUTABLE, "Same gap as the parent node.")
+       "workflow_chain_underutilization", PARTIAL, _MID_CHAIN_NOTE)
 _child("full_vs_partial_chain_share", "Declining share of full-chain vs. partial-chain runs",
-       "workflow_chain_underutilization", NOT_COMPUTABLE, "Same gap as the parent node.")
+       "workflow_chain_underutilization", PARTIAL, _FULL_VS_PARTIAL_NOTE)
 
 _child("account_health_score", "Account health score", "contraction_churned_revenue",
        NOT_COMPUTABLE,
-       "Not available as a point-in-time trailing series. The health score population is "
-       "defined by final account status (Active), so scoring a past month would drop "
-       "accounts that churned later, which biases older months upward and creates a "
-       "spurious deterioration trend. A usable series needs the score population gated on "
-       "churn month instead. The current-month score is used for the watchlist.")
+       "The composite is a churn-model score computed at a single as-of date over the "
+       "currently active accounts; no artifact or reporting table holds it as a monthly "
+       "history. Scoring a past month would need the score "
+       "population gated on churn month, because defining it by final account status "
+       "(Active) drops accounts that churned later, biases older months upward and "
+       "creates a spurious deterioration trend. The current-month score feeds the "
+       "watchlist. Its four inputs are computed separately (see their notes) but cannot "
+       "be reached from a drill-down while this node is blocked.")
 _child("usage_trend_account_relative", "Usage trend (account-relative baseline)",
-       "account_health_score", NOT_COMPUTABLE, "Same gap as the parent node.")
+       "account_health_score", PARTIAL,
+       "The same signal as the usage-dip breadth under Cyclical/planned usage dip: the "
+       "share of active accounts whose trailing 3-month mean Actions sits below 70% of "
+       "their own cumulative mean. A breadth measure, not a per-account trend slope; all "
+       "three segments combined." + _HEALTH_INPUT_REACHABILITY)
 _child("support_ticket_volume_severity", "Support ticket volume / severity",
-       "account_health_score", NOT_COMPUTABLE, "Same gap as the parent node.")
+       "account_health_score", PARTIAL,
+       "Severity-weighted ticket load: the sum of each month's ticket severity scores "
+       "(ticket count times average severity, low=1 to critical=4) per active account, all "
+       "three segments combined. One scalar standing for two attributes (volume and "
+       "severity); the mart carries both separately." + _HEALTH_INPUT_REACHABILITY)
 _child("engagement_login_frequency", "Engagement / login frequency",
-       "account_health_score", NOT_COMPUTABLE, "Same gap as the parent node.")
-_child("am_sentiment_notes", "AM sentiment notes", "account_health_score",
-       NOT_COMPUTABLE, "Same gap as the parent node.")
+       "account_health_score", COMPUTABLE,
+       "Mean logins per active account-month, all three segments combined (a real 0 for "
+       "an account with no login that month)." + _HEALTH_INPUT_REACHABILITY)
+_child("am_sentiment_notes", "AM sentiment notes", "account_health_score", PARTIAL,
+       "Mean AM sentiment score over the account-months that have one. Sentiment exists "
+       "only where an AM touchpoint was logged: absent for 96% of SMB account-months "
+       "(SMB has no AM), 53% of Commercial and 28% of Enterprise account-months, so the "
+       "covered population shifts with AM touch cadence." + _HEALTH_INPUT_REACHABILITY)
 
 _child("cyclical_vs_structural_usage_dip", "Cyclical/planned usage dip vs. structural churn",
        "contraction_churned_revenue", PARTIAL,
@@ -506,12 +646,12 @@ _child("cohort_comparison", "Cohort comparison (same account type, same period l
        "No reporting table exposes an account-type by usage-cycle cohort baseline.")
 
 _child("renewal_win_rate", "Renewal win rate", "contraction_churned_revenue",
-       NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
+       COMPUTABLE, _RENEWAL_WIN_NOTE)
 _child("time_to_respond_churn_risk_flag", "Time-to-respond on churn-risk flag",
        "renewal_win_rate", NOT_COMPUTABLE,
        "Needs churn-risk flag events joined to AM response; no reporting table exposes them.")
 _child("loud_vs_silent_churn_mix", "Loud vs. silent churn mix", "renewal_win_rate",
-       NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
+       NOT_COMPUTABLE, _NO_LOUD_SILENT_CHURN_FLAG)
 
 # ------------------------------------------------------------ Efficiency
 
@@ -577,9 +717,13 @@ _child("cac_by_channel", "CAC by channel (unblended)", "consumption_payback", PA
        "responsible channel.")
 _child("utilized_vs_committed_action_volume", "Utilized vs. committed Action volume",
        "consumption_payback", PARTIAL,
-       "Exposed only as average utilized margin per account (MRR reduced by the "
-       "utilized-to-committed ratio, times the flat 80% gross margin). The raw ratio is not "
-       "exposed separately, so movement can come from utilization or from the MRR base.")
+       "Ranked as average utilized margin per account (MRR reduced by the "
+       "utilized-to-committed ratio, times the flat 80% gross margin), so movement can come "
+       "from utilization or from the MRR base. The raw committed and utilized Action sums are "
+       "now available (Commercial and Enterprise) but this leg still ranks the margin series, "
+       "which is what Consumption payback itself is built on. Utilization is above commitment "
+       "on about 93% of Commercial and Enterprise account-months, so the utilized-only "
+       "haircut in the margin is close to a no-op.")
 
 _l1("onboarding_cs_efficiency", "Onboarding/CS efficiency (blended)", "efficiency",
     "lower", COMPARABLE)
@@ -663,7 +807,7 @@ _l1("logo_retention", "Logo retention", "durability", "higher", COMPARABLE)
 _child("tenure_at_churn", "Tenure-at-churn (early vs. late lifecycle)", "logo_retention",
        COMPUTABLE)
 _child("churn_reason_category", "Churn reason category (loud vs. silent)", "logo_retention",
-       NOT_COMPUTABLE, _NO_OPPORTUNITY_MART)
+       NOT_COMPUTABLE, _NO_CHURN_REASON_CATEGORY)
 
 
 # =====================================================================
@@ -815,13 +959,15 @@ def load_account_health(as_of_date: date, con=None) -> pd.DataFrame:
     """Grain: one row per account_id per month, month <= as_of_date.
     Source mart: mart_account_health. Only backward-looking columns are
     used for series construction -- customer_status / is_eventually_churned
-    are final-status fields and would leak."""
+    are final-status fields and would leak. The ticket, login and sentiment
+    columns are that month's own events."""
     owns = con is None
     con = con or _connect()
     try:
         df = con.execute(
             "select account_id, month, segment, actions_consumed, "
-            "account_tenure_days, churn_month "
+            "account_tenure_days, churn_month, ticket_count, avg_ticket_severity_score, "
+            "login_count, avg_am_sentiment_score "
             "from main_marts.mart_account_health where month <= ?", [as_of_date]).df()
     finally:
         if owns:
@@ -829,6 +975,37 @@ def load_account_health(as_of_date: date, con=None) -> pd.DataFrame:
     df["month"] = pd.to_datetime(df["month"])
     df["churn_month"] = pd.to_datetime(df["churn_month"])
     return df
+
+
+def _load_month_mart(table: str, as_of_date: date, con=None) -> pd.DataFrame:
+    owns = con is None
+    con = con or _connect()
+    try:
+        df = con.execute(
+            f"select * from main_marts.{table} where month <= ?", [as_of_date]).df()
+    finally:
+        if owns:
+            con.close()
+    df["month"] = pd.to_datetime(df["month"])
+    return df
+
+
+def load_deal_funnel(as_of_date: date, con=None) -> pd.DataFrame:
+    """Grain: one row per segment (Commercial, Enterprise) per close month,
+    month <= as_of_date. Source mart: mart_deal_funnel."""
+    return _load_month_mart("mart_deal_funnel", as_of_date, con)
+
+
+def load_workflow_chain_health(as_of_date: date, con=None) -> pd.DataFrame:
+    """Grain: one row per segment (all three) per month, month <= as_of_date.
+    Source mart: mart_workflow_chain_health."""
+    return _load_month_mart("mart_workflow_chain_health", as_of_date, con)
+
+
+def load_consumption_utilization(as_of_date: date, con=None) -> pd.DataFrame:
+    """Grain: one row per segment (Commercial, Enterprise) per month,
+    month <= as_of_date. Source mart: mart_consumption_utilization."""
+    return _load_month_mart("mart_consumption_utilization", as_of_date, con)
 
 
 # =====================================================================
@@ -977,7 +1154,8 @@ def build_child_series(parent_key: str, as_of_date: date, con=None) -> Dict[str,
     """Monthly series for every COMPUTABLE child of `parent_key`, keyed
     by that child's own tree key. Grain: one value per month <=
     as_of_date. Source marts: mart_growth_bridge, mart_efficiency,
-    mart_durability, mart_account_health. Children with no mart-computable
+    mart_durability, mart_account_health, mart_deal_funnel,
+    mart_workflow_chain_health, mart_consumption_utilization. Children with no mart-computable
     actual are simply absent from the returned dict -- their gap_note in
     the tree is what gets reported, never a substituted proxy."""
     owns = con is None
@@ -999,7 +1177,9 @@ def _build_child_series(parent_key: str, as_of_date: date, con) -> Dict[str, pd.
         closed = (rep["won"] + rep["lost"]).replace(0, np.nan)
         return {
             "pipeline_generated": _pipeline_generated_series(as_of_date, con)["pipeline_generated"],
-            "win_rate": rep["won"] / closed,
+            # blank before the first logged loss: with no lost deals on record the
+            # "win rate" is a fake 100% (see _from_first_logged_loss)
+            "win_rate": _from_first_logged_loss(rep["won"] / closed, rep["lost"]),
             "avg_initial_commitment": rep["bookings"] / rep["won"].replace(0, np.nan),
         }
 
@@ -1013,11 +1193,32 @@ def _build_child_series(parent_key: str, as_of_date: date, con) -> Dict[str, pd.
             activated=("activated_count", "sum"), cohort=("signup_cohort_size", "sum"))
         return {"onboarding_completion_rate": a["activated"] / a["cohort"].replace(0, np.nan)}
 
+    if parent_key == "win_rate":
+        return _win_rate_leaf_series(as_of_date, con)
+
+    if parent_key == "avg_initial_commitment":
+        return _avg_commitment_leaf_series(as_of_date, con)
+
     if parent_key == "expansion_consumption_revenue":
+        return {"overage_realization": _overage_share_series(as_of_date, con)}
+
+    if parent_key == "overage_realization":
         return {}
 
     if parent_key == "contraction_churned_revenue":
-        return {"cyclical_vs_structural_usage_dip": _usage_dip_breadth_series(as_of_date, con)}
+        return {
+            "cyclical_vs_structural_usage_dip": _usage_dip_breadth_series(as_of_date, con),
+            "workflow_chain_underutilization": _workflow_chain_breadth_series(as_of_date, con),
+            "renewal_win_rate": _renewal_win_rate_series(as_of_date, con),
+        }
+
+    if parent_key == "workflow_chain_underutilization":
+        return _workflow_chain_leaf_series(as_of_date, con)
+
+    if parent_key == "account_health_score":
+        # Reachable only if a future change makes the composite computable:
+        # the composite is NOT_COMPUTABLE, so no Layer-2 outlier can be it.
+        return _account_health_input_series(as_of_date, con)
 
     if parent_key == "consumption_payback":
         eff = load_efficiency(as_of_date, con=con)
@@ -1143,6 +1344,88 @@ def reconcile_pipeline_generated_branch(as_of_date: date, con=None) -> dict:
     }
 
 
+# Which engine node each column of the three deal-funnel / workflow-chain /
+# consumption-utilization marts feeds. A column is either mapped to the node(s)
+# whose series it builds, or listed in WAVE10_MART_UNUSED_COLUMNS with the
+# reason the engine does not read it, so a new mart column cannot sit
+# unaccounted for and a node cannot stay NOT_COMPUTABLE while a mart column
+# already feeds it (stale_markings_against_wave10_marts()).
+WAVE10_MART_NODE_MAP: Dict[str, Dict[str, Sequence[str]]] = {
+    "mart_deal_funnel": {
+        "new_business_won_count": ("rep_capacity_ramp_mix", "deal_size_trend_within_band"),
+        "new_business_lost_count": ("loss_reason_mix", "rep_capacity_ramp_mix"),
+        "lost_competitive_count": ("loss_reason_mix",),
+        "won_amount_sum": ("discount_rate_vs_list",),
+        "won_list_price_sum": ("discount_rate_vs_list",),
+        "share_won_at_band_floor": ("deal_size_trend_within_band",),
+        "poc_pass_count": ("poc_pass_rate",),
+        "poc_fail_count": ("poc_pass_rate",),
+        "closed_by_ramping_rep_count": ("rep_capacity_ramp_mix",),
+        "renewal_won_count": ("renewal_win_rate",),
+        "renewal_lost_count": ("renewal_win_rate",),
+    },
+    "mart_workflow_chain_health": {
+        "upstream_actions_sum": ("ingestion_without_completion_rate",),
+        "ingestion_without_completion_actions_sum": ("ingestion_without_completion_rate",),
+        "accounts_with_chain": ("workflow_chain_underutilization", "mid_chain_abandonment",
+                                "full_vs_partial_chain_share"),
+        "partial_chain_account_count": ("workflow_chain_underutilization",),
+        "full_chain_account_count": ("full_vs_partial_chain_share",),
+        "sustained_partial_account_count": ("mid_chain_abandonment",),
+    },
+    "mart_consumption_utilization": {
+        "overage_mrr": ("overage_realization",),
+        "total_mrr": ("overage_realization",),
+    },
+}
+
+# Mart columns the engine does not read, each with the reason. Key columns
+# (segment, month) are not listed.
+WAVE10_MART_UNUSED_COLUMNS: Dict[str, Dict[str, str]] = {
+    "mart_deal_funnel": {
+        "lost_no_decision_count": "part of the three-way loss mix; Loss-reason mix is the competitive share only",
+        "lost_price_count": "part of the three-way loss mix; Loss-reason mix is the competitive share only",
+        "lost_other_count": "part of the three-way loss mix; Loss-reason mix is the competitive share only",
+        "avg_discount_rate_won": "the engine recomputes the discount as a ratio of summed amount and list price",
+        "share_won_at_band_cap": "no tree node reads the band cap; Deal-size trend uses the floor share",
+        "stage_regression_count": "no tree node; Stage-to-stage conversion is degenerate (100% at every hop)",
+        "avg_days_in_sal": "time in stage is not a tree node; Stage-to-stage conversion is degenerate",
+        "avg_days_in_sqo": "time in stage is not a tree node; Stage-to-stage conversion is degenerate",
+        "avg_days_in_poc": "time in stage is not a tree node; Stage-to-stage conversion is degenerate",
+        "avg_days_in_proposal": "time in stage is not a tree node; Stage-to-stage conversion is degenerate",
+        "won_by_ramping_rep_count": "win rate by ramp status is not a tree node; the mix uses closed deals",
+    },
+    "mart_workflow_chain_health": {
+        "downstream_actions_sum": "the engine reads the idle Actions sum, the complement of downstream over upstream",
+        "ingestion_without_completion_rate": "the engine recomputes it as a ratio of summed Actions",
+    },
+    "mart_consumption_utilization": {
+        "committed_actions_sum": "available for Utilized vs. committed Action volume, which still ranks the margin series",
+        "utilized_actions_sum": "available for Utilized vs. committed Action volume, which still ranks the margin series",
+        "overage_actions_sum": "Overage realization is read in dollars (overage MRR over total MRR)",
+        "overage_share_of_mrr": "the engine recomputes it as a ratio of summed dollars",
+        "accounts_over_commit_count": "no tree node counts accounts over their commitment",
+        "accounts_with_commitment_count": "no tree node counts committed accounts",
+    },
+}
+
+
+def stale_markings_against_wave10_marts() -> List[str]:
+    """Cross-artifact consistency guard, the deal-funnel / workflow-chain /
+    consumption-utilization counterpart of stale_markings_against_attribution().
+    Returns the keys of any tree node that a column of those marts feeds
+    (WAVE10_MART_NODE_MAP) but that this tree marks NOT_COMPUTABLE or does not
+    carry. Empty means no mapped column feeds a blocked node."""
+    stale = set()
+    for columns in WAVE10_MART_NODE_MAP.values():
+        for nodes in columns.values():
+            for key in nodes:
+                node = _TREE.get(key)
+                if node is None or node.computability == NOT_COMPUTABLE:
+                    stale.add(key)
+    return sorted(stale)
+
+
 def stale_markings_against_attribution() -> List[str]:
     """Cross-artifact consistency guard. Returns the keys of any tree node
     that marketing_attribution.py computes and validates
@@ -1155,6 +1438,169 @@ def stale_markings_against_attribution() -> List[str]:
         if node is None or node.computability == NOT_COMPUTABLE:
             stale.append(key)
     return stale
+
+
+# Months with fewer closed Enterprise POC outcomes than this are left blank:
+# a pass rate on 1-4 outcomes swings 25-100% on a single deal and would win any
+# sibling ranking on noise. Own resolved decision; from 2023 the monthly n is
+# about 10-15, before it is 0-4.
+_MIN_POC_OUTCOMES_PER_MONTH = 5
+
+
+def _rep_sold_deal_funnel(as_of_date: date, con) -> pd.DataFrame:
+    df = load_deal_funnel(as_of_date, con=con)
+    return df[df["segment"].isin(_REP_SOLD_SEGMENTS)]
+
+
+def _ratio_by_month(df: pd.DataFrame, num: str, den: str, name: str) -> pd.Series:
+    """Sum(num) / sum(den) per month -- a ratio of sums, never a mean of
+    segment ratios -- blank where the denominator is 0."""
+    g = df.groupby("month")[[num, den]].sum(min_count=1)
+    return (g[num] / g[den].replace(0, np.nan)).dropna().rename(name)
+
+
+def _from_first_logged_loss(series: pd.Series, lost: pd.Series) -> pd.Series:
+    """Blanks every month before the first month in which any lost new-business
+    deal is logged. The generator logs no lost Commercial or Enterprise
+    new-business opportunity before 2023-01, so a win rate (or a share of
+    "closed" deals) computed earlier counts only wins and reads 100%: a
+    constant that is a logging fact, not performance. Left in, it would sit
+    in the trailing baseline of every 2023 month and in persistence streaks.
+    Derived from the data (the first month with a loss as of the as-of date),
+    not a literal date, and the same fact that already leaves loss_reason_mix
+    blank. With no loss logged at all the series is empty."""
+    positive = lost[lost.fillna(0) > 0]
+    if positive.empty:
+        return series.iloc[0:0]
+    return series[series.index >= positive.index.min()]
+
+
+def _win_rate_leaf_series(as_of_date: date, con) -> Dict[str, pd.Series]:
+    """Layer-3 candidates under Win rate, by close month. Grain: one value
+    per month. Source mart: mart_deal_funnel, Commercial + Enterprise
+    (_REP_SOLD_SEGMENTS) except POC pass rate, which is Enterprise only.
+    Stage-to-stage conversion is deliberately absent: it is 100% at every
+    hop in every month (see its gap note)."""
+    df = _rep_sold_deal_funnel(as_of_date, con)
+    ent = df[df["segment"] == "Enterprise"].set_index("month")
+    n_poc = (ent["poc_pass_count"] + ent["poc_fail_count"]).astype(float)
+    poc = (ent["poc_pass_count"].astype(float) / n_poc.replace(0, np.nan))
+    poc = poc.where(n_poc >= _MIN_POC_OUTCOMES_PER_MONTH).dropna().rename("poc_pass_rate")
+    closed = df.assign(closed=df["new_business_won_count"] + df["new_business_lost_count"])
+    return {
+        "poc_pass_rate": poc,
+        "loss_reason_mix": _ratio_by_month(
+            df, "lost_competitive_count", "new_business_lost_count", "loss_reason_mix"),
+        "rep_capacity_ramp_mix": _from_first_logged_loss(
+            _ratio_by_month(closed, "closed_by_ramping_rep_count", "closed",
+                            "rep_capacity_ramp_mix"),
+            df.groupby("month")["new_business_lost_count"].sum(min_count=1)),
+    }
+
+
+def _avg_commitment_leaf_series(as_of_date: date, con) -> Dict[str, pd.Series]:
+    """Layer-3 candidates under Avg initial commitment, by close month.
+    Source mart: mart_deal_funnel, Commercial + Enterprise. Discount is
+    1 - won amount / won list price (a ratio of sums); deal-size position is
+    the won-count-weighted share of wins at the segment ACV band floor."""
+    df = _rep_sold_deal_funnel(as_of_date, con)
+    g = df.groupby("month")[["won_amount_sum", "won_list_price_sum"]].sum(min_count=1)
+    discount = (1.0 - g["won_amount_sum"] / g["won_list_price_sum"].replace(0, np.nan))
+    floor = df.dropna(subset=["share_won_at_band_floor"]).assign(
+        at_floor=lambda d: d["share_won_at_band_floor"] * d["new_business_won_count"])
+    return {
+        "discount_rate_vs_list": discount.dropna().rename("discount_rate_vs_list"),
+        "deal_size_trend_within_band": _ratio_by_month(
+            floor, "at_floor", "new_business_won_count", "deal_size_trend_within_band"),
+    }
+
+
+def _renewal_win_rate_series(as_of_date: date, con) -> pd.Series:
+    """Closed-won renewals / closed renewals, by close month. Source mart:
+    mart_deal_funnel, Commercial + Enterprise."""
+    df = _rep_sold_deal_funnel(as_of_date, con)
+    df = df.assign(closed=df["renewal_won_count"] + df["renewal_lost_count"])
+    return _ratio_by_month(df, "renewal_won_count", "closed", "renewal_win_rate")
+
+
+# A partial workflow chain (completion below the threshold) exists only in the
+# months leading up to a churn: generators/config.py DECLINE_MONTHS_BEFORE_CHURN
+# (mirrored here, and tied to the config by tests) is the months of decline
+# before the churn month itself, so a month m shows partial chains caused by
+# churns up to m + DECLINE months later. The data window ends in 2025-12 and that
+# month is itself truncated (4 churn events against about 75 in a normal month),
+# so a month m is clean only if m + DECLINE < the last month: the last
+# DECLINE + 1 months of the window under-count partial chains and are blanked,
+# not read (the partial share is 6.0% in 2025-07 and already 4.7% in 2025-08).
+_WORKFLOW_CHAIN_DECLINE_MONTHS = 4
+_WORKFLOW_CHAIN_PRECHURN_MONTHS = _WORKFLOW_CHAIN_DECLINE_MONTHS + 1
+
+
+def _drop_censored_chain_tail(series: pd.Series, con) -> pd.Series:
+    """Removes the last _WORKFLOW_CHAIN_PRECHURN_MONTHS months of the data
+    window from a workflow-chain series (see the constant above). The window
+    end is metadata about the mart, not business data after as_of_date; for an
+    as_of_date before the tail nothing is removed."""
+    last = pd.Timestamp(con.execute(
+        "select max(month) from main_marts.mart_workflow_chain_health").fetchone()[0])
+    cutoff = last - pd.DateOffset(months=_WORKFLOW_CHAIN_PRECHURN_MONTHS)
+    return series[series.index <= cutoff]
+
+
+def _workflow_chain_breadth_series(as_of_date: date, con) -> pd.Series:
+    """Share of the month's chain accounts below the completion threshold,
+    all three segments. Grain: one value per month. Source mart:
+    mart_workflow_chain_health."""
+    df = load_workflow_chain_health(as_of_date, con=con)
+    return _drop_censored_chain_tail(
+        _ratio_by_month(df, "partial_chain_account_count", "accounts_with_chain",
+                        "workflow_chain_underutilization"), con)
+
+
+def _workflow_chain_leaf_series(as_of_date: date, con) -> Dict[str, pd.Series]:
+    """Layer-3 candidates under Workflow chain under-utilization. Grain: one
+    value per month, all three segments. Source mart:
+    mart_workflow_chain_health. The Actions-weighted idle share is a
+    different statistic from the Layer-2 account-count breadth."""
+    df = load_workflow_chain_health(as_of_date, con=con)
+    return {k: _drop_censored_chain_tail(v, con) for k, v in {
+        "ingestion_without_completion_rate": _ratio_by_month(
+            df, "ingestion_without_completion_actions_sum", "upstream_actions_sum",
+            "ingestion_without_completion_rate"),
+        "mid_chain_abandonment": _ratio_by_month(
+            df, "sustained_partial_account_count", "accounts_with_chain",
+            "mid_chain_abandonment"),
+        "full_vs_partial_chain_share": _ratio_by_month(
+            df, "full_chain_account_count", "accounts_with_chain",
+            "full_vs_partial_chain_share"),
+    }.items()}
+
+
+def _overage_share_series(as_of_date: date, con) -> pd.Series:
+    """Overage MRR as a share of total MRR (a ratio of sums), Commercial +
+    Enterprise. Grain: one value per month. Source mart:
+    mart_consumption_utilization. Dollars, not a realization rate: the rate
+    is identically 100% (billing is unit price times max(committed,
+    utilized) on every account-month)."""
+    df = load_consumption_utilization(as_of_date, con=con)
+    return _ratio_by_month(df, "overage_mrr", "total_mrr", "overage_realization")
+
+
+def _account_health_input_series(as_of_date: date, con) -> Dict[str, pd.Series]:
+    """The four Account-health-score inputs as monthly company-wide series,
+    one value per month (all three segments). Source mart:
+    mart_account_health -- the same columns the health score reads."""
+    ah = load_account_health(as_of_date, con=con)
+    ah = ah.assign(severity_load=ah["ticket_count"] * ah["avg_ticket_severity_score"].fillna(0.0))
+    g = ah.groupby("month")
+    return {
+        "usage_trend_account_relative": _usage_dip_breadth_series(as_of_date, con),
+        "support_ticket_volume_severity": (
+            g["severity_load"].sum() / g["account_id"].size()).rename("support_ticket_volume_severity"),
+        "engagement_login_frequency": (
+            g["login_count"].sum() / g["account_id"].size()).rename("engagement_login_frequency"),
+        "am_sentiment_notes": g["avg_am_sentiment_score"].mean().dropna().rename("am_sentiment_notes"),
+    }
 
 
 def _usage_dip_breadth_series(as_of_date: date, con) -> pd.Series:
@@ -1232,6 +1678,10 @@ def rank_siblings(parent_key: str, series_by_key: Dict[str, pd.Series],
     is what lets the synthetic scenarios below drive it with hand-built
     data.
 
+    A sibling needs the full trailing window (`baseline_months` observations)
+    to be ranked; with fewer its deviation is blank and it is dropped, as a
+    series with no baseline at all always was.
+
     The ranking key follows the parent's `sibling_comparison_basis`:
     % deviation where siblings carry different units, absolute deviation
     in the shared unit where they are additive components of the parent
@@ -1247,6 +1697,15 @@ def rank_siblings(parent_key: str, series_by_key: Dict[str, pd.Series],
                 f"eligible children are {sorted(valid)}")
         node = valid[key]
         stats = _deviation_from_baseline(series, evaluation_month, baseline_months)
+        if stats["baseline_n"] < baseline_months:
+            # Insufficient baseline: a sibling needs the full trailing window to be
+            # ranked. Its deviation from a one- to seven-observation mean is noise
+            # that would win rankings (and seed persistence streaks) at the start of
+            # a series. The value and the observation count stay visible; the
+            # deviation and baseline are blank, so _with_signal() drops it and it is
+            # reported as a missing sibling, the path a baseline-less series already took.
+            stats = {**stats, "baseline": np.nan, "deviation_pct": np.nan,
+                     "deviation_z": np.nan}
         rows.append({
             "metric_key": key, "label": node.label, "layer": node.layer,
             "parent_key": node.parent_key, "computability": node.computability,
@@ -1293,6 +1752,364 @@ def _sibling_coverage(parent_key: str, ranked: pd.DataFrame) -> dict:
 
 
 # =====================================================================
+# Persistence -- is it the same Layer-2 driver, adverse, month after month?
+# =====================================================================
+#
+# DEFINITION (the one place it is written down; the methods doc quotes it).
+#
+# For a drill-down whose Layer-2 outlier is D under Layer-1 node P, the
+# persistence STREAK is the number of consecutive months, counting back from
+# the evaluation month, in which ALL of the following hold:
+#
+#   1. Sibling comparison. At least 2 of P's ranking-eligible children have a
+#      usable value and trailing baseline in that month (the same
+#      `_with_signal()` rule the drill-down uses). A month with fewer is a
+#      month with no comparison, and the streak ends there -- a lone sibling
+#      would trivially "persist" (single-candidate branches such as Magic
+#      number or Expansion are therefore `not_applicable`, not a streak).
+#   2. Same driver. D is the top-ranked sibling that month under P's own
+#      ranking basis (relative deviation, or absolute deviation for the
+#      additive_share branches), ranked by `rank_siblings()` against each
+#      sibling's own trailing `baseline_months`-month baseline. If another
+#      sibling is the top outlier that month the streak ends: it RESETS to
+#      the new driver, never accumulates across drivers.
+#   3. No tie. If the top two siblings tie on the ranking key (float-equal,
+#      relative tolerance 1e-9) there is no single outlier that month, so the
+#      streak ends. Persistence is never claimed on a coin flip.
+#   4. Adverse direction. D moved away from its baseline in the direction
+#      that hurts P: `adverse_direction(D)` is "up" or "down" from the sign of
+#      D's effect on P (`_EFFECT_ON_PARENT`) combined with P's own
+#      `favorable_direction`. Movement in the favorable direction, or no
+#      movement, ends the streak.
+#
+# Every prior month is read as of that month: its own series are cut at the
+# month, so no later value reaches a baseline or a rank (a deviation never
+# uses the future in any case; the cut makes that explicit and keeps a
+# caller's series provider honest). The evaluation month itself must be the
+# month the drill-down was built for; when that month is the truncated final
+# month of the data window the status is `not_applicable`.
+#
+# The flag fires when the streak reaches K_PERSISTENCE (PROPOSED, not yet
+# confirmed). The flag says the same driver keeps being the adverse outlier
+# against a trailing baseline; it does not say why, and a series that trends
+# adversely stays above its own trailing mean for several months, so some
+# persistence is the trailing-baseline method rather than a recurring event.
+
+PERSISTENCE_FLAGGED = "flagged"
+PERSISTENCE_NOT_FLAGGED = "not_flagged"
+PERSISTENCE_NOT_APPLICABLE = "not_applicable"
+
+# `reason` codes of a not_applicable record
+PERSISTENCE_NA_SINGLE_CANDIDATE = "single_candidate_read"
+PERSISTENCE_NA_NO_OUTLIER = "no_layer2_outlier"
+PERSISTENCE_NA_TRUNCATED = "truncated_final_month"
+PERSISTENCE_NA_NO_DIRECTION = "no_adverse_direction_defined"
+
+# `streak_break.reason` codes: why the streak did not extend one month further
+BREAK_DRIVER_CHANGED = "driver_changed"
+BREAK_NOT_ADVERSE = "not_adverse"
+BREAK_TIE = "tie_at_top"
+BREAK_NO_COMPARISON = "no_sibling_comparison"
+BREAK_START_OF_HISTORY = "start_of_history"
+
+PERSISTENCE_BASIS = (
+    "The same Layer-2 driver as the largest adverse outlier against its own trailing "
+    "baseline, counted back from the reporting month. Sibling comparisons with at least "
+    "2 computable children only.")
+PERSISTENCE_THRESHOLD_STATUS = "Proposed, not yet confirmed"
+# Shown beside every applicable record: at this sample size the flag fires about as
+# often as it does on month-shuffled series (methods doc), so it marks a repeat only.
+PERSISTENCE_CAVEAT = (
+    "Repeat marker: the same driver as the adverse outlier in consecutive months; not "
+    "evidence of a trend or cause.")
+
+# Which way a Layer-2 child's value moves its Layer-1 parent: +1 when a higher
+# child value raises the parent, -1 when it lowers it, None when no direction
+# is defined. Read off the tree's own arithmetic (see docs/acme-corp-gtm-metric-tree.md):
+# New logo revenue is the product of its three children; contraction + churn
+# rises with usage-dip breadth and workflow-chain under-utilization and falls
+# with renewal win rate; NRR/GRR are 1 + expansion - contraction - churn;
+# Magic number divides by S&M cost; Consumption payback divides CAC by margin;
+# Onboarding/CS efficiency is touches per automated Action; AM efficiency
+# divides by AM cost; Activation is a time, so more completed onboarding
+# shortens it. Tenure-at-churn has no direction: an earlier-lifecycle churn
+# is not unambiguously better or worse for logo retention.
+_EFFECT_ON_PARENT: Dict[str, Optional[int]] = {
+    "pipeline_generated": +1,
+    "win_rate": +1,
+    "avg_initial_commitment": +1,
+    "onboarding_completion_rate": -1,
+    "overage_realization": +1,
+    "cyclical_vs_structural_usage_dip": +1,
+    "workflow_chain_underutilization": +1,
+    "renewal_win_rate": -1,
+    "sm_cost": -1,
+    "cac_by_channel": +1,
+    "utilized_vs_committed_action_volume": -1,
+    "am_touchpoint_volume": +1,
+    "automated_action_volume": -1,
+    "am_cost_by_segment": -1,
+    "nrr_expansion_rate": +1,
+    "nrr_contraction_rate": -1,
+    "nrr_churn_rate": -1,
+    "grr_contraction_rate": -1,
+    "grr_churn_rate": -1,
+    "tenure_at_churn": None,
+}
+
+
+def _verify_persistence_table() -> None:
+    """Every ranking-eligible Layer-2 node the engine can compute carries a
+    declared effect on its parent, and the table names nothing else -- so a
+    node added to the tree cannot silently get no adverse direction, and a
+    renamed node cannot leave a stale entry. Raises, not asserts."""
+    needed = {n.key for n in _TREE.values()
+              if n.layer == 2 and n.is_ranking_sibling and n.computability != NOT_COMPUTABLE}
+    missing, stale = needed - set(_EFFECT_ON_PARENT), set(_EFFECT_ON_PARENT) - needed
+    if missing or stale:
+        raise ValueError(f"_EFFECT_ON_PARENT out of step with the tree: missing {sorted(missing)}, "
+                         f"stale {sorted(stale)}")
+    for key, effect in _EFFECT_ON_PARENT.items():
+        if effect not in (+1, -1, None):
+            raise ValueError(f"{key}: effect on parent must be +1, -1 or None")
+        if _TREE[_TREE[key].parent_key].favorable_direction not in ("higher", "lower"):
+            raise ValueError(f"{key}: parent has no favorable_direction")
+
+
+_verify_persistence_table()
+
+
+def adverse_direction(layer2_key: str) -> Optional[str]:
+    """'up' or 'down': the direction in which this Layer-2 node's value
+    moving away from its baseline hurts its Layer-1 parent, from the node's
+    declared effect on the parent and the parent's favorable_direction. None
+    when the node has no defined direction (tenure-at-churn)."""
+    node = _TREE[layer2_key]
+    if node.layer != 2:
+        raise ValueError(f"{layer2_key} is layer {node.layer}; persistence is read at Layer 2")
+    effect = _EFFECT_ON_PARENT.get(layer2_key)
+    if effect is None:
+        return None
+    parent_is_hurt_by_rising = _TREE[node.parent_key].favorable_direction == "lower"
+    return "up" if parent_is_hurt_by_rising == (effect > 0) else "down"
+
+
+def _read_direction(adverse: str, absolute_deviation: float) -> str:
+    if absolute_deviation == 0 or pd.isna(absolute_deviation):
+        return "flat"
+    return "adverse" if (absolute_deviation > 0) == (adverse == "up") else "favorable"
+
+
+def _ranking_key(parent_key: str) -> str:
+    return ("abs_absolute_deviation"
+            if _TREE[parent_key].sibling_comparison_basis == "additive_share"
+            else "abs_deviation_pct")
+
+
+def _scored_read(parent_key: str, series_by_key: Dict[str, pd.Series], month: pd.Timestamp,
+                 baseline_months: int) -> pd.DataFrame:
+    """One month's usable sibling ranking, from series cut at `month`."""
+    cut = {k: s[s.index <= month] for k, s in series_by_key.items()}
+    if not cut:
+        return pd.DataFrame()
+    return _with_signal(parent_key, rank_siblings(parent_key, cut, month, baseline_months))
+
+
+def _top_two_tied(parent_key: str, scored: pd.DataFrame) -> bool:
+    if len(scored) < 2:
+        return False
+    col = _ranking_key(parent_key)
+    return math.isclose(float(scored.iloc[0][col]), float(scored.iloc[1][col]),
+                        rel_tol=1e-9, abs_tol=0.0)
+
+
+def _month_label(month: pd.Timestamp) -> str:
+    return pd.Timestamp(month).strftime("%Y-%m")
+
+
+def _persistence_note(status: str, label: Optional[str], streak: Optional[int], k: int,
+                      reason: Optional[str], direction: Optional[str],
+                      first_month: Optional[str], brk: Optional[dict]) -> str:
+    plural = "" if streak == 1 else "s"
+    if status == PERSISTENCE_NOT_APPLICABLE:
+        return {
+            PERSISTENCE_NA_SINGLE_CANDIDATE: (
+                "Only one Layer-2 child has a computable value, so there is no sibling "
+                "comparison and no streak is tracked."),
+            PERSISTENCE_NA_NO_OUTLIER: (
+                "No Layer-2 outlier was identified, so there is no driver to track."),
+            PERSISTENCE_NA_TRUNCATED: (
+                "The evaluation month is the truncated final month of the data window, so "
+                "no streak is computed."),
+            PERSISTENCE_NA_NO_DIRECTION: (
+                f"{label} has no defined adverse direction, so no streak is computed."),
+        }[reason]
+    if status == PERSISTENCE_FLAGGED:
+        return (f"{label} has been the largest adverse Layer-2 outlier against its own "
+                f"trailing baseline for {streak} consecutive months, since {first_month[:7]}.")
+    # not flagged
+    if streak == 0:
+        if brk and brk["reason"] == BREAK_TIE:
+            return ("Two Layer-2 siblings tie for the largest outlier this month, so no single "
+                    "driver can be tracked.")
+        if direction == "favorable":
+            return (f"{label} is the largest Layer-2 outlier but is moving in the favorable "
+                    "direction, so there is no adverse streak.")
+        return (f"{label} is the largest Layer-2 outlier but is not moving in the adverse "
+                "direction, so there is no adverse streak.")
+    tail = ""
+    if brk:
+        when = brk["month"][:7]
+        tail = {
+            BREAK_DRIVER_CHANGED: f" In {when} the largest outlier was {brk.get('outlier_label')}.",
+            BREAK_NOT_ADVERSE: f" In {when} it was not moving in the adverse direction.",
+            BREAK_TIE: f" In {when} two siblings tied for the largest outlier.",
+            BREAK_NO_COMPARISON: f" In {when} fewer than 2 siblings had a computable value.",
+            BREAK_START_OF_HISTORY: " No earlier months are available.",
+        }[brk["reason"]]
+    return (f"{label} is the largest adverse Layer-2 outlier this month; the streak is "
+            f"{streak} month{plural}, short of the {k}-month flag.{tail}")
+
+
+def _persistence_record(status: str, *, parent_key: str, k: int, driver_key: Optional[str],
+                        reason: Optional[str] = None, streak: Optional[int] = None,
+                        direction: Optional[str] = None, adverse: Optional[str] = None,
+                        detail: Optional[List[dict]] = None, brk: Optional[dict] = None) -> dict:
+    label = _TREE[driver_key].label if driver_key else None
+    first_month = detail[-1]["month"] if detail else None
+    return {
+        "status": status,
+        "flagged": status == PERSISTENCE_FLAGGED,
+        "threshold_months": k,
+        "threshold_status": PERSISTENCE_THRESHOLD_STATUS,
+        "streak_months": streak,
+        "driver_key": driver_key,
+        "driver_label": label,
+        "driver_direction": direction,
+        "adverse_direction": adverse,
+        "first_month_of_streak": first_month,
+        "streak_detail": detail or [],
+        "streak_break": brk,
+        "reason": reason,
+        "basis": PERSISTENCE_BASIS,
+        "caveat": PERSISTENCE_CAVEAT,
+        "note": _persistence_note(status, label, streak, k, reason, direction, first_month, brk),
+    }
+
+
+def compute_persistence(parent_key: str, driver_key: Optional[str],
+                        evaluation_month: pd.Timestamp,
+                        series_as_of: Callable[[pd.Timestamp], Dict[str, pd.Series]],
+                        baseline_months: int = _TRAILING_BASELINE_MONTHS,
+                        k: int = K_PERSISTENCE,
+                        evaluation_is_truncated: bool = False) -> dict:
+    """The persistence record for one drill-down: how many consecutive months
+    (ending at `evaluation_month`) `driver_key` was the adverse top outlier
+    among its siblings under `parent_key` (definition above). Grain: one
+    record per drill-down. Pure given `series_as_of`, a callable returning
+    the parent's Layer-2 series as available at the end of a given month
+    (the engine rebuilds them from the marts as of that month; the synthetic
+    scenarios cut a fixed history). Deterministic -- no stochastic step."""
+    parent = _TREE[parent_key]
+    if parent.layer != 1:
+        raise ValueError(f"{parent_key} is layer {parent.layer}; persistence heads at Layer 1")
+    common = dict(parent_key=parent_key, k=k, driver_key=driver_key)
+    if driver_key is None:
+        return _persistence_record(PERSISTENCE_NOT_APPLICABLE, reason=PERSISTENCE_NA_NO_OUTLIER,
+                                   **common)
+    driver = _TREE[driver_key]
+    if driver.layer != 2 or driver.parent_key != parent_key:
+        raise ValueError(f"{driver_key} is not a Layer-2 child of {parent_key}")
+    if evaluation_is_truncated:
+        return _persistence_record(PERSISTENCE_NOT_APPLICABLE, reason=PERSISTENCE_NA_TRUNCATED,
+                                   **common)
+    adverse = adverse_direction(driver_key)
+    if adverse is None:
+        return _persistence_record(PERSISTENCE_NOT_APPLICABLE,
+                                   reason=PERSISTENCE_NA_NO_DIRECTION, **common)
+
+    current = series_as_of(evaluation_month)
+    first_observation = min((s.dropna().index.min() for s in current.values() if len(s.dropna())),
+                            default=None)
+    scored_now = _scored_read(parent_key, current, evaluation_month, baseline_months)
+    if len(scored_now) < 2:
+        return _persistence_record(PERSISTENCE_NOT_APPLICABLE,
+                                   reason=PERSISTENCE_NA_SINGLE_CANDIDATE, adverse=adverse,
+                                   **common)
+    if scored_now.iloc[0]["metric_key"] != driver_key:
+        raise ValueError(
+            f"{driver_key} is not the top-ranked sibling of {parent_key} at "
+            f"{_month_label(evaluation_month)}; persistence tracks the drill-down's own outlier")
+
+    streak, detail, brk = 0, [], None
+    month = pd.Timestamp(evaluation_month)
+    while True:
+        scored = scored_now if month == evaluation_month else _scored_read(
+            parent_key, series_as_of(month), month, baseline_months)
+        if len(scored) < 2:
+            reason = (BREAK_START_OF_HISTORY
+                      if first_observation is None
+                      or month < first_observation + pd.DateOffset(months=baseline_months)
+                      else BREAK_NO_COMPARISON)
+            brk = {"month": month.date().isoformat(), "reason": reason,
+                   "outlier_key": None, "outlier_label": None}
+            break
+        top = scored.iloc[0]
+        if _top_two_tied(parent_key, scored):
+            brk = {"month": month.date().isoformat(), "reason": BREAK_TIE,
+                   "outlier_key": None, "outlier_label": None}
+            break
+        if top["metric_key"] != driver_key:
+            brk = {"month": month.date().isoformat(), "reason": BREAK_DRIVER_CHANGED,
+                   "outlier_key": top["metric_key"], "outlier_label": top["label"]}
+            break
+        if _read_direction(adverse, float(top["absolute_deviation"])) != "adverse":
+            brk = {"month": month.date().isoformat(), "reason": BREAK_NOT_ADVERSE,
+                   "outlier_key": driver_key, "outlier_label": driver.label}
+            break
+        streak += 1
+        detail.append({"month": month.date().isoformat(),
+                       "deviation_pct": _none_float(top["deviation_pct"]),
+                       "baseline_n": int(top["baseline_n"])})
+        month = month - pd.DateOffset(months=1)
+
+    top_now = scored_now.iloc[0]
+    direction = _read_direction(adverse, float(top_now["absolute_deviation"]))
+    if _top_two_tied(parent_key, scored_now):
+        direction = None
+    status = PERSISTENCE_FLAGGED if streak >= k else PERSISTENCE_NOT_FLAGGED
+    return _persistence_record(status, streak=streak, direction=direction, adverse=adverse,
+                               detail=detail, brk=brk, **common)
+
+
+def _none_float(v) -> Optional[float]:
+    return None if v is None or pd.isna(v) else float(v)
+
+
+def _last_month_in_marts(con) -> pd.Timestamp:
+    return pd.Timestamp(con.execute(
+        "select max(month) from main_marts.mart_growth_bridge").fetchone()[0])
+
+
+def _asof_series_provider(parent_key: str, evaluation_series: Dict[str, pd.Series],
+                          evaluation_month: pd.Timestamp, con) -> Callable:
+    """Series for a prior month, rebuilt from the marts AS OF that month's end
+    (every loader filters month <= as_of), so a prior month is read with the
+    data that existed then. The evaluation month reuses the series the
+    drill-down already built."""
+    cache = {pd.Timestamp(evaluation_month): evaluation_series}
+
+    def provider(month: pd.Timestamp) -> Dict[str, pd.Series]:
+        key = pd.Timestamp(month)
+        if key not in cache:
+            as_of = (key + pd.offsets.MonthEnd(0)).date()
+            cache[key] = _build_child_series(parent_key, as_of, con)
+        return cache[key]
+
+    return provider
+
+
+# =====================================================================
 # Drill-down assembly
 # =====================================================================
 
@@ -1314,6 +2131,9 @@ class Drilldown:
     notes: List[str] = field(default_factory=list)
     # Long-form versions of the notes that have one: [{"note": <short>, "detail": <long>}].
     notes_detail: List[dict] = field(default_factory=list)
+    # compute_persistence()'s record for this drill-down's Layer-2 driver.
+    # None only for hand-built synthetic drill-downs that do not exercise it.
+    persistence: Optional[dict] = None
 
     def __post_init__(self):
         # raise, not assert: this re-check must hold even under python -O --
@@ -1341,6 +2161,16 @@ class Drilldown:
                     raise ValueError(f"{k}'s parent is {l3.parent_key}, not {self.layer2_key}")
         elif self.layer3_keys:
             raise ValueError("no Layer-2 outlier means no Layer-3 evidence")
+        if self.persistence is not None:
+            if self.persistence["status"] not in (PERSISTENCE_FLAGGED, PERSISTENCE_NOT_FLAGGED,
+                                                  PERSISTENCE_NOT_APPLICABLE):
+                raise ValueError(f"unknown persistence status {self.persistence['status']!r}")
+            if self.persistence["driver_key"] != self.layer2_key:
+                raise ValueError(
+                    "persistence tracks the drill-down's own Layer-2 outlier "
+                    f"({self.layer2_key}), not {self.persistence['driver_key']}")
+            if self.persistence["flagged"] != (self.persistence["status"] == PERSISTENCE_FLAGGED):
+                raise ValueError("persistence.flagged disagrees with persistence.status")
 
     def to_dict(self) -> dict:
         l1, l2 = _TREE[self.layer1_key], (_TREE[self.layer2_key] if self.layer2_key else None)
@@ -1361,6 +2191,7 @@ class Drilldown:
             "sibling_coverage": self.sibling_coverage,
             "notes": self.notes,
             "notes_detail": self.notes_detail,
+            "persistence": self.persistence,
         }
 
 
@@ -1585,8 +2416,7 @@ def _data_window_check(as_of_date: date, month: pd.Timestamp) -> dict:
     attached."""
     con = _connect()
     try:
-        last = pd.Timestamp(con.execute(
-            "select max(month) from main_marts.mart_growth_bridge").fetchone()[0])
+        last = _last_month_in_marts(con)
     finally:
         con.close()
     is_last = month == last
@@ -1639,6 +2469,7 @@ def _build_drilldown(scorecard_row, as_of_date, month, baseline_months, con) -> 
             "ranking shows what moved this month, not a decomposition of the 12-month figure.")
 
     scored = _with_signal(l1_key, ranked)
+    truncated = month == _last_month_in_marts(con)
     if scored.empty:
         notes.append(
             f"No Layer-2 child of {l1_label} has a computable actual with a usable trailing "
@@ -1651,7 +2482,9 @@ def _build_drilldown(scorecard_row, as_of_date, month, baseline_months, con) -> 
             sibling_ranking=ranked, sibling_coverage=coverage,
             layer3_status=L3_NO_COMPUTABLE_DATA, layer3_evidence=pd.DataFrame(),
             branch_max_depth_in_tree=branch_max_depth(l1_key), notes=notes,
-            notes_detail=notes_detail)
+            notes_detail=notes_detail,
+            persistence=compute_persistence(l1_key, None, month, lambda m: l2_series,
+                                            baseline_months, evaluation_is_truncated=truncated))
 
     l2_key = scored.iloc[0]["metric_key"]
     l2_label = _TREE[l2_key].label
@@ -1677,7 +2510,10 @@ def _build_drilldown(scorecard_row, as_of_date, month, baseline_months, con) -> 
         sibling_ranking=ranked, sibling_coverage=coverage,
         layer3_status=l3["status"], layer3_evidence=l3.get("ranking", pd.DataFrame()),
         branch_max_depth_in_tree=branch_max_depth(l1_key), notes=notes,
-        notes_detail=notes_detail)
+        notes_detail=notes_detail,
+        persistence=compute_persistence(
+            l1_key, l2_key, month, _asof_series_provider(l1_key, l2_series, month, con),
+            baseline_months, evaluation_is_truncated=truncated))
 
 
 def _coverage_report() -> pd.DataFrame:
@@ -1699,6 +2535,12 @@ def _coverage_report() -> pd.DataFrame:
             "layer3_computable_anywhere": any(
                 c.computability in (COMPUTABLE, PARTIAL)
                 for s in sibs for c in children_of(s.key)),
+            # A Layer-3 child is surfaced only under a Layer-2 outlier, and an
+            # outlier must itself be computable: leaves under a blocked
+            # Layer-2 parent exist but can never appear in a drill-down.
+            "layer3_computable_reachable": any(
+                c.computability in (COMPUTABLE, PARTIAL)
+                for s in computable for c in children_of(s.key)),
         })
     return pd.DataFrame(rows)
 
@@ -1791,7 +2633,8 @@ SYNTHETIC_SCENARIOS = [
             "New logo consumption revenue (Layer 1, Growth) misses plan by -18%. Among its "
             "true Layer-2 siblings, win rate sits 22% below its own trailing baseline while "
             "avg initial commitment is within 1.5%. Win rate has real Layer-3 children in the "
-            "tree, so four leaves are supplied and the engine must surface the two largest. "
+            "tree, so its three computable leaves are supplied (stage-to-stage conversion is "
+            "degenerate and has no series) and the engine must surface the two largest. "
             "This is the design brief's own worked example, made testable."),
         "layer1_key": "new_logo_consumption_revenue",
         "layer1_variance_pct": -0.18,
@@ -1804,13 +2647,65 @@ SYNTHETIC_SCENARIOS = [
         "layer3_series": {
             "poc_pass_rate": _synthetic_series(_SYNTHETIC_MONTH, 0.68, -0.21),
             "loss_reason_mix": _synthetic_series(_SYNTHETIC_MONTH, 0.35, 0.14),
-            "stage_to_stage_conversion": _synthetic_series(_SYNTHETIC_MONTH, 0.44, -0.01),
             "rep_capacity_ramp_mix": _synthetic_series(_SYNTHETIC_MONTH, 0.60, 0.005),
         },
         "expected_layer2_key": "win_rate",
         "expected_layer3_keys": ["poc_pass_rate", "loss_reason_mix"],
         "expected_layer3_status": L3_SURFACED,
         "expected_branch_max_depth": 3,
+    },
+    {
+        "name": "contraction_workflow_chain_branch_with_layer3",
+        "description": (
+            "Contraction + churned revenue (Layer 1, Growth) runs 25% over plan. Of its true "
+            "Layer-2 siblings, workflow chain under-utilization sits 30% above its own "
+            "trailing baseline while renewal win rate (-4%) and usage-dip breadth (+2%) are "
+            "near flat. The workflow-chain branch has three computable Layer-3 leaves; the "
+            "engine must name the branch, then surface the two largest leaves, mid-chain "
+            "abandonment (+26%) and ingestion-without-completion (+8%), and leave the "
+            "full-chain share (-1%, the parent's own complement) out."),
+        "layer1_key": "contraction_churned_revenue",
+        "layer1_variance_pct": 0.25,
+        "layer2_series": {
+            "workflow_chain_underutilization": _synthetic_series(_SYNTHETIC_MONTH, 0.055, 0.30,
+                                                                 jitter=(0.01, -0.01, 0.02, -0.02, 0.0, 0.01, -0.01, 0.0)),
+            "renewal_win_rate": _synthetic_series(_SYNTHETIC_MONTH, 0.88, -0.04,
+                                                  jitter=(0.01, -0.01, 0.0, 0.01, -0.01, 0.0, 0.0, 0.0)),
+            "cyclical_vs_structural_usage_dip": _synthetic_series(_SYNTHETIC_MONTH, 0.028, 0.02,
+                                                                  jitter=(0.02, -0.02, 0.01, -0.01, 0.0, 0.0, 0.01, -0.01)),
+        },
+        "layer3_series": {
+            "mid_chain_abandonment": _synthetic_series(_SYNTHETIC_MONTH, 0.044, 0.26),
+            "ingestion_without_completion_rate": _synthetic_series(_SYNTHETIC_MONTH, 0.089, 0.08),
+            "full_vs_partial_chain_share": _synthetic_series(_SYNTHETIC_MONTH, 0.945, -0.01),
+        },
+        "expected_layer2_key": "workflow_chain_underutilization",
+        "expected_layer3_keys": ["mid_chain_abandonment", "ingestion_without_completion_rate"],
+        "expected_layer3_status": L3_SURFACED,
+        "expected_branch_max_depth": 3,
+    },
+    {
+        "name": "expansion_overage_single_candidate_depth_2_leaf",
+        "description": (
+            "Expansion consumption revenue (Layer 1, Growth) beats plan by 30%. Only one of "
+            "its two Layer-2 children, overage realization, has a computable series (wallet "
+            "share progression has no footprint denominator), so the read is a single-"
+            "candidate one and must be reported as not a genuine sibling comparison. "
+            "Overage realization is a leaf: it has no Layer-3 children in the tree, so the "
+            "engine must return layer3_status='branch_depth_2' for it even though the "
+            "branch as a whole (through wallet share progression) is three layers deep."),
+        "layer1_key": "expansion_consumption_revenue",
+        "layer1_variance_pct": 0.30,
+        "layer2_series": {
+            "overage_realization": _synthetic_series(_SYNTHETIC_MONTH, 0.33, 0.12,
+                                                     jitter=(0.01, -0.01, 0.02, -0.02, 0.0, 0.01, -0.01, 0.0)),
+        },
+        "layer3_series": {},
+        "expected_layer2_key": "overage_realization",
+        "expected_layer3_keys": [],
+        "expected_layer3_status": L3_BRANCH_DEPTH_2,
+        "expected_branch_max_depth": 3,
+        "expects_single_candidate": True,
     },
     {
         "name": "consumption_payback_cac_leg_two_layer_branch",
@@ -1941,6 +2836,9 @@ def run_synthetic_scenario(scenario: dict, baseline_months: int = _TRAILING_BASE
         failures.append(f"Layer-3 status: expected {scenario['expected_layer3_status']}, got {l3['status']}")
     if l3["keys"] != scenario["expected_layer3_keys"]:
         failures.append(f"Layer-3 evidence: expected {scenario['expected_layer3_keys']}, got {l3['keys']}")
+    if scenario.get("expects_single_candidate") and \
+            _sibling_coverage(l1_key, ranked)["is_genuine_sibling_comparison"]:
+        failures.append("a single-candidate read was reported as a genuine sibling comparison")
     if branch_max_depth(l1_key) != scenario["expected_branch_max_depth"]:
         failures.append(
             f"branch depth: expected {scenario['expected_branch_max_depth']}, got {branch_max_depth(l1_key)}")
@@ -1978,6 +2876,535 @@ def run_synthetic_scenarios(baseline_months: int = _TRAILING_BASELINE_MONTHS) ->
     return [run_synthetic_scenario(s, baseline_months) for s in SYNTHETIC_SCENARIOS]
 
 
+# ---------------------------------------------------------------------
+# Persistence scenarios: hand-built month-by-month histories with a known
+# streak. Same role as SYNTHETIC_SCENARIOS above (the correctness check for a
+# structural artifact), kept as a second suite because a persistence case is a
+# history, not a single evaluation month. Each is driven through the same
+# compute_persistence() / Drilldown path the real engine uses.
+# ---------------------------------------------------------------------
+
+_QUIET_JITTER = (0.005, -0.005)
+
+
+def _history(levels: Dict[int, float], *, n_months: int = 14, jitter: bool = False,
+             base: float = 100.0, missing: Sequence[int] = (), future: Dict[int, float] = None
+             ) -> pd.Series:
+    """A monthly series ending at _SYNTHETIC_MONTH (offset 0). `levels` maps a
+    month offset (0 = evaluation month, -1 = the month before ...) to a
+    multiplier of `base`; every other month sits at `base`, optionally with a
+    +/-0.5% alternating jitter so a quiet sibling is a deterministic, tiny,
+    non-tied outlier rather than an exact zero. `missing` offsets are left out
+    of the series (a month with no value); `future` maps positive offsets to
+    multipliers appended AFTER the evaluation month (to prove they are never
+    read)."""
+    values = {}
+    for off in range(-(n_months - 1), 1):
+        if off in missing:
+            continue
+        mult = levels.get(off, 1.0 + (_QUIET_JITTER[off % 2] if jitter else 0.0))
+        values[_SYNTHETIC_MONTH + pd.DateOffset(months=off)] = base * mult
+    for off, mult in (future or {}).items():
+        values[_SYNTHETIC_MONTH + pd.DateOffset(months=off)] = base * mult
+    return pd.Series(values).sort_index()
+
+
+def _spikes(offsets: Sequence[int], size: float) -> Dict[int, float]:
+    return {off: 1.0 + size for off in offsets}
+
+
+def _persistence_scenarios() -> List[dict]:
+    pay = "consumption_payback"
+    return [
+        {
+            "name": "streak_of_one_is_not_flagged",
+            "description": (
+                "CAC by channel (adverse = up for Consumption payback) jumps +30% in the "
+                "evaluation month only. The month before, the other sibling is the largest "
+                "(tiny) outlier. Streak 1, below the 2-month flag."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history(_spikes([0], 0.30)),
+                       "utilized_vs_committed_action_volume": _history({}, jitter=True)},
+            "expected": {"status": "not_flagged", "streak_months": 1, "first_month_offset": 0,
+                         "break_reason": BREAK_DRIVER_CHANGED},
+        },
+        {
+            "name": "streak_of_exactly_two_is_flagged",
+            "description": (
+                "CAC by channel +30% in the evaluation month and the month before. Streak 2: "
+                "the boundary case, flagged at K_PERSISTENCE = 2."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history(_spikes([-1, 0], 0.30)),
+                       "utilized_vs_committed_action_volume": _history({}, jitter=True)},
+            "expected": {"status": "flagged", "streak_months": 2, "first_month_offset": -1,
+                         "break_reason": BREAK_DRIVER_CHANGED},
+        },
+        {
+            "name": "streak_of_three_is_flagged_with_its_first_month",
+            "description": (
+                "CAC by channel +30% for three consecutive months. Streak 3, and the record "
+                "names the first month of the streak."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history(_spikes([-2, -1, 0], 0.30)),
+                       "utilized_vs_committed_action_volume": _history({}, jitter=True)},
+            "expected": {"status": "flagged", "streak_months": 3, "first_month_offset": -2,
+                         "break_reason": BREAK_DRIVER_CHANGED},
+        },
+        {
+            "name": "driver_change_resets_the_streak",
+            "description": (
+                "CAC by channel is the adverse outlier in the evaluation month and the month "
+                "before, but two months back the margin leg (adverse = down) fell 30% and was "
+                "the larger outlier, and CAC was adverse again three months back. The streak "
+                "is 2, not 4: it resets at a change of driver and does not bridge it."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history({**_spikes([-3, -1, 0], 0.30)}),
+                       "utilized_vs_committed_action_volume": _history({-2: 0.70}, jitter=True)},
+            "expected": {"status": "flagged", "streak_months": 2, "first_month_offset": -1,
+                         "break_reason": BREAK_DRIVER_CHANGED,
+                         "break_outlier_key": "utilized_vs_committed_action_volume"},
+        },
+        {
+            "name": "missing_month_breaks_the_streak",
+            "description": (
+                "CAC by channel is adverse in the evaluation month, has no value the month "
+                "before, and is adverse again two and three months back. With one sibling "
+                "missing there is no sibling comparison that month, so the streak is 1."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history(_spikes([-3, -2, 0], 0.30), missing=(-1,)),
+                       "utilized_vs_committed_action_volume": _history({}, jitter=True)},
+            "expected": {"status": "not_flagged", "streak_months": 1, "first_month_offset": 0,
+                         "break_reason": BREAK_NO_COMPARISON},
+        },
+        {
+            "name": "favorable_outlier_is_not_an_adverse_streak",
+            "description": (
+                "CAC by channel is the top outlier in the evaluation month and the month "
+                "before, but it fell 30% (favorable for payback). The same driver and the "
+                "same size as the flagged case, opposite direction: streak 0."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history({-1: 0.70, 0: 0.70}),
+                       "utilized_vs_committed_action_volume": _history({}, jitter=True)},
+            "expected": {"status": "not_flagged", "streak_months": 0, "first_month_offset": None,
+                         "break_reason": BREAK_NOT_ADVERSE, "driver_direction": "favorable"},
+        },
+        {
+            "name": "direction_follows_the_parents_favorable_direction",
+            "description": (
+                "Onboarding/CS efficiency (lower is better; touches per automated Action). "
+                "Automated Action volume is its denominator, so adverse = down: it falls 20% "
+                "for two months while the numerator leg is quiet. Flagged. The same fall in "
+                "AM touchpoint volume (adverse = up) would be favorable."),
+            "parent_key": "onboarding_cs_efficiency", "driver_key": "automated_action_volume",
+            "series": {"automated_action_volume": _history({-1: 0.80, 0: 0.80}),
+                       "am_touchpoint_volume": _history({}, jitter=True)},
+            "expected": {"status": "flagged", "streak_months": 2, "first_month_offset": -1,
+                         "break_reason": BREAK_DRIVER_CHANGED, "adverse_direction": "down"},
+        },
+        {
+            "name": "tie_at_top_ends_the_streak",
+            "description": (
+                "In the evaluation month CAC is +30% and the margin leg is flat. The month "
+                "before, CAC is +20% and the margin leg is -20%: equal absolute deviation, so "
+                "no single outlier. Streak 1; persistence is never claimed on a tie."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history({-1: 1.20, 0: 1.30}),
+                       "utilized_vs_committed_action_volume": _history({-1: 0.80})},
+            "expected": {"status": "not_flagged", "streak_months": 1, "first_month_offset": 0,
+                         "break_reason": BREAK_TIE},
+        },
+        {
+            "name": "additive_share_branch_ranks_by_absolute_deviation",
+            "description": (
+                "NRR's drivers are additive components of one identity, ranked by absolute "
+                "deviation. Contraction rises +13% (0.006 of starting revenue) for two months; "
+                "churn is -40% in relative terms but 0.0006 in absolute terms. Ranked by "
+                "percentage deviation churn would win every month and contraction's streak "
+                "would be 0; on the branch's own basis it is 2. Adverse for NRR = contraction "
+                "up."),
+            "parent_key": "nrr", "driver_key": "nrr_contraction_rate",
+            "series": {
+                "nrr_contraction_rate": _history({-1: 1.1327, 0: 1.1327}, base=0.0452),
+                "nrr_churn_rate": _history({-1: 0.60, 0: 0.60}, base=0.0015),
+                "nrr_expansion_rate": _history({}, base=0.1034, jitter=True)},
+            "expected": {"status": "flagged", "streak_months": 2, "first_month_offset": -1,
+                         "break_reason": BREAK_DRIVER_CHANGED, "adverse_direction": "up"},
+        },
+        {
+            "name": "single_candidate_branch_is_not_applicable",
+            "description": (
+                "Expansion consumption revenue has one computable child (Overage realization), "
+                "which rises for four consecutive months. A lone sibling would persist "
+                "trivially, so the record is not_applicable with its reason and carries no "
+                "streak."),
+            "parent_key": "expansion_consumption_revenue", "driver_key": "overage_realization",
+            "series": {"overage_realization": _history(_spikes([-3, -2, -1, 0], 0.30))},
+            "expected": {"status": "not_applicable", "streak_months": None,
+                         "first_month_offset": None, "reason": PERSISTENCE_NA_SINGLE_CANDIDATE},
+        },
+        {
+            "name": "truncated_final_month_is_not_applicable",
+            "description": (
+                "A flagged-looking streak whose evaluation month is the truncated final month "
+                "of the data window. Excluded: not_applicable, no streak."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history(_spikes([-1, 0], 0.30)),
+                       "utilized_vs_committed_action_volume": _history({}, jitter=True)},
+            "evaluation_is_truncated": True,
+            "expected": {"status": "not_applicable", "streak_months": None,
+                         "first_month_offset": None, "reason": PERSISTENCE_NA_TRUNCATED},
+        },
+        {
+            "name": "no_outlier_is_not_applicable",
+            "description": "A drill-down with no Layer-2 outlier has no driver to track.",
+            "parent_key": pay, "driver_key": None,
+            "series": {},
+            "expected": {"status": "not_applicable", "streak_months": None,
+                         "first_month_offset": None, "reason": PERSISTENCE_NA_NO_OUTLIER},
+        },
+        {
+            "name": "undirected_driver_is_not_applicable",
+            "description": (
+                "Tenure-at-churn has no defined adverse direction for Logo retention, so no "
+                "streak can be adverse; the record says so rather than guessing a sign."),
+            "parent_key": "logo_retention", "driver_key": "tenure_at_churn",
+            "series": {"tenure_at_churn": _history(_spikes([-1, 0], 0.30))},
+            "expected": {"status": "not_applicable", "streak_months": None,
+                         "first_month_offset": None, "reason": PERSISTENCE_NA_NO_DIRECTION},
+        },
+        {
+            "name": "streak_stops_at_the_start_of_history",
+            "description": (
+                "CAC by channel compounds +30% a month from the first month of a 12-month "
+                "history and stays the top adverse outlier in every month that has a "
+                "full 8-month baseline. The first eight months have none, so the streak "
+                "is 4 and ends at the start of the data, not at a change of driver."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {
+                "cac_by_channel": pd.Series(
+                    [100.0 * 1.3 ** i for i in range(12)],
+                    index=pd.date_range(end=_SYNTHETIC_MONTH, periods=12, freq="MS")),
+                "utilized_vs_committed_action_volume": pd.Series(
+                    [100.0 * (1 + _QUIET_JITTER[i % 2]) for i in range(12)],
+                    index=pd.date_range(end=_SYNTHETIC_MONTH, periods=12, freq="MS"))},
+            "expected": {"status": "flagged", "streak_months": 4, "first_month_offset": -3,
+                         "break_reason": BREAK_START_OF_HISTORY},
+        },
+        {
+            "name": "sibling_without_a_full_baseline_is_not_ranked",
+            "description": (
+                "CAC by channel has only 6 months of history and jumps +30% in the evaluation "
+                "month. Eight observations are required to rank a sibling, so only the "
+                "margin leg can be scored: a single-candidate read, not a streak driven by a "
+                "deviation from a six-month mean."),
+            "parent_key": pay, "driver_key": "utilized_vs_committed_action_volume",
+            "series": {"cac_by_channel": _history(_spikes([0], 0.30), n_months=6),
+                       "utilized_vs_committed_action_volume": _history({}, jitter=True)},
+            "expected": {"status": "not_applicable", "streak_months": None,
+                         "first_month_offset": None, "reason": PERSISTENCE_NA_SINGLE_CANDIDATE},
+        },
+        {
+            "name": "future_months_are_never_read",
+            "description": (
+                "The streak-of-2 history with three later months appended after the evaluation "
+                "month, each one a -90% crash that would change both the baseline and the "
+                "ranking if it leaked. The record must be identical to the same history "
+                "without them."),
+            "parent_key": pay, "driver_key": "cac_by_channel",
+            "series": {"cac_by_channel": _history(_spikes([-1, 0], 0.30),
+                                                  future={1: 0.10, 2: 0.10, 3: 0.10}),
+                       "utilized_vs_committed_action_volume": _history(
+                           {}, jitter=True, future={1: 3.0, 2: 3.0, 3: 3.0})},
+            "expected": {"status": "flagged", "streak_months": 2, "first_month_offset": -1,
+                         "break_reason": BREAK_DRIVER_CHANGED},
+            "same_as_without_future": True,
+        },
+    ]
+
+
+def _cut_provider(series: Dict[str, pd.Series]) -> Callable[[pd.Timestamp], Dict[str, pd.Series]]:
+    """Deliberately hands back the WHOLE history for any month -- the cut to
+    the month is compute_persistence()'s job, so a provider that leaks the
+    future is exactly what the 'future_months_are_never_read' case probes."""
+    return lambda month: series
+
+
+def run_persistence_scenario(scenario: dict, baseline_months: int = _TRAILING_BASELINE_MONTHS
+                             ) -> dict:
+    """Runs one persistence scenario and checks the record against its
+    declared expectation, including the Drilldown round trip (the emitted
+    record must be accepted by Drilldown and survive to_dict())."""
+    failures: List[str] = []
+    try:
+        rec = compute_persistence(
+            scenario["parent_key"], scenario["driver_key"], _SYNTHETIC_MONTH,
+            _cut_provider(scenario["series"]), baseline_months,
+            evaluation_is_truncated=scenario.get("evaluation_is_truncated", False))
+    except Exception as e:  # a scenario must not raise; report it as a failure
+        return {"name": scenario["name"], "description": scenario["description"],
+                "passed": False, "failures": [f"raised {type(e).__name__}: {e}"], "record": None}
+    exp = scenario["expected"]
+    if rec["status"] != exp["status"]:
+        failures.append(f"status: expected {exp['status']}, got {rec['status']}")
+    if rec["streak_months"] != exp["streak_months"]:
+        failures.append(f"streak: expected {exp['streak_months']}, got {rec['streak_months']}")
+    want_first = (None if exp["first_month_offset"] is None else
+                  (_SYNTHETIC_MONTH + pd.DateOffset(months=exp["first_month_offset"]))
+                  .date().isoformat())
+    if rec["first_month_of_streak"] != want_first:
+        failures.append(f"first month: expected {want_first}, got {rec['first_month_of_streak']}")
+    if "break_reason" in exp and (rec["streak_break"] or {}).get("reason") != exp["break_reason"]:
+        failures.append(f"break: expected {exp['break_reason']}, got {rec['streak_break']}")
+    if "break_outlier_key" in exp and (rec["streak_break"] or {}).get("outlier_key") != \
+            exp["break_outlier_key"]:
+        failures.append(f"break outlier: expected {exp['break_outlier_key']}, "
+                        f"got {rec['streak_break']}")
+    if "reason" in exp and rec["reason"] != exp["reason"]:
+        failures.append(f"reason: expected {exp['reason']}, got {rec['reason']}")
+    if "driver_direction" in exp and rec["driver_direction"] != exp["driver_direction"]:
+        failures.append(f"direction: expected {exp['driver_direction']}, got {rec['driver_direction']}")
+    if "adverse_direction" in exp and rec["adverse_direction"] != exp["adverse_direction"]:
+        failures.append(f"adverse direction: expected {exp['adverse_direction']}, "
+                        f"got {rec['adverse_direction']}")
+    if rec["flagged"] != (rec["status"] == PERSISTENCE_FLAGGED):
+        failures.append("flagged disagrees with status")
+    if rec["status"] == PERSISTENCE_FLAGGED and (rec["streak_months"] or 0) < K_PERSISTENCE:
+        failures.append("flagged below the threshold")
+    if scenario.get("same_as_without_future"):
+        trimmed = {k: v[v.index <= _SYNTHETIC_MONTH] for k, v in scenario["series"].items()}
+        again = compute_persistence(scenario["parent_key"], scenario["driver_key"],
+                                    _SYNTHETIC_MONTH, _cut_provider(trimmed), baseline_months)
+        if again != rec:
+            failures.append("a record computed with later months present differs from the same "
+                            "history without them: the future leaked")
+    try:
+        l1 = scenario["parent_key"]
+        emitted = Drilldown(
+            layer1_key=l1, layer2_key=scenario["driver_key"], layer3_keys=[],
+            layer1_variance_pct=0.0, layer1_mechanism="synthetic",
+            sibling_ranking=pd.DataFrame(), sibling_coverage={},
+            layer3_status=L3_NO_COMPUTABLE_DATA, layer3_evidence=pd.DataFrame(),
+            branch_max_depth_in_tree=branch_max_depth(l1), persistence=rec).to_dict()
+        if emitted["persistence"] != rec:
+            failures.append("persistence record altered on its way through Drilldown.to_dict()")
+    except Exception as e:
+        failures.append(f"Drilldown rejected the record: {e}")
+    return {"name": scenario["name"], "description": scenario["description"],
+            "passed": not failures, "failures": failures, "record": rec}
+
+
+def run_persistence_scenarios(baseline_months: int = _TRAILING_BASELINE_MONTHS) -> List[dict]:
+    """Every persistence scenario -- the correctness check for the flag."""
+    return [run_persistence_scenario(s, baseline_months) for s in _persistence_scenarios()]
+
+
+# ---------------------------------------------------------------------
+# Real-data profile of the flag: how often it fires, how stable it is
+# ---------------------------------------------------------------------
+
+def _truncating_provider(series: Dict[str, pd.Series]) -> Callable:
+    return lambda month: {k: s[s.index <= month] for k, s in series.items()}
+
+
+def _branch_months(first_month: pd.Timestamp, last_month: pd.Timestamp) -> List[pd.Timestamp]:
+    return list(pd.date_range(first_month, last_month, freq="MS"))
+
+
+def measure_persistence_selectivity(as_of_date: date,
+                                    first_month: pd.Timestamp = pd.Timestamp("2023-01-01"),
+                                    baseline_months: int = _TRAILING_BASELINE_MONTHS,
+                                    k: int = K_PERSISTENCE, con=None,
+                                    series_override: Optional[Dict[str, Dict[str, pd.Series]]] = None
+                                    ) -> pd.DataFrame:
+    """Evidence on how selective the persistence flag is, the counterpart of
+    measure_threshold_selectivity(). Grain: one row per (Layer-1 branch,
+    evaluation month) from `first_month` through the last representative
+    evaluation month at or before as_of_date, for every Layer-1 node with at
+    least one computable Layer-2 child. The month's top Layer-2 outlier is the
+    driver the drill-down would name; its persistence is computed exactly as in
+    a drill-down. `breached` records whether the Layer-1 node breached the
+    variance threshold that month (only breaching nodes get a drill-down).
+    Each branch's series are built once at `as_of_date` and cut per month: the
+    marts' monthly values do not change with a later as-of date, which
+    `verify_persistence_asof_equivalence()` checks against full engine runs.
+    `series_override` lets the permutation null substitute shuffled series."""
+    owns = con is None
+    con = con or _connect()
+    try:
+        last_month = _evaluation_month(as_of_date)
+        if last_month == _last_month_in_marts(con):
+            last_month = last_month - pd.DateOffset(months=1)
+        months = _branch_months(first_month, last_month)
+        breach = {}
+        if series_override is None:
+            for m in months:
+                sc = compute_layer1_scorecard((m + pd.offsets.MonthEnd(0)).date(), con=con)
+                breach[m] = dict(zip(sc["metric_key"], sc["breaches_threshold"]))
+        rows = []
+        for node in layer1_nodes():
+            series = (series_override or {}).get(node.key) if series_override is not None \
+                else _build_child_series(node.key, as_of_date, con)
+            if not series:
+                continue
+            provider = _truncating_provider(series)
+            for m in months:
+                scored = _scored_read(node.key, provider(m), m, baseline_months)
+                if scored.empty:
+                    continue
+                driver = scored.iloc[0]["metric_key"]
+                rec = compute_persistence(node.key, driver, m, provider, baseline_months, k)
+                rows.append({
+                    "layer1_key": node.key, "month": m, "driver_key": driver,
+                    "status": rec["status"], "streak_months": rec["streak_months"],
+                    "flagged": rec["flagged"], "reason": rec["reason"],
+                    "driver_direction": rec["driver_direction"],
+                    "eligible": rec["status"] != PERSISTENCE_NOT_APPLICABLE,
+                    "breached": bool(breach.get(m, {}).get(node.key, False)),
+                })
+    finally:
+        if owns:
+            con.close()
+    return pd.DataFrame(rows)
+
+
+def summarize_persistence_selectivity(rows: pd.DataFrame) -> dict:
+    """Flag rate and stability from measure_persistence_selectivity() rows.
+    Rates are over ELIGIBLE branch-months (a genuine sibling comparison on a
+    non-truncated month); the same rate over only the branch-months where the
+    Layer-1 node breached (the ones a reader sees as drill-downs) is reported
+    beside it. Stability: how often the flag flips between consecutive months
+    of a branch, the chance a flagged month is followed by a flagged one, and
+    the length of flagged runs."""
+    elig = rows[rows["eligible"]]
+    out = {"branch_months": int(len(rows)), "eligible_branch_months": int(len(elig)),
+           "flagged_branch_months": int(elig["flagged"].sum()),
+           "flag_rate": float(elig["flagged"].mean()) if len(elig) else float("nan"),
+           "streak_distribution": {int(a): int(b) for a, b in
+                                   elig["streak_months"].value_counts().sort_index().items()}}
+    br = elig[elig["breached"]]
+    out["breached_eligible_branch_months"] = int(len(br))
+    out["flag_rate_breached"] = float(br["flagged"].mean()) if len(br) else float("nan")
+    per_branch, flips, followed, flagged_total, runs = {}, 0, 0, 0, []
+    transitions = 0
+    for key, g in elig.sort_values("month").groupby("layer1_key"):
+        f = g["flagged"].astype(bool).tolist()
+        per_branch[key] = {"eligible": len(f), "flagged": int(sum(f)),
+                           "flag_rate": sum(f) / len(f)}
+        flips += sum(1 for a, b in zip(f, f[1:]) if a != b)
+        transitions += max(len(f) - 1, 0)
+        followed += sum(1 for a, b in zip(f, f[1:]) if a and b)
+        flagged_total += sum(1 for a in f[:-1] if a)
+        run = 0
+        for a in f + [False]:
+            if a:
+                run += 1
+            elif run:
+                runs.append(run)
+                run = 0
+    out["per_branch"] = per_branch
+    out["flag_flips_per_transition"] = flips / transitions if transitions else float("nan")
+    out["p_flagged_given_flagged_previous_month"] = (followed / flagged_total
+                                                     if flagged_total else float("nan"))
+    out["mean_flagged_run_months"] = float(np.mean(runs)) if runs else float("nan")
+    out["flagged_runs"] = len(runs)
+    return out
+
+
+def measure_persistence_sensitivity(as_of_date: date, con=None) -> dict:
+    """How much the flag depends on its two free choices. Re-runs the profile
+    with baseline windows of 6 and 12 months and with K = 3 and reports each
+    variant's flag rate and its agreement with the proposed setting (8 months,
+    K = 2) on the branch-months both call eligible: the share where both flag or
+    both do not."""
+    base = measure_persistence_selectivity(as_of_date, con=con)
+    variants = {"baseline_6": dict(baseline_months=6), "baseline_12": dict(baseline_months=12),
+                "k_3": dict(k=3)}
+    out = {"proposed": {"flag_rate": float(base[base["eligible"]]["flagged"].mean()),
+                        "eligible": int(base["eligible"].sum())}}
+    key = ["layer1_key", "month"]
+    for name, kw in variants.items():
+        alt = measure_persistence_selectivity(as_of_date, con=con, **kw)
+        both = base[base["eligible"]].merge(alt[alt["eligible"]], on=key, suffixes=("_a", "_b"))
+        out[name] = {
+            "flag_rate": float(alt[alt["eligible"]]["flagged"].mean()),
+            "eligible": int(alt["eligible"].sum()),
+            "agreement_with_proposed": float((both["flagged_a"] == both["flagged_b"]).mean()),
+            "same_driver_share": float((both["driver_key_a"] == both["driver_key_b"]).mean()),
+        }
+    return out
+
+
+def persistence_permutation_null(as_of_date: date, n_permutations: int = 50, seed: int = 42,
+                                 k: int = K_PERSISTENCE, con=None) -> dict:
+    """What flag rate the same machinery gives when the months of every
+    sibling series are shuffled independently (seeded). A shuffled series has
+    the same values and the same spread but no month-to-month order, so the
+    rate it produces is the chance level for 'the same driver is the adverse
+    outlier `k` months running' given each sibling's own volatility (a more
+    volatile sibling is the top outlier more often, which already makes the
+    same driver likely twice in a row). The observed rate is compared with it,
+    overall and per Layer-1 branch."""
+    rng = np.random.default_rng(seed)
+    owns = con is None
+    con = con or _connect()
+    try:
+        observed = measure_persistence_selectivity(as_of_date, k=k, con=con)
+        built = {n.key: _build_child_series(n.key, as_of_date, con) for n in layer1_nodes()}
+        rates, branch_rates = [], {}
+        for _ in range(n_permutations):
+            shuffled = {}
+            for l1, series in built.items():
+                shuffled[l1] = {key: pd.Series(rng.permutation(s.dropna().to_numpy()),
+                                               index=s.dropna().index)
+                                for key, s in series.items()} if series else {}
+            rows = measure_persistence_selectivity(as_of_date, k=k, con=con,
+                                                   series_override=shuffled)
+            elig = rows[rows["eligible"]]
+            rates.append(float(elig["flagged"].mean()) if len(elig) else float("nan"))
+            for l1, g in elig.groupby("layer1_key"):
+                branch_rates.setdefault(l1, []).append(float(g["flagged"].mean()))
+    finally:
+        if owns:
+            con.close()
+    obs = observed[observed["eligible"]]
+    return {"k": k, "observed_flag_rate": float(obs["flagged"].mean()),
+            "n_permutations": n_permutations, "seed": seed,
+            "null_mean": float(np.nanmean(rates)), "null_min": float(np.nanmin(rates)),
+            "null_max": float(np.nanmax(rates)), "null_p95": float(np.nanpercentile(rates, 95)),
+            "share_of_permutations_at_or_above_observed":
+                float(np.mean([r >= float(obs["flagged"].mean()) for r in rates])),
+            "per_branch": {l1: {"observed": float(g["flagged"].mean()),
+                                "null_mean": float(np.mean(branch_rates.get(l1, [np.nan])))}
+                           for l1, g in obs.groupby("layer1_key")}}
+
+
+def verify_persistence_asof_equivalence(as_of_dates: Sequence[date]) -> List[dict]:
+    """Compares the persistence record a full engine run produces at each
+    as-of date (prior months REBUILT from the marts as of their own month) with
+    the profile's record for the same branch and month (series built once and
+    cut). Equal records mean the cut is a faithful stand-in for rebuilding, so
+    the profile is a profile of what the readout shows."""
+    out = []
+    for as_of in as_of_dates:
+        run = run_diagnostic(as_of, include_watchlist=False)
+        month = run["evaluation_month"]
+        prof = measure_persistence_selectivity(as_of, first_month=month)
+        prof = prof[prof["month"] == month].set_index("layer1_key")
+        for dd in run["drilldowns"]:
+            if dd.layer1_key not in prof.index:
+                continue
+            p = prof.loc[dd.layer1_key]
+            same = (dd.persistence["driver_key"] == p["driver_key"]
+                    and dd.persistence["status"] == p["status"]
+                    and dd.persistence["streak_months"] == (None if pd.isna(p["streak_months"])
+                                                            else int(p["streak_months"])))
+            out.append({"as_of_date": as_of, "layer1_key": dd.layer1_key, "same": bool(same),
+                        "engine": (dd.persistence["driver_key"], dd.persistence["status"],
+                                   dd.persistence["streak_months"]),
+                        "profile": (p["driver_key"], p["status"], p["streak_months"])})
+    return out
+
+
 # =====================================================================
 # Build-time validation
 # =====================================================================
@@ -1992,11 +3419,15 @@ def run_build_time_validation(as_of_date: date, threshold: float = _VARIANCE_THR
     claims -- there is no AUC, coefficient table or confusion matrix here
     to log, by the nature of a structural artifact."""
     scenarios = run_synthetic_scenarios()
+    persistence_scenarios = run_persistence_scenarios()
     result = run_diagnostic(as_of_date, threshold=threshold)
     selectivity = measure_threshold_selectivity(as_of_date)
+    persistence_profile = summarize_persistence_selectivity(
+        measure_persistence_selectivity(as_of_date))
     coverage = result["coverage"]
     pipeline_recon = reconcile_pipeline_generated_branch(as_of_date)
     stale_markings = stale_markings_against_attribution()
+    stale_wave10 = stale_markings_against_wave10_marts()
 
     if log:
         log_performance(_MODEL_NAME, as_of_date, "synthetic_scenarios_total", float(len(scenarios)))
@@ -2021,11 +3452,24 @@ def run_build_time_validation(as_of_date: date, threshold: float = _VARIANCE_THR
                         float(pipeline_recon["max_abs_diff_children_to_parent"]))
         log_performance(_MODEL_NAME, as_of_date, "nodes_marked_not_computable_but_covered_by_attribution",
                         float(len(stale_markings)))
+        log_performance(_MODEL_NAME, as_of_date, "nodes_marked_not_computable_but_fed_by_wave10_marts",
+                        float(len(stale_wave10)))
+        log_performance(_MODEL_NAME, as_of_date, "persistence_scenarios_total",
+                        float(len(persistence_scenarios)))
+        log_performance(_MODEL_NAME, as_of_date, "persistence_scenarios_passed",
+                        float(sum(s["passed"] for s in persistence_scenarios)))
+        log_performance(_MODEL_NAME, as_of_date, "persistence_eligible_branch_months",
+                        float(persistence_profile["eligible_branch_months"]))
+        log_performance(_MODEL_NAME, as_of_date, "persistence_flag_rate",
+                        float(persistence_profile["flag_rate"]))
 
     return {"synthetic_scenarios": scenarios, "diagnostic": result,
+            "persistence_scenarios": persistence_scenarios,
+            "persistence_profile": persistence_profile,
             "threshold_selectivity": selectivity, "coverage": coverage,
             "pipeline_generated_reconciliation": pipeline_recon,
-            "stale_markings": stale_markings}
+            "stale_markings": stale_markings,
+            "stale_markings_wave10_marts": stale_wave10}
 
 
 if __name__ == "__main__":
@@ -2043,6 +3487,19 @@ if __name__ == "__main__":
               f"status={s['observed_layer3_status']} depth={s['branch_max_depth']}")
         for f in s["failures"]:
             print(f"        {f}")
+
+    print("\n=== Persistence scenarios (known-streak histories) ===")
+    for s in out["persistence_scenarios"]:
+        print(f"[{'PASS' if s['passed'] else 'FAIL'}] {s['name']}: "
+              f"status={s['record']['status'] if s['record'] else 'raised'} "
+              f"streak={s['record']['streak_months'] if s['record'] else None}")
+        for f in s["failures"]:
+            print(f"        {f}")
+    pp = out["persistence_profile"]
+    print(f"Persistence flag, 2023-01 to last representative month: {pp['flagged_branch_months']} "
+          f"of {pp['eligible_branch_months']} eligible branch-months flagged "
+          f"({pp['flag_rate']:.1%}); among branch-months that breached the threshold "
+          f"{pp['flag_rate_breached']:.1%}")
 
     d = out["diagnostic"]
     print(f"\n=== Layer-1 scorecard -- {d['evaluation_month']:%Y-%m} (threshold +/-{d['threshold']:.0%}) ===")
@@ -2062,6 +3519,8 @@ if __name__ == "__main__":
                                       "comparison_basis", "computability"]].to_string(index=False))
         print(f"  -> Layer-2 outlier: {dd.layer2_key} | Layer-3: {dd.layer3_keys} "
               f"({dd.layer3_status}, branch depth {dd.branch_max_depth_in_tree})")
+        print(f"     persistence: {dd.persistence['status']} "
+              f"(streak {dd.persistence['streak_months']}) -- {dd.persistence['note']}")
         for n in dd.notes:
             print(f"     note: {n[:160]}")
 
@@ -2072,6 +3531,9 @@ if __name__ == "__main__":
           f"{pr['attribution_tie_out']['reconciles']}; overall: {pr['reconciles']}")
     print(f"tree nodes marked NOT_COMPUTABLE while marketing_attribution covers them: "
           f"{out['stale_markings'] or 'none'}")
+    print(f"tree nodes marked NOT_COMPUTABLE while a deal-funnel / workflow-chain / "
+          f"consumption-utilization mart column feeds them: "
+          f"{out['stale_markings_wave10_marts'] or 'none'}")
 
     print("\n=== Branch coverage ===")
     print(out["coverage"].to_string(index=False))
