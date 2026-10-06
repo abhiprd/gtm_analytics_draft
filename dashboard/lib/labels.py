@@ -29,6 +29,56 @@ def humanize(key: str) -> str:
     return text[:1].upper() + text[1:] if text else text
 
 
+_NODE_LABEL_PREFIX = re.compile(r"\bSee (?:Growth|Efficiency|Durability):\s*")
+
+
+def clean_node_label(text) -> str:
+    """A metric-tree node's label without the engine's cross-reference prefix: the NRR and
+    GRR children are named 'See Growth: Expansion (share of starting revenue)' in
+    analytics/variance_diagnostic.py's label table; the reader sees 'Expansion (share of
+    starting revenue)'. Display only; the fix belongs upstream (PHRASE_MAP_UPSTREAM)."""
+    return _NODE_LABEL_PREFIX.sub("", str(text or "")).strip()
+
+
+# Layer-3 nodes whose scalar is one slice of the quantity the tree names. The registry's
+# own notes state the slice (loss-reason mix serves the competitive share only; the ramp
+# mix is the share of closed deals from reps in their first 180 days; the deal-size trend
+# is the share of wins at the segment band floor; overage realization is overage MRR as a
+# share of total MRR, because a realization rate is 100% in every account-month), so the
+# display label carries it.
+NODE_QUALIFIERS = {
+    "overage_realization": "overage share of MRR",
+    "loss_reason_mix": "competitive share",
+    "rep_capacity_ramp_mix": "share from ramping reps",
+    "deal_size_trend_within_band": "share of wins at band floor",
+    "deal_size_trend_within_segment_band": "share of wins at band floor",
+    # The tree names a per-channel split; the registry serves the total across channels
+    # (a segment cut exists, a channel cut does not).
+    "marketing_spend_allocation_by_channel": "total across channels",
+    # The complement of Workflow chain under-utilization: chain accounts AT or above the
+    # 70% completion cut, which is why the value reads about 94-99% and rises as the
+    # series falls away at the end of the data window.
+    "declining_share_of_full_chain_vs_partial_chain_runs": "share of chain accounts at or above 70% completion",
+    "full_vs_partial_chain_share": "share of chain accounts at or above 70% completion",
+}
+
+_TRAILING_PAREN_RE = re.compile(r"\s*\([^)]*\)\s*$")
+
+
+def qualified_node_label(key: str, label) -> str:
+    """The display label of a Layer-3 node, with its slice when the node is a scalar view
+    of a wider quantity: 'Loss-reason mix' -> 'Loss-reason mix (competitive share)'. A
+    parenthetical the name already carries is replaced by the qualifier, not stacked on it
+    ('Loss-reason mix (competitive / no-decision / price)' names the tree's three-way mix,
+    and the node serves one slice of it)."""
+    base = clean_node_label(label)
+    q = NODE_QUALIFIERS.get(key)
+    if not q or q in base:
+        return base
+    base = _TRAILING_PAREN_RE.sub("", base) or base
+    return f"{base} ({q})"
+
+
 # --- Playbook rules ----------------------------------------------------------
 
 RULE_LABELS = {
@@ -160,9 +210,12 @@ PHRASE_MAP: List[Tuple["re.Pattern", object]] = [(re.compile(p, re.S), r) for p,
     (r"\bno mart exposes\b", "no reporting table exposes"),
     (r"Defined by reference in the tree \('See Growth -- (?P<topic>[^']+)'\)(?:, not a leaf with its own actual)? -- query (?P<rest>[^.]+?) instead\.",
      _drivers_reference),
+    (r"\(mart_deal_funnel\.avg_days_in_\*\)", "(the average days in each stage)"),
+    (r"\bthe mart carries\b", "the reporting table carries"),
     (r"mart_efficiency\.sm_cost", "the S&M cost in the efficiency reporting table"),
     (r"\bblended_cac\b", "blended CAC"),
     (r"\bam_expansion_arr\b", "AM expansion ARR"),
+    (r"\bSee (?:Growth|Efficiency|Durability): ", ""),
     # Voice
     (r"Real, not fabricated, just degenerate on this data\.", "The value is a property of the data."),
     (r"A real data property, not a query bug\.", "The value is a property of the data."),
@@ -172,10 +225,15 @@ PHRASE_MAP: List[Tuple["re.Pattern", object]] = [(re.compile(p, re.S), r) for p,
 # Source strings that read badly and should be rewritten where they live. Each is
 # handled by an entry above; this list is the follow-up checklist.
 PHRASE_MAP_UPSTREAM = [
+    "analytics/variance_diagnostic.py label table: the NRR and GRR Layer-2 children are labelled 'See Growth: Expansion "
+    "(share of starting revenue)' and likewise for Contraction and Churn; the 'See Growth:' prefix is a tree "
+    "cross-reference marker, not part of the metric name (lib/labels.py clean_node_label strips it for display).",
     "semantic/metric_registry.json (generated from the tree and build_registry.py): gap notes that cite build-spec "
     "sections, table names, column names, file paths, 'grain=year', 'PRIOR-period', 'Real, not fabricated', "
     "'A real data property, not a query bug', 'NOT in queryable_dimensions until a Phase 2 mart change', "
     "'query ... instead' pointers, and the 'See Growth' cross-reference notes.",
+    "semantic/metric_registry.json: the stage_to_stage_conversion gap note cites 'mart_deal_funnel.avg_days_in_*' and the "
+    "loss_reason_mix / support_ticket_volume_severity notes say 'the mart carries'.",
     "semantic/server.py guardrail messages: 'gap_note:' / 'queryable_dimensions' quoted inside the message, "
     "'(note: ...)' wrapper and '**non-additive**' markdown.",
     "analytics/outputs readout: watchlist caveat citing docs/acme-corp-analytics-methods.md; rule catalog "
@@ -270,6 +328,7 @@ GUARDRAIL_LABELS = {
     "invalid_request": "Request not supported",
     "non_additive_metric": "Non-additive overlay",
     "metric_not_queryable": "Not computable",
+    "segment_not_available": "Segment not available",
 }
 
 
@@ -282,6 +341,17 @@ def guardrail_label(code: Optional[str]) -> str:
 _DIM_NOT_QUERYABLE_RE = re.compile(
     r"The metric tree allows '(?P<dim>[^']+)' on '(?P<key>[^']+)', but no mart_\* table currently exposes "
     r"that cut\s*--\s*queryable_dimensions today:\s*\[(?P<avail>[^\]]*)\]\.?\s*(?:gap_note:\s*(?P<tail>.*))?$",
+    re.DOTALL,
+)
+
+
+# Two message shapes: "has no rows for segment 'X': its source mart (m) carries [..] only." and
+# "has no <what> data for segment 'X': <explanation>; the metric is defined for [..] only."
+# (the POC pass rate message). Both end with the segments the metric covers and an optional
+# quoted gap note.
+_SEGMENT_NOT_AVAILABLE_RE = re.compile(
+    r"'(?P<key>[^']+)' has no (?:rows|[^']*?data) for segment '(?P<seg>[^']+)':.*?"
+    r"\[(?P<avail>[^\]]*)\] only\.\s*(?:(?:gap_note|Gap note):\s*(?P<tail>.*))?$",
     re.DOTALL,
 )
 
@@ -299,6 +369,16 @@ def guardrail_sentence(code: Optional[str], message: Optional[str], metric_name:
             avail_text = _join_or(avail) if avail else "none"
             sentence = (f"The metric tree allows a {m.group('dim').replace('_', ' ')} split on {metric_name}, "
                         f"but no reporting table exposes that split yet. Available split: {avail_text}.")
+            tail = clean_registry_text(m.group("tail")) if m.group("tail") else None
+            if tail and gap_note and clean_registry_text(gap_note) == tail:
+                tail = None
+            return sentence, tail or None
+    if code == "segment_not_available":
+        m = _SEGMENT_NOT_AVAILABLE_RE.match(message)
+        if m:
+            avail = re.findall(r"'([^']+)'", m.group("avail"))
+            covers = f"covers {_join_or(avail)} only" if avail else "has no segment coverage"
+            sentence = f"{metric_name} has no data for the {m.group('seg')} segment; it {covers}."
             tail = clean_registry_text(m.group("tail")) if m.group("tail") else None
             if tail and gap_note and clean_registry_text(gap_note) == tail:
                 tail = None
@@ -324,8 +404,25 @@ def overlay_sentence(name: str, note: Optional[str], computable: bool, gap_note:
         parts.append(text.rstrip(".") + ".")
     if not computable:
         gap = clean_registry_text(gap_note)
-        parts.append(gap if gap else "No data source is registered for it yet.")
+        parts.append(gap if gap else "It has no series of its own.")
     return " ".join(p for p in parts if p)
+
+
+# --- Not queryable here vs. not computable -------------------------------------------
+# A registry node can be marked not computable because the query interface cannot serve it
+# (a validated analytics step computes it and the weekly readout shows it) or because no
+# source supports it at all. The registry carries no structured flag; its gap note says
+# "Computed and validated by ..." for the first case.
+
+QUERY_GAP_LEAD = "Not available through this query interface; shown in the weekly readout."
+
+_QUERY_GAP_RE = re.compile(r"^\s*computed and validated\b", re.I)
+
+
+def is_query_interface_gap(gap_note: Optional[str]) -> bool:
+    """True when the registry's gap note says a validated artifact computes the metric
+    and only the query interface cannot serve it."""
+    return bool(gap_note) and bool(_QUERY_GAP_RE.match(str(gap_note)))
 
 
 def first_sentences(text: str, limit: int = 220) -> Tuple[str, str]:

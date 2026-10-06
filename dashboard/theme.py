@@ -126,6 +126,20 @@ def inject_global_css() -> None:
             font-size: 0.76rem;
             font-weight: 500;
         }}
+        /* Repeat marker (Digest drill-downs): neutral gray like .card-tag. It marks a
+        repeated driver, not a status judgment (Section 2.3). */
+        .repeat-chip {{
+            display: inline-block;
+            margin-left: 10px;
+            padding: 1px 9px;
+            border: 1px solid #D1D5DB;
+            border-radius: 999px;
+            background-color: #FFFFFF;
+            color: #4B5563;
+            font-size: 0.78rem;
+            font-weight: 500;
+            vertical-align: middle;
+        }}
         .card-value.sm {{
             font-size: 1.15rem;
             line-height: 1.7;
@@ -402,6 +416,11 @@ def info_row(items: list, columns: Optional[int] = None) -> None:
         f'style="grid-template-columns:repeat({n},minmax(0,1fr))">{cells}</div></div></div>',
         unsafe_allow_html=True,
     )
+
+
+def neutral_chip(text: str) -> str:
+    """HTML for a compact neutral-gray chip (a marker, never a status). Escaped."""
+    return f'<span class="repeat-chip">{escape_html(text)}</span>'
 
 
 def card_block(inner_html: str) -> None:

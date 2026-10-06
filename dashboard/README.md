@@ -50,7 +50,7 @@ at least one `analytics/outputs/weekly_readout_*.json` (`python3 -c "from analyt
 | Page | Reads from | Computes |
 |---|---|---|
 | `app.py` (router) + `home.py` | `analytics/outputs/` latest readout | Nothing -- `app.py` registers the pages with `st.navigation` (so the sidebar entry reads "Home", not "app"); `home.py` shows headline counts only |
-| `pages/1_Digest.py` | `analytics/outputs/weekly_readout_*.json` | Nothing -- renders the artifact's own output verbatim, including its forecast section (or that section's `unavailable` state and reason) |
+| `pages/1_Digest.py` | `analytics/outputs/weekly_readout_*.json` | Nothing -- renders the artifact's own output verbatim, including its forecast section, each drill-down's repeat marker, and the segment-mix section (or a section's `unavailable` state and reason) |
 | `pages/2_Forecast.py` | `analytics/forecast.py`'s `run_forecast()` | Trains the win-probability model live (`log=False` -- never writes to `fact_model_performance_history`), cached per forecast call date for the session. Opens on the newest readout's forecast call and reports whether its figures match that readout |
 | `pages/3_Segment_Efficiency.py` | `mart_growth_bridge`, `mart_efficiency`, `mart_durability`, `mart_segment_migration` | Nothing -- these marts are already segment x month grain |
 | `pages/4_Ask_the_Metric_Tree.py` | `semantic/server.py`'s registry and `query_metric`, called in-process | Nothing new -- routes a question to the same guardrailed tool an MCP client calls; a standing sidebar tree built from the registry is the on-ramp |
@@ -99,13 +99,19 @@ guardrail's message alone.
 
 **Routing.** `lib/routing.py` holds the deterministic keyword rules as a pure function
 (`tests/test_dashboard_routing.py`); `lib/semantic_bridge.py` builds its vocabulary from the
-registry's display names and keys, the semantic layer's alias table, and a short list of
-dashboard-side supplementary aliases (`routing.SUPPLEMENTARY_ALIASES`: LTV, lifetime value,
-LTV:CAC, payback, CAC payback). The question is scanned left to right and the longest phrase at
+registry's display names and keys and the semantic layer's alias table (`semantic/server.py`
+`_ALIASES`, the one alias table; the dashboard's own `routing.SUPPLEMENTARY_ALIASES` is empty and a
+test fails if an entry ever duplicates a server alias). The question is scanned left to right and the longest phrase at
 each position wins, on whole tokens, with dashes, colons, arrows and the multiplication sign
 treated as separators. A named dimension ("by channel") is always passed to the semantic layer,
 and a segment-like word the registry does not know ("Tier 1", "Mid-Market") is passed through as
-the filter so the guardrail answers with `invalid_segment_value`. It is never an LLM call and never
+the filter so the guardrail answers with `invalid_segment_value`. A scope word outranks the broader
+name beside it (`routing.SCOPE_OVERRIDES`: "win rate for renewals" is Renewal win rate). A "by" or
+"per" split that is not a registry dimension (loss reason, rep, region, industry) is reported in
+`unsupported_splits`: the page says "Split by X is not available for <metric>. The figures below are
+not split." and offers the nearest real node (`answers.RELATED_SPLIT_NODES`) as a button, never a silent
+reroute. A failure while answering or rendering shows a plain notice (`answers.safe_answer`), never a
+traceback. It is never an LLM call and never
 a fuzzy substitution: `semantic/server.py`'s `_resolve_metric()` stays the whitelist.
 
 Routing the question through the Claude API instead (build spec Section 3's "Claude API
@@ -149,6 +155,82 @@ detail and reason and no figures. `lib/forecast_view.py` is shared with the Fore
 show the same figures in the same form; the Forecast page opens on the newest readout's forecast
 call and states whether its figures match that readout.
 
+## The Digest's repeat marker
+
+Each drill-down entry in the readout carries a `persistence` record from the variance engine
+(`compute_persistence()`): whether the same Layer-2 driver was the largest adverse outlier in
+consecutive months. `lib/persistence_view.py` (Streamlit-free, `tests/test_dashboard_persistence_view.py`)
+holds the display rules and reads the record by key without recomputing any streak:
+
+- **Flagged:** a neutral gray chip, "Repeat: N consecutive months", beside the drill-down breadcrumb.
+  Gray, not a status color: it marks a repeated driver, not a good or bad result.
+- **Not flagged:** no chip; the drill-down shows "Streak N of 2 months".
+- **Not applicable:** no chip; the drill-down shows "Repeat marker: not applicable." with the engine's reason
+  (single-candidate reads, no outlier, the truncated final month).
+- Inside the drill-down: the engine's note, the month before the streak and what differed, a streak table
+  (month, deviation from the driver's own trailing baseline, baseline months) and the method basis, which is its own
+  sentence-case line. The streak line carries the threshold status ("marker threshold: 2 months, proposed") and the
+  record's own caveat sits under it.
+
+The marker is a repeat detector and the copy says so. The 2-month threshold is proposed, not confirmed, and an
+independent profile found the flag fires about as often on shuffled, unrelated months as on real ones (about
+17.7% against 17.1%): with two or three siblings a volatile sibling is the top outlier in most months. The chip
+therefore never says "trend" or "persistent", no text implies a cause, the header carries no count of flagged
+nodes, and the page's Notes & assumptions carries two scope lines: what the marker does not establish, and that in aggregate it
+appears about as often on shuffled months as on real data.
+
+## The Digest's segment-mix block
+
+The readout's `segment_mix` section (from `analytics/segment_migration.py`) answers "are we moving upmarket".
+`lib/segment_mix_view.py` holds the rules (`tests/test_dashboard_segment_mix_view.py`) and
+`lib/segment_mix_render.py` draws them. The block sits below the decision tier, as context: the readout's
+headline sentence verbatim, a 100%-stacked bar of segment share of ending MRR for the same month a year earlier
+and the reporting month (segment palette), an upmarket-share card, and one card per migration pair showing the
+trailing-12-month migration rate against the year before (in pp) with graduated MRR as a share of source-segment
+MRR (worded as a share of average source-segment MRR over the window: a 12-month flow, not a share of current MRR). A
+visible line per pair says why that share exceeds the account migration rate (migrating accounts carry about 6x the
+MRR of the average account in their segment), bar labels use largest-remainder rounding so each bar sums to 100.0%,
+and every readout caveat is kept in Notes & assumptions. Every card states its basis and is neutral gray: the tree defines no plan or favorable direction for mix or
+migration. It is not a metric-tree node, so cards carry no Layer label. When the section is `unavailable` the block
+shows the section's plain-language reason and no figures; its caveats go to Notes & assumptions (migration only
+moves accounts up, so rates and mix lead rather than counts, and the data-window handling).
+
+## Ask page: censored tail, query-interface gaps and default views
+
+- **Censored workflow-chain tail** (`lib/censoring.py`, `tests/test_dashboard_censoring.py`). Partial chains exist only
+  in the months before a churn, so the four workflow-chain nodes (Workflow chain under-utilization and its three
+  Layer-3 legs) fall away across the last 5 months of the data window. The variance engine blanks that tail
+  (`variance_diagnostic._drop_censored_chain_tail`); the query does not. `CENSORED_TAIL_MONTHS` is the one table of
+  affected nodes, and a test ties the 5 to the engine's constant and checks the engine drops exactly the months the
+  dashboard excludes. On Ask the headline is the last uncensored month, the excluded months are open markers labelled
+  "Excluded: incomplete window", the data table flags them, and the card carries a visible tag and a data note.
+  The Actions-weighted ingestion rate shows no visible tail in the data but the engine blanks it, so it is listed.
+- **Not available here is not the same as not computable.** A node whose registry note says a validated artifact
+  computes it (Pipeline generated) reads "Not available through this query interface; shown in the weekly readout",
+  with the registry paragraph shown once and a short statement per child row. An overlay reads "Not queryable
+  (non-additive overlay)".
+- **Scalar views** carry their slice on the headline card, children table and chart axis (`labels.NODE_QUALIFIERS`),
+  replacing a parenthetical the name already has instead of stacking on it.
+- **Default view.** Win rate with no segment named opens on Commercial and Enterprise (`answers.DEFAULT_SEGMENT_VIEW`),
+  because SMB win rate is 100% by construction and dominates the all-segment figure; the page says so.
+
+## Digest drill-down tables
+
+`lib/drilldown_view.py` (`tests/test_dashboard_drilldown_view.py`) reads each row's `comparison_basis`. The caption says
+what the rank was computed on: deviation from the row's own trailing baseline, or absolute dollar (or percentage-point)
+change for additive branches (NRR, GRR, the Magic number legs), which also get a change column. A row with no data
+shows a dash in the rank column.
+
+## Ask page: registry v5 nodes
+
+`lib/answers.py` assigns a display unit to every queryable node (a test fails when a queryable registry node has
+none), including per-account-month loads (`weighted_tickets_per_account_month`, `logins_per_account_month`) and a
+score. A `segment_not_available` rejection (for example POC pass rate for Commercial, an Enterprise-only node)
+reads "Segment not available" with a sentence naming the segment and the coverage, never the raw code. Layer-3
+nodes that are one slice of a wider quantity carry the slice in their display label
+(`labels.NODE_QUALIFIERS`: loss-reason mix is the competitive share; overage realization is overage MRR as a share of
+total MRR).
+
 ## Copy voice and Notes & assumptions
 
 Every page puts its assumptions, scope statements and data gaps in one `Notes & assumptions`
@@ -159,7 +241,9 @@ plan-comparability notes, a registry `gap_note`) is shown as written.
 
 ## Tests
 
-`tests/test_dashboard_routing.py`, `tests/test_dashboard_answers.py` and
+`tests/test_dashboard_routing.py`, `tests/test_dashboard_answers.py`, `tests/test_dashboard_registry_v5.py`,
+`tests/test_dashboard_persistence_view.py`, `tests/test_dashboard_segment_mix_view.py`,
+`tests/test_dashboard_censoring.py`, `tests/test_dashboard_drilldown_view.py` and
 `tests/test_dashboard_exec_summary_view.py` cover the Streamlit-free modules under the repo's
 default interpreter. `python3 -m pipeline run --only dashboard_smoke` renders every page headless
 under `dashboard/.venv`.

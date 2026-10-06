@@ -90,7 +90,7 @@ class TestGuardrails:
     def test_overlay_sentence_strips_markdown_and_build_machinery(self):
         out = L.overlay_sentence("LTV", "**non-additive** diagnostic overlay on payback", False,
                                  "Not registered in semantic/build_registry.py's _SOURCE_MART_MAP.")
-        assert "**" not in out and "_SOURCE_MART_MAP" not in out and "No data source is registered" in out
+        assert "**" not in out and "_SOURCE_MART_MAP" not in out and "It has no series of its own" in out
 
 
 class TestFirstSentences:
@@ -239,3 +239,21 @@ def test_cleaned_live_registry_text_has_no_process_references():
             cleaned = L.clean_registry_text(node.get(field))
             offenders += [f"{key}.{field}: {tok!r}" for tok in FORBIDDEN_IN_REGISTRY_TEXT if tok in cleaned]
     assert offenders == []
+
+
+class TestSegmentNotAvailableMessages:
+    def test_old_shape(self):
+        msg = ("'am_efficiency' has no rows for segment 'SMB': its source mart (mart_efficiency) carries "
+               "['Commercial', 'Enterprise'] only. gap_note: Commercial and Enterprise only.")
+        sentence, tail = L.guardrail_sentence("segment_not_available", msg, "AM efficiency")
+        assert sentence == "AM efficiency has no data for the SMB segment; it covers Commercial or Enterprise only."
+
+    def test_poc_pass_rate_shape(self):
+        msg = ("'poc_pass_rate' has no POC data for segment 'Commercial': proof-of-concept outcomes exist only in the "
+               "Enterprise motion, so the source mart (mart_deal_funnel) has no POC outcomes for any other segment; "
+               "the metric is defined for ['Enterprise'] only. gap_note: Enterprise only, as the tree specifies.")
+        sentence, tail = L.guardrail_sentence("segment_not_available", msg, "POC pass rate (Enterprise)")
+        assert sentence == ("POC pass rate (Enterprise) has no data for the Commercial segment; "
+                            "it covers Enterprise only.")
+        assert tail and tail.startswith("Enterprise only")
+        assert L.guardrail_label("segment_not_available") == "Segment not available"

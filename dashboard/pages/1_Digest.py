@@ -14,8 +14,11 @@ inverted-pyramid order top to bottom:
                           Enterprise, quarter grain), or its honest
                           unavailable state
   4. What needs a decision -- watchlist + playbook triggers
-  5. Everything else  -- rule catalog and the single Notes & assumptions
-                          expander (Section 11.3), never rendered flat.
+  5. Everything else  -- the segment-mix context block (below the decision
+                          tier so context never pushes the actions down,
+                          Section 5.1), the rule catalog and the single Notes
+                          & assumptions expander (Section 11.3), never
+                          rendered flat.
 
 Every Layer label shown (1/2/3) is the readout JSON's own `layer` field,
 which is itself sourced from docs/acme-corp-gtm-metric-tree.md -- this
@@ -30,7 +33,8 @@ import streamlit as st
 _DASHBOARD_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _DASHBOARD_DIR)
 import theme
-from lib import answers, data, exec_summary_view, forecast_logic, forecast_view, labels, verdict
+from lib import (answers, data, drilldown_view, exec_summary_view, forecast_logic, forecast_view, labels,
+                 persistence_view, segment_mix_render, verdict)
 
 theme.page_config("Digest | Acme Corp GTM", "\U0001F4CB")
 theme.inject_global_css()
@@ -254,16 +258,20 @@ for entry in drilldowns["entries"]:
     l1_caveated = cards_by_key.get(l1["metric_key"], {}).get("tag") == verdict.CAVEAT_TAG
     # A caveated gap is not a verdict, so its breadcrumb carries no Ahead/Behind word.
     l1_state = f'{l1["variance_display"]}, caveated comparison' if l1_caveated else f'{l1["status"]}, {l1["variance_display"]}'
+    l2_label = labels.qualified_node_label(l2["metric_key"], l2["label"]) if l2 else None
+    persist = persistence_view.state(entry.get("persistence"))
     breadcrumb = (
         f'{PILLAR_LABEL.get(pillar, pillar.title())} › Layer 1: {l1["label"]} '
         f'({l1_state}) › Layer 2: '
-        + (f'{l2["label"]} is the outlier' if l2 else "no computable outlier")
+        + (f'{l2_label} is the outlier' if l2 else "no computable outlier")
     )
     with st.expander(breadcrumb):
+        # The repeat chip is neutral gray: it marks a repeated driver, not a status.
         st.markdown(
             f'<span class="pillar-dot" style="background-color:{dot}"></span>'
             f'<span class="breadcrumb">{PILLAR_LABEL.get(pillar, pillar.title())} › '
-            f'{l1["label"]}</span>',
+            f'{l1["label"]}</span>'
+            + (theme.neutral_chip(persist["chip"]) if persist["chip"] else ""),
             unsafe_allow_html=True,
         )
         st.caption(f'Layer-1 formula: {LAYER1_FORMULA.get(l1["metric_key"], "not defined as a formula in the tree")}')
@@ -278,7 +286,7 @@ for entry in drilldowns["entries"]:
                            footer=[f"Layer {l1['layer']}"])
         if l2:
             l2_card = dict(
-                label=l2["label"], pillar=pillar,
+                label=l2_label, pillar=pillar,
                 value_display=answers.format_for_key(l2["metric_key"], l2["value"]),
                 comparison_display=f"vs {answers.format_for_key(l2['metric_key'], l2['baseline'])} trailing baseline",
                 variance_display=f'{l2["deviation_pct"] * 100:+.1f}%',
@@ -289,9 +297,37 @@ for entry in drilldowns["entries"]:
             theme.scorecard_row([l1_card])
             st.info("No Layer-2 child has a computable actual with a usable baseline.")
 
+        # Repeat marker: the engine's record, shown verbatim (lib/persistence_view.py).
+        st.markdown("**Repeat marker**")
+        st.caption(theme.escape_md(persist["line"]))
+        if persist["caveat"]:
+            st.caption(theme.escape_md(persist["caveat"]))
+        if persist["note"]:
+            st.caption(theme.escape_md(persist["note"]))
+        if persist["break_text"]:
+            st.caption(theme.escape_md(persist["break_text"]))
+        if persist["rows"]:
+            st.dataframe(pd.DataFrame(persist["rows"]), hide_index=True, width="stretch")
+        for line in (persist["adverse_direction"], persist["basis_line"]):
+            if line:
+                st.caption(theme.escape_md(line))
+
         l3_status = entry.get("layer3_status")
+        l3_rank = entry.get("layer3_ranking") or []
         if l3_status == "branch_depth_2":
             st.caption("Layer 3: this branch has no Layer-3 children in the tree; depth stops at Layer 2.")
+        elif l3_rank:
+            st.markdown("**Layer 3 evidence**")
+            # The caption states the basis the rank was computed on (the rows' own
+            # comparison_basis), not a fixed phrase: additive branches rank on absolute change.
+            st.caption(drilldown_view.caption(l3_rank, 3))
+            parent_label = {l2["metric_key"]: l2_label} if l2 else {}
+            st.dataframe(pd.DataFrame(drilldown_view.table_dict(
+                l3_rank, lambda x: labels.qualified_node_label(x["metric_key"], x["label"]),
+                label_header="Metric (Layer 3)",
+                extra={"Under": [parent_label.get(x.get("parent_key")) or labels.humanize(x.get("parent_key") or "")
+                                 for x in l3_rank]},
+            )), hide_index=True, width="stretch")
         elif entry.get("layer3_evidence"):
             st.markdown("**Layer 3 evidence**")
             ev_df = pd.DataFrame(entry["layer3_evidence"])
@@ -308,22 +344,21 @@ for entry in drilldowns["entries"]:
             st.caption("Layer 3: no computable evidence for this branch this period.")
 
         if entry.get("sibling_ranking"):
-            st.caption("Layer-2 siblings ranked by deviation from their own trailing baseline:")
             sib = entry["sibling_ranking"]
-            sib_df = pd.DataFrame({
-                "Metric (Layer 2)": [x["label"] for x in sib],
-                "Value": [answers.format_for_key(x["metric_key"], x["value"]) for x in sib],
-                "Baseline": [answers.format_for_key(x["metric_key"], x["baseline"]) for x in sib],
-                "Deviation": [x["deviation_display"] for x in sib],
-                "Rank": [x["rank"] for x in sib],
-            })
+            st.caption(drilldown_view.caption(sib, 2).replace("drivers", "siblings", 1))
+            sib_df = pd.DataFrame(drilldown_view.table_dict(
+                sib, lambda x: labels.qualified_node_label(x["metric_key"], x["label"]),
+                label_header="Metric (Layer 2)"))
             st.dataframe(sib_df, hide_index=True, width="stretch")
 
         missing = entry.get("sibling_coverage", {}).get("missing_siblings") or []
         if missing:
-            st.caption("Not in the ranking (no data): " + ", ".join(m["label"] for m in missing))
+            st.caption("Not in the ranking (no data): " + ", ".join(labels.clean_node_label(m["label"]) for m in missing))
         for note in entry.get("notes") or []:
             add_note("Scope", note, prefix=f"{l1['label']} drill-down: ")
+
+for persistence_scope in persistence_view.scope_notes(drilldowns["entries"]):
+    notes.append(("Scope", persistence_scope))
 
 st.divider()
 
@@ -451,6 +486,25 @@ with st.expander(f"Rule catalog ({len(triggers['rules'])} rules)"):
     for rule_id, rule in triggers["rules"].items():
         st.markdown(f"**{labels.rule_label(rule_id)}** — {theme.escape_md(labels.apply_phrase_map(rule['description']))}")
         st.caption(f"Action: {rule['resulting_action']} | Source: {labels.source_label(rule['source_mart'])}")
+
+st.divider()
+
+# =====================================================================
+# 5. CONTEXT -- segment mix (Section 4.3: context sits below the decision
+# tier, so it never pushes the watchlist down the page; Section 5.1).
+# Rendered from the readout's own segment_mix section, verbatim: no share,
+# rate or change is recomputed here. Not a metric-tree node, so no Layer label.
+# =====================================================================
+st.markdown("#### Context — segment mix")
+st.caption("Share of company ending MRR by segment against the same month a year earlier, "
+           "beside migration between segments over the trailing 12 months.")
+mix_state = segment_mix_render.render(readout.get("segment_mix"), key="digest_segment_mix")
+if mix_state["kind"] == "unavailable":
+    notes.append(("Data gap", f"Segment mix unavailable for this readout: {mix_state['reason_text']}"))
+elif mix_state["kind"] == "absent":
+    notes.append(("Data gap", "This readout carries no segment mix section."))
+for kind, text in mix_state.get("notes") or []:
+    add_note(kind, text)
 
 st.divider()
 theme.notes_and_assumptions(notes)

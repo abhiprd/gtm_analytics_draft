@@ -228,3 +228,83 @@ class TestTreePanelQuestions:
     def test_alias_targets_must_exist_in_the_registry(self):
         with pytest.raises(KeyError):
             routing.build_vocabulary(METRICS, aliases={"zzz": "no_such_metric"})
+
+
+# --------------------------------------------------------------------------
+# Scope words, unsupported splits and the alias table
+# --------------------------------------------------------------------------
+
+class TestScopeWordOutranksBroaderName:
+    @pytest.mark.parametrize("q", ["win rate for renewals", "win rate of renewals", "renewal win rate",
+                                   "What is the win rate for renewals?", "Renewals win rate by segment"])
+    def test_renewal_phrasings_resolve_to_renewal_win_rate(self, q):
+        assert route(q)["resolved_metric"] == "renewal_win_rate"
+
+    def test_plain_win_rate_is_unchanged(self):
+        assert route("win rate for Enterprise")["resolved_metric"] == "win_rate"
+        assert route("win rate by segment")["resolved_metric"] == "win_rate"
+
+    def test_every_override_targets_a_registry_node(self):
+        for rule in routing.SCOPE_OVERRIDES:
+            assert rule["from_key"] in METRICS and rule["to_key"] in METRICS
+
+
+class TestUnsupportedSplits:
+    @pytest.mark.parametrize("q,expected", [
+        ("win rate by loss reason", ["loss reason"]),
+        ("win rate by rep", ["rep"]),
+        ("NRR by region", ["region"]),
+        ("NRR by industry", ["industry"]),
+        ("NRR by region/industry", ["region", "industry"]),
+        ("win rate per rep", ["rep"]),
+        ("win rate for each rep", ["rep"]),
+        ("win rate by segment and region", ["region"]),
+        ("win rate by the region for enterprise", ["region"]),
+    ])
+    def test_a_split_without_a_dimension_is_reported_not_dropped(self, q, expected):
+        assert route(q)["unsupported_splits"] == expected
+
+    @pytest.mark.parametrize("q", [
+        "win rate by segment", "NRR by segment", "CAC by channel", "LTV by segment × acquisition channel",
+        "Marketing spend allocation by channel", "win rate by month", "win rate by quarter for Enterprise",
+        "win rate by Q3", "by the end of Q3 what is NRR", "win rate across all segments", "win rate",
+        "win rate by opportunity type",
+    ])
+    def test_recognized_dimensions_grain_words_and_time_phrases_are_not_splits(self, q):
+        assert route(q)["unsupported_splits"] == []
+
+    def test_a_segment_after_the_split_is_a_filter_not_a_split(self):
+        p = route("win rate by region for enterprise")
+        assert p["filters"] == {"segment": "Enterprise"} and p["unsupported_splits"] == ["region"]
+
+    def test_nothing_resolved_reports_no_split(self):
+        assert route("tell me about the cache hit ratio by region")["unsupported_splits"] == []
+
+    def test_all_segments_is_a_segment_split(self):
+        assert route("win rate across all segments")["dimensions"] == ["segment"]
+
+
+class TestAliasesLiveOnTheServer:
+    def test_the_dashboard_adds_no_alias_the_server_already_has(self):
+        server = {routing.tokenize(k) and tuple(t for t, _, _ in routing.tokenize(k)) for k in _server_aliases()}
+        for phrase in routing.SUPPLEMENTARY_ALIASES:
+            assert tuple(t for t, _, _ in routing.tokenize(phrase)) not in server, phrase
+
+    @pytest.mark.parametrize("q,key", [
+        ("overage share of MRR", "overage_realization"),
+        ("how many tickets", "support_ticket_volume_severity"),
+        ("login frequency by segment", "engagement_login_frequency"),
+        ("AM sentiment for SMB", "am_sentiment_notes"),
+        ("discount vs list", "discount_rate_vs_list"),
+        ("renewal rate", "renewal_win_rate"),
+        ("ramp mix", "rep_capacity_ramp_mix"),
+        ("ingestion without completion", "ingestion_without_completion_rate"),
+        ("mid-chain abandonment", "mid_chain_workflow_abandonment"),
+        ("workflow chain under-utilization", "workflow_chain_under_utilization"),
+        ("LTV", "ltv_by_segment_acquisition_channel"), ("lifetime value", "ltv_by_segment_acquisition_channel"),
+        ("LTV:CAC", "ltv_by_segment_acquisition_channel"), ("payback", "consumption_payback"),
+        ("CAC payback", "consumption_payback"), ("logo retention", "logo_retention"),
+        ("tenure at churn", "tenure_at_churn"),
+    ])
+    def test_phrasings_route(self, q, key):
+        assert route(q)["resolved_metric"] == key

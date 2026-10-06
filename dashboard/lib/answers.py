@@ -18,7 +18,7 @@ and never given a value.
 import math
 from typing import Callable, Dict, List, Optional
 
-from . import labels
+from . import censoring, labels
 
 # --- Node status -----------------------------------------------------------
 
@@ -155,7 +155,7 @@ _UNIT_BY_KEY = {
     "logo_retention": "pct",
     "tenure_at_churn": "days",
     # Layer-2/3 keys the variance engine surfaces in the Digest drill-downs.
-    "pipeline_generated": "count",
+    "pipeline_generated": "converted_leads",
     "organic_content": "count",
     "paid": "count",
     "community_events": "count",
@@ -168,6 +168,26 @@ _UNIT_BY_KEY = {
     "grr_contraction_rate": "pct",
     "grr_churn_rate": "pct",
     "rep_fully_loaded_cost": "usd",
+    # Deal-level, workflow-chain, overage and account-health-input nodes (registry keys,
+    # then the variance engine's own keys where they differ).
+    "poc_pass_rate": "pct",
+    "rep_capacity_ramp_mix": "pct",
+    "loss_reason_mix": "pct",
+    "discount_rate_vs_list": "pct",
+    "deal_size_trend_within_segment_band": "pct",
+    "deal_size_trend_within_band": "pct",
+    "renewal_win_rate": "pct",
+    "workflow_chain_under_utilization": "pct",
+    "workflow_chain_underutilization": "pct",
+    "ingestion_without_completion_rate": "pct",
+    "mid_chain_workflow_abandonment": "pct",
+    "mid_chain_abandonment": "pct",
+    "declining_share_of_full_chain_vs_partial_chain_runs": "pct",
+    "full_vs_partial_chain_share": "pct",
+    "overage_realization": "pct",
+    "support_ticket_volume_severity": "weighted_tickets_per_account_month",
+    "engagement_login_frequency": "logins_per_account_month",
+    "am_sentiment_notes": "score",
 }
 _DOLLAR_HINTS = ("revenue", "mrr", "arr", "cost", "cac", "commitment", "bookings", "pipeline",
                  "amount", "acv", "tcv", "spend")
@@ -216,8 +236,16 @@ def format_value(unit: str, v) -> str:
         return f"{v:.2f}x"
     if unit == "count":
         return f"{v:,.0f}"
+    if unit == "converted_leads":
+        return f"{v:,.0f} leads converted"
     if unit == "per_million_actions":
         return f"{v * 1_000_000:.2f} per 1M Actions"
+    if unit == "weighted_tickets_per_account_month":
+        return f"{v:.2f} weighted tickets per account-month"
+    if unit == "logins_per_account_month":
+        return f"{v:.1f} logins per account-month"
+    if unit == "score":
+        return f"{v:.2f}"
     # Unknown unit: a plain number, never scientific notation.
     if abs(v) >= 1000:
         return f"{v:,.0f}"
@@ -363,7 +391,7 @@ def result_is_degenerate(node: dict, result: dict) -> bool:
     return len(vals) == 1
 
 
-# --- Partial (truncated) period handling ---------------------------------------------
+# --- Partial (truncated) and censored period handling ---------------------------------
 
 def period_covers_month(period: Optional[str], grain: str, month_iso: Optional[str]) -> bool:
     """True when the period (as query_metric labels it: the first day of the month,
@@ -383,12 +411,29 @@ def period_covers_month(period: Optional[str], grain: str, month_iso: Optional[s
     return False
 
 
-def last_complete_period(result: dict, grain: str, partial_month: Optional[str]) -> Optional[str]:
-    """Latest period with a non-null value that does not contain the truncated final
-    month; None when there is none."""
+def _as_months(excluded) -> List[str]:
+    """One month, a list of months or None as a list."""
+    if not excluded:
+        return []
+    if isinstance(excluded, str):
+        return [excluded]
+    return list(excluded)
+
+
+def period_is_excluded(period: Optional[str], grain: str, excluded) -> bool:
+    """True when the period contains any excluded month (the truncated final month, or a
+    node's censored tail). `excluded` is one ISO month or a list of them."""
+    return any(period_covers_month(period, grain, m) for m in _as_months(excluded))
+
+
+def last_complete_period(result: dict, grain: str, partial_month) -> Optional[str]:
+    """Latest period with a non-null value that contains no excluded month (`partial_month`
+    is the truncated final month, or the list of months excluded for the node); None when
+    there is none."""
+    excluded = _as_months(partial_month)
     periods = [r["period"] for r in _rows(result)
                if "period" in r and not _is_missing(r.get("value"))
-               and not period_covers_month(r["period"], grain, partial_month)]
+               and not period_is_excluded(r["period"], grain, excluded)]
     return max(periods) if periods else None
 
 
@@ -400,10 +445,13 @@ def basis_text(grain: str, complete: bool = True) -> str:
     return f"Basis: last complete {unit}" if complete else f"Basis: latest {unit} (partial)"
 
 
-def table_rows(result: dict, unit: str, grain: str, partial_month: Optional[str]) -> List[dict]:
+def table_rows(result: dict, unit: str, grain: str, partial_month: Optional[str],
+               censored=()) -> List[dict]:
     """The answer's data table with readable cells: period labels instead of
-    timestamps, values with their unit, and a flag on the partial period."""
+    timestamps, values with their unit, and a flag on the partial period. A period inside
+    the node's censored tail is flagged 'Excluded: incomplete window'."""
     out = []
+    censored = _as_months(censored)
     for r in _rows(result):
         row = {}
         for k, v in r.items():
@@ -414,15 +462,99 @@ def table_rows(result: dict, unit: str, grain: str, partial_month: Optional[str]
             else:
                 row[k.replace("_", " ").capitalize()] = v
         row["Value"] = format_value(unit, r.get("value"))
-        if "period" in r and period_covers_month(r["period"], grain, partial_month):
+        if "period" in r and period_is_excluded(r["period"], grain, censored):
+            row["Note"] = (censoring.EXCLUDED_LABEL if grain == "month"
+                           else f"Includes excluded months: {censoring.EXCLUDED_LABEL.lower()}")
+        elif "period" in r and period_covers_month(r["period"], grain, partial_month):
             row["Note"] = "Partial month" if grain == "month" else "Includes partial month"
         out.append(row)
-    # The Note column exists only when some row is partial, and is blank (never None)
+    # The Note column exists only when some row is flagged, and is blank (never None)
     # on the others.
     if any("Note" in row for row in out):
         for row in out:
             row.setdefault("Note", "")
     return out
+
+
+# --- Default views and unsupported splits ----------------------------------------------
+
+# A node whose all-segments figure is dominated by a structural constant opens on the
+# meaningful segments when the question names none. Win rate: every SMB opportunity is
+# created already Closed Won, so SMB is 100% by construction and the blended figure
+# (85.8% in 2025-11) is mostly that constant; the Digest reads Commercial and Enterprise.
+DEFAULT_SEGMENT_VIEW = {
+    "win_rate": ("Commercial", "Enterprise"),
+}
+DEFAULT_VIEW_NOTE = ("No segment named: showing Commercial and Enterprise. SMB win rate is 100% by "
+                     "construction, which would dominate an all-segment figure.")
+
+
+def apply_default_view(parsed: dict) -> dict:
+    """A copy of the routed question with the node's default segment view applied when the
+    question names no segment, no segment split and no segment filter."""
+    key = parsed.get("resolved_metric")
+    subset = DEFAULT_SEGMENT_VIEW.get(key or "")
+    out = dict(parsed)
+    out["default_view_note"] = None
+    if not subset:
+        return out
+    if parsed.get("filters", {}).get("segment") or "segment" in parsed.get("dimensions", []) \
+            or parsed.get("segment_subset"):
+        return out
+    out["dimensions"] = list(parsed.get("dimensions", [])) + ["segment"]
+    out["segment_subset"] = list(subset)
+    out["default_view_note"] = DEFAULT_VIEW_NOTE
+    return out
+
+
+# A split the reader asked for that is not a queryable dimension, with the registry node
+# that is the nearest real view of the same idea (offered as a suggestion, never routed to
+# silently). Keys are the normalized split phrase; every target is checked against the
+# registry by a test.
+RELATED_SPLIT_NODES = {
+    "loss reason": "loss_reason_mix",
+    "loss reasons": "loss_reason_mix",
+    "reason": "loss_reason_mix",
+    "rep": "rep_capacity_ramp_mix",
+    "reps": "rep_capacity_ramp_mix",
+    "rep tenure": "rep_capacity_ramp_mix",
+    "ramp": "rep_capacity_ramp_mix",
+    "ramp status": "rep_capacity_ramp_mix",
+}
+
+FAILED_NOTICE = ("This question could not be answered. Rephrase it, or select a node in the metric "
+                 "tree to start from a registered name.")
+
+
+def split_notice(phrases: List[str], metric_name: str) -> str:
+    """'Split by loss reason is not available for Win rate. The answer is not split.'"""
+    if not phrases:
+        return ""
+    names = phrases[0] if len(phrases) == 1 else ", ".join(phrases[:-1]) + " or " + phrases[-1]
+    return f"Split by {names} is not available for {metric_name}. The figures below are not split."
+
+
+def split_suggestions(phrases: List[str], metrics: Dict[str, dict], resolved: Optional[str]) -> List[dict]:
+    """[{key, label, question}] for each unsupported split phrase that has a related node
+    (deduplicated, never the node already resolved)."""
+    seen, out = set(), []
+    for ph in phrases:
+        target = RELATED_SPLIT_NODES.get(" ".join(ph.lower().split()))
+        if target and target in metrics and target != resolved and target not in seen:
+            seen.add(target)
+            node = metrics[target]
+            out.append({"key": target, "label": labels.qualified_node_label(target, node["name"]),
+                        "question": question_for_node(node)})
+    return out
+
+
+def safe_answer(answer_fn: Callable[..., dict], question: str, **kwargs) -> dict:
+    """Run an answer function so a failure becomes a plain-language notice instead of a
+    stack trace: the Ask page never shows a traceback or a raw exception message."""
+    try:
+        return answer_fn(question, **kwargs)
+    except Exception:  # noqa: BLE001 - any failure is reported as a notice, never raised
+        return {"kind": "failed", "parsed": {"raw_question": question}, "notice": FAILED_NOTICE}
 
 
 # --- Answer assembly -----------------------------------------------------------------
@@ -437,11 +569,13 @@ def build_answer(parsed: dict, query_fn: Callable[..., dict], metrics: Dict[str,
 
     `partial_month` (ISO date of the truncated final month in the data window): the
     headline is the latest period that does not contain it, and the newest period
-    is reported as partial."""
+    is reported as partial. A node with a censored tail (lib/censoring.py) also excludes
+    those months from the headline."""
     key = parsed["resolved_metric"]
     if key is None:
         return {"kind": "unresolved", "parsed": parsed}
 
+    parsed = apply_default_view(parsed)
     node = metrics[key]
     dims = list(parsed["dimensions"])
     filters = dict(parsed["filters"])
@@ -454,31 +588,43 @@ def build_answer(parsed: dict, query_fn: Callable[..., dict], metrics: Dict[str,
     unit = unit_for(node)
     code = result.get("error")
     gap_clean = labels.clean_registry_text(node.get("gap_note"))
+    query_gap = state == "not_computable" and labels.is_query_interface_gap(node.get("gap_note"))
+    censored = censoring.censored_months(key, partial_month)
+    excluded = censoring.excluded_months(key, partial_month)
 
     message = None
     message_tail = None
+    detail = None
     if state == "rejected":
         message, message_tail = labels.guardrail_sentence(code, result.get("message"), node["name"])
     elif state == "overlay":
         message = labels.overlay_sentence(node["name"], node.get("note"), bool(node.get("computable")), node.get("gap_note"))
     elif state == "not_computable":
-        message = f"{node['name']} has no data source mapped yet. {gap_clean}".strip()
+        if query_gap:
+            # The artifact exists and is validated; only this interface cannot serve it.
+            message = labels.QUERY_GAP_LEAD
+            detail = gap_clean
+        else:
+            message = gap_clean or f"{node['name']} has no supporting source data."
     elif state == "degenerate":
         message = _reason(node, metrics, "degenerate", None)
 
     own = {
         "key": key,
         "name": node["name"],
+        "display_name": labels.qualified_node_label(key, node["name"]),
         "pillar": node["pillar"],
         "layer": node["layer"],
         "parent": node.get("parent"),
         "parent_name": metrics[node["parent"]]["name"] if node.get("parent") else None,
         "status": node_status(node),
         "state": state,
+        "query_gap": query_gap,
         "unit": unit,
         "result": result,
         "message": message,
         "message_tail": message_tail,
+        "detail": detail,
         "guardrail_label": labels.guardrail_label(code) if state == "rejected" else None,
         "reason": _reason(node, metrics, state, result.get("message")),
         "gap_note": gap_clean if state == "value" else "",
@@ -486,17 +632,19 @@ def build_answer(parsed: dict, query_fn: Callable[..., dict], metrics: Dict[str,
         "formula": (result.get("metric") or {}).get("formula") or node.get("formula"),
         "formula_note": (result.get("metric") or {}).get("formula_note") or node.get("formula_note"),
         "partial_month": partial_month,
+        "censored_months": censored,
+        "excluded_months": excluded,
     }
     period = None
     if state == "value":
         newest = latest_period(result)
-        complete = last_complete_period(result, grain, partial_month) if newest else None
+        complete = last_complete_period(result, grain, excluded) if newest else None
         period = complete or newest
         own["period"] = period
         own["period_label"] = period_label(period, grain)
-        own["headline_is_partial"] = period_covers_month(period, grain, partial_month)
+        own["headline_is_partial"] = period_is_excluded(period, grain, excluded)
         own["newest_partial_period"] = (
-            newest if newest and period_covers_month(newest, grain, partial_month) and newest != period else None)
+            newest if newest and period_is_excluded(newest, grain, excluded) and newest != period else None)
         own["newest_partial_label"] = period_label(own["newest_partial_period"], grain) if own["newest_partial_period"] else None
         own["values"] = values_at(result, period)
         own["constant_segments"] = constant_segments(node, result)
@@ -505,6 +653,8 @@ def build_answer(parsed: dict, query_fn: Callable[..., dict], metrics: Dict[str,
         own["prior_period_label"] = period_label(prior, grain) if prior else None
         own["prior_values"] = values_at(result, prior) if prior else {}
         own["basis"] = basis_text(grain, complete=not own["headline_is_partial"])
+        own["censored_tag"] = censoring.card_tag(key)
+        own["censored_note"] = censoring.tail_sentence(key, partial_month)
     elif state == "all_null":
         own["message"] = (
             f"{node['name']} has no computable value for this query."
@@ -520,23 +670,36 @@ def build_answer(parsed: dict, query_fn: Callable[..., dict], metrics: Dict[str,
             cstate = _classify(cres)
             if cstate == "value" and result_is_degenerate(cnode, cres):
                 cstate = "degenerate"
+            c_query_gap = cstate == "not_computable" and labels.is_query_interface_gap(cnode.get("gap_note"))
+            c_excluded = censoring.excluded_months(ckey, partial_month)
             entry = {
                 "key": ckey,
                 "name": cnode["name"],
+                "display_name": labels.qualified_node_label(ckey, cnode["name"]),
                 "layer": cnode["layer"],
                 "status": node_status(cnode),
+                "status_label": None,
                 "state": cstate,
+                "query_gap": c_query_gap,
                 "unit": unit_for(cnode),
                 "has_children": bool(cnode.get("children")),
-                "message": labels.clean_registry_text(cres.get("message")) if cstate in ("rejected", "overlay", "not_computable") else None,
+                "message": (labels.guardrail_sentence(cres.get("error"), cres.get("message"), cnode["name"])[0]
+                            if cstate == "rejected"
+                            else labels.clean_registry_text(cres.get("message")) if cstate in ("overlay", "not_computable") else None),
                 "warnings": [labels.clean_registry_text(w) for w in (cres.get("warnings") or [])],
                 "gap_note": "",
+                "tail_note": None,
             }
             if cnode.get("cross_reference") and cstate == "not_computable":
                 entry["state"] = "cross_reference"
-            entry["reason"] = _reason(cnode, metrics, entry["state"], cres.get("message"))
+            entry["reason"] = entry["message"] if cstate == "rejected" else _reason(cnode, metrics, entry["state"], cres.get("message"))
+            if c_query_gap:
+                # The long registry paragraph is shown once, with the parent; a row carries
+                # the short statement.
+                entry["status_label"] = "Not queryable here"
+                entry["reason"] = labels.QUERY_GAP_LEAD
             if cstate == "value":
-                cp_candidates = last_complete_period(cres, grain, partial_month)
+                cp_candidates = last_complete_period(cres, grain, c_excluded)
                 cp = period if period is not None and any(
                     r.get("period") == period for r in _rows(cres)) else (cp_candidates or latest_period(cres))
                 entry["period"] = cp
@@ -545,6 +708,9 @@ def build_answer(parsed: dict, query_fn: Callable[..., dict], metrics: Dict[str,
                 entry["aligned"] = (cp == period)
                 if cnode.get("gap_note"):
                     entry["gap_note"] = labels.first_sentences(labels.clean_registry_text(cnode["gap_note"]), 200)[0]
+                if censoring.is_censored_node(ckey):
+                    rng = censoring.tail_range_text(ckey, partial_month)
+                    entry["tail_note"] = (f"Months {rng} excluded: incomplete window" if rng else None)
             elif cstate == "all_null":
                 entry["message"] = labels.clean_registry_text(cres.get("warnings", [None])[0]) if cres.get("warnings") else (
                     "No computable value for this query.")
