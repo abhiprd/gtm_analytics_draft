@@ -51,3 +51,24 @@ select 'mart_gtm_plan' as mart, cast(layer1_metric as varchar), cast(month as va
 from {{ ref('mart_gtm_plan') }}
 group by 1, 2, 3, 4
 having count(*) > 1
+
+union all
+
+select 'mart_deal_funnel' as mart, cast(segment as varchar), cast(month as varchar), cast(null as varchar), count(*)
+from {{ ref('mart_deal_funnel') }}
+group by 1, 2, 3, 4
+having count(*) > 1
+
+union all
+
+select 'mart_workflow_chain_health' as mart, cast(segment as varchar), cast(month as varchar), cast(null as varchar), count(*)
+from {{ ref('mart_workflow_chain_health') }}
+group by 1, 2, 3, 4
+having count(*) > 1
+
+union all
+
+select 'mart_consumption_utilization' as mart, cast(segment as varchar), cast(month as varchar), cast(null as varchar), count(*)
+from {{ ref('mart_consumption_utilization') }}
+group by 1, 2, 3, 4
+having count(*) > 1
