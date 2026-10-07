@@ -109,3 +109,20 @@ def final_month_in_marts() -> Optional[str]:
         return str(df["m"].iloc[0])[:10]
     except Exception:
         return None
+
+
+@st.cache_data(ttl=300)
+def load_pipeline_coverage_backtest() -> Optional[dict]:
+    """The backtest summary of the newest committed pipeline-coverage report, or None when
+    no report carries one. Read as written: the page quotes it and computes nothing. The
+    in-process coverage reading does not carry the backtest."""
+    paths = sorted(glob.glob(os.path.join(OUTPUTS_DIR, "pipeline_coverage_*.json")), reverse=True)
+    for p in paths:
+        try:
+            with open(p) as f:
+                summary = json.load(f).get("backtest_summary")
+        except (OSError, ValueError):
+            continue
+        if summary:
+            return summary
+    return None
