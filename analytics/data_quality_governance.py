@@ -519,7 +519,9 @@ _METRIC_TREE_EDGES_STATIC = [
             "data or the marts layer -- nothing estimates the non-Acme denominator. "
             "This is a genuine Phase 1 data gap (confirmed in "
             "analytics/variance_diagnostic.py's coverage table: 'Expansion consumption "
-            "revenue | 0 of 2'), not a scope choice a Phase 4 workaround could close."
+            "revenue | 1 of 2' -- Overage realization is computed as an overage share of "
+            "MRR, but the product needs both factors), not a scope choice a Phase 4 "
+            "workaround could close."
         ),
     },
 ]

@@ -38,8 +38,8 @@ registry_stamp = _semantic_server._registry_stamp
 
 def _build_vocabulary() -> dict:
     """The registry's own display names and keys, the semantic layer's
-    documented aliases (server.py `_ALIASES`), and the dashboard's
-    supplementary aliases (routing.SUPPLEMENTARY_ALIASES). Matching a
+    documented aliases (server.py `_ALIASES`, the one alias table; the dashboard
+    adds none of its own, see routing.SUPPLEMENTARY_ALIASES). Matching a
     question against these is an exact match against names the registry
     recognizes, so it stays inside `_resolve_metric`'s never-fuzzy rule."""
     return _routing.build_vocabulary(
@@ -67,6 +67,12 @@ def answer_question(text: str, partial_month: str = None) -> dict:
     final month of the data window: the headline is the last complete period."""
     parsed = parse_question(text)
     return _answers.build_answer(parsed, query_metric, _semantic_server._METRICS, partial_month=partial_month)
+
+
+def safe_answer_question(text: str, partial_month: str = None) -> dict:
+    """answer_question() that never raises: a failure comes back as kind 'failed' with a
+    plain-language notice and no exception text (lib/answers.py safe_answer)."""
+    return _answers.safe_answer(answer_question, text, partial_month=partial_month)
 
 
 def registry() -> dict:

@@ -64,7 +64,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 _MODEL_NAME = "executive_summary_narrative"
 
-PROMPT_VERSION = "exec-summary-v3"
+PROMPT_VERSION = "exec-summary-v5"
 API_KEY_ENV = "ANTHROPIC_API_KEY"
 MODEL_ENV = "ACME_SUMMARY_MODEL"
 # Override with ACME_SUMMARY_MODEL.
@@ -210,6 +210,8 @@ def select_headline(view: Dict[str, Any]) -> Dict[str, Any]:
             "layer1_plan_comparability": row["plan_comparability"],
             "layer3_status": e["layer3_status"],
             "is_genuine_sibling_comparison": e["sibling_coverage"]["is_genuine_sibling_comparison"],
+            "persistence_status": (e.get("persistence") or {}).get("status"),
+            "persistence_streak_months": (e.get("persistence") or {}).get("streak_months"),
             "cite": "drilldown:%s" % l1["metric_key"],
             "scorecard_cite": "scorecard:%s" % l1["metric_key"],
         }))
@@ -230,6 +232,10 @@ def build_prompt_view(readout: Dict[str, Any]) -> Dict[str, Any]:
     v = normalize(readout)
     v.pop("executive_summary", None)
     v.pop("artifact", None)
+    # The segment-mix section is not part of the summary's evidence: it is not in the
+    # prompt, has no cite id and cannot be quoted. (It still changes the readout's
+    # input_hash, so a summary generated before the section existed is stale.)
+    v.pop("segment_mix", None)
 
     prov = v.pop("provenance", {}) or {}
     v["provenance"] = {"cite": "provenance",
@@ -494,6 +500,15 @@ _METRIC_KIND = {
     "pipeline_generated": COUNT, "organic_content": COUNT, "paid": COUNT,
     "community_events": COUNT, "automated_action_volume": COUNT, "am_touchpoint_volume": COUNT,
     "tenure_at_churn": NUM,
+    # Deal-funnel, workflow-chain and overage nodes (all rates or shares of a base) and the
+    # account-health inputs (a per-account average or index).
+    "poc_pass_rate": PCT, "loss_reason_mix": PCT, "rep_capacity_ramp_mix": PCT,
+    "discount_rate_vs_list": PCT, "deal_size_trend_within_band": PCT, "renewal_win_rate": PCT,
+    "overage_realization": PCT, "workflow_chain_underutilization": PCT,
+    "ingestion_without_completion_rate": PCT, "mid_chain_abandonment": PCT,
+    "full_vs_partial_chain_share": PCT, "usage_trend_account_relative": PCT,
+    "support_ticket_volume_severity": NUM, "engagement_login_frequency": NUM,
+    "am_sentiment_notes": NUM,
 }
 _KEY_KIND = {}
 for _k in ("count", "nodes_total", "nodes_breaching_threshold", "nodes_not_computable",
@@ -501,7 +516,8 @@ for _k in ("count", "nodes_total", "nodes_breaching_threshold", "nodes_not_compu
            "branch_max_depth_in_tree", "open_deals", "deals_without_submission",
            "deals_priced_structurally", "lenses_computable", "n_train", "n_test",
            "n_train_positive", "n_test_positive", "call_to_quarter_end_days",
-           "trailing_baseline_months", "layer2_siblings_in_tree", "layer2_siblings_computable"):
+           "trailing_baseline_months", "layer2_siblings_in_tree", "layer2_siblings_computable",
+           "streak_months", "threshold_months", "persistence_streak_months"):
     _KEY_KIND[_k] = COUNT
 for _k in ("variance_pct", "baseline_variance_pct", "deviation_pct", "abs_deviation_pct",
            "lens_spread_pct", "divergence_threshold", "variance_threshold",
@@ -1137,6 +1153,11 @@ def validate_statements(readout: Dict[str, Any], statements: Any,
     record("non_additive_nodes_not_summed", add_errs,
            "brand & awareness and handoff quality are never presented as additive")
 
+    # ---- persistence: a streak claim must match the cited drill-down's own record ----
+    record("persistence_claims_match_cited_drilldown", _persistence_errors(statements, idx),
+           "any streak or persistence claim names the Layer-2 driver of a drill-down it cites "
+           "and agrees with that drill-down's persistence status and streak length")
+
     # ---- forecast section: attributed, dated, and never contradicting its flag ----
     fc_errs = []
     fview = view.get("forecast") or {}
@@ -1221,6 +1242,290 @@ def validate_statements(readout: Dict[str, Any], statements: Any,
            "language; statements are short")
 
     return {"passed": all(c["passed"] for c in checks), "checks": checks, "errors": all_errors}
+
+
+# ---- persistence claims ---------------------------------------------------------
+#
+# This gate is a vocabulary and pattern check. It reads a sentence for the ways a
+# streak is usually worded (a stated length, an ordinal, "since <month>", the bare
+# words persist/streak/consecutive/again/recurring/sustained/repeat, denials such as
+# "only this month", improvement words, rise/fall words) and holds each one to the
+# cited drill-down's persistence record. A paraphrase none of the patterns covers
+# passes unseen, and a claim about a driver the sentence refers to only by a pronoun
+# is not tied to a record. It narrows the ways a streak can be misstated; it does not
+# prove a sentence's meaning (see the methods doc, Executive summary, Known limitations).
+
+_ORDINALS = {"first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6,
+             "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11, "twelfth": 12}
+_QUAL = r"(?:consecutive|straight|successive)"
+# a stated length that is a streak claim on its own
+_STREAK_N = [
+    re.compile(r"\b(\d+)[\s\-]*" + _QUAL + r"\s+months?\b", re.I),
+    re.compile(r"\b(\d+)\s+months?\s+(?:in\s+a\s+row|running|straight)\b", re.I),
+    re.compile(r"\b(\d+)[\s\-]+month\s+(?:streak|run)\b", re.I),
+    re.compile(r"\bstreak\s+of\s+(\d+)\b", re.I),
+    re.compile(r"\b(?:persist\w*|continu\w*|lasted|remain\w*|stayed|kept|keeps?)\s+(?:\w+\s+){0,4}?"
+               r"for\s+(?:the\s+(?:last|past)\s+)?(\d+)\s+months?\b", re.I),
+]
+# a stated length that is a streak claim only in a sentence that names a cited driver
+# and carries an adverse/outlier/persistence cue ("adverse for the last 4 months")
+_STREAK_N_WEAK = [
+    re.compile(r"\b(?:for|over|in|across|during)\s+(?:the\s+)?(?:last|past|previous|prior|latest)"
+               r"\s+(\d+)\s+months?\b", re.I),
+    re.compile(r"\bfor\s+(\d+)\s+months?\b", re.I),
+]
+_ORDINAL_MONTH = re.compile(
+    r"\b(" + "|".join(_ORDINALS) + r"|\d+(?:st|nd|rd|th))\s+(?:" + _QUAL + r"\s+)?month\b"
+    r"(?P<tail>\s+(?:running|in\s+a\s+row|straight))?", re.I)
+_CUE = re.compile(r"\badverse\b|\boutlier\b|\bpersist\w*|\bstreak\b|\brunning\b|\bin\s+a\s+row\b|"
+                  r"\bconsecutive\b|\bdriver\b", re.I)
+# the bare idea of a repeat; strong words name a claim wherever they appear
+_PERSIST_WORDS = re.compile(
+    r"\bpersist\w*|\bstreak\b|\bconsecutive\b|\bsuccessive\b|\bin\s+a\s+row\b|"
+    r"\bmonths?\s+running\b|\bstraight\s+months?\b|\bmonth[\s\-]+after[\s\-]+month\b", re.I)
+# broader repeat words: a claim only in a sentence that names a cited driver
+_BROAD_WORDS = re.compile(
+    r"\bagain\b|\brecurr\w*|\bsustain\w*|\brepeat\w*|\bongoing\b|\bonce\s+more\b|"
+    r"\bsecond\s+time\b|\bre-?emerg\w*|\bcontinu\w*|\bkeeps?\b|\bkept\b", re.I)
+_FAVORABLE = re.compile(r"\bfavou?rable\b", re.I)
+# improvement wording contradicts an adverse streak
+_POSITIVE = re.compile(
+    r"\bimprov\w*|\brecover\w*|\brebound\w*|\bturn(?:ed|ing)?\s+around\b|\bhealthier\b|"
+    r"\bbetter\b|\bstrengthen\w*|\bstabili[sz]\w*|\bbounced?\s+back\b", re.I)
+_RISE = re.compile(r"\bris(?:e|es|en|ing)\b|\brose\b|\bincreas\w*|\bclimb\w*|\bgrew\b|\bgrows?\b|\bgrowing\b|\bgrown\b|"
+                   r"\bhigher\b|\bgain\w*|\bup\s+from\b", re.I)
+_FALL = re.compile(r"\bfell\b|\bfall(?:s|en|ing)?\b|\bdeclin\w*|\bdrop\w*|\bdecreas\w*|\blower\b|"
+                   r"\bslid\w*|\bshr[au]nk\b|\bdown\s+from\b", re.I)
+# "this is not a repeat" wording, wrong when the record is flagged
+_ONE_OFF = re.compile(
+    r"\bonly\s+(?:this|the\s+(?:latest|current|reporting))\s+month\b|\bjust\s+(?:this|one)\s+month\b|"
+    r"\bsingle[\s\-]month\b|\bone[\s\-]off\b|\bisolated\b|\bfirst\s+(?:time|month)\b|"
+    r"\bnew\s+this\s+month\b|\bnot\s+a\s+repeat\b|\bno\s+repeat\b|\bhas(?:n't|\s+not)\s+repeated\b",
+    re.I)
+_MONTH_NAMES = ("January|February|March|April|May|June|July|August|September|October|"
+                "November|December")
+_SINCE = re.compile(
+    r"\b(?:since|starting(?:\s+in)?|beginning(?:\s+in)?|dating\s+(?:back\s+)?to)\s+"
+    r"(?:(?P<y1>\d{4})-(?P<m1>\d{2})(?:-\d{2})?|(?P<mn>" + _MONTH_NAMES + r")(?:\s+(?P<y2>\d{4}))?)",
+    re.I)
+
+
+def _claim_sentences(text: str) -> List[str]:
+    """Sentences for the persistence check. A driver label can contain 'vs.'
+    ('Cyclical/planned usage dip vs. structural churn'), which a plain
+    sentence split would cut in half and leave the claim without its driver."""
+    masked = re.sub(r"\b(vs|e\.g|i\.e|etc)\.", lambda m: m.group(0).replace(".", "\x00"), text,
+                    flags=re.I)
+    return [x.replace("\x00", ".") for x in _sentences(masked)]
+
+
+def _tolerant(phrase: str) -> "re.Pattern":
+    words = [w for w in re.split(r"[^A-Za-z0-9]+", phrase) if w]
+    return re.compile(r"(?<![A-Za-z0-9])" + r"[^A-Za-z0-9]+".join(re.escape(w) for w in words)
+                      + r"(?![A-Za-z0-9])", re.I)
+
+
+def _driver_aliases(entry: Dict[str, Any]) -> List["re.Pattern"]:
+    """How prose may name a drill-down's driver: the label as the readout gives it
+    (also without a trailing parenthetical, and before ' vs'), and for the NRR/GRR
+    drivers, which the tree defines by reference to Growth ('See Growth: Expansion
+    (share of starting revenue)'), the natural forms 'expansion share' and
+    'NRR's expansion share'."""
+    label = (entry.get("persistence") or {}).get("driver_label")
+    if not label:
+        return []
+    forms = {label, re.sub(r"\s*\([^)]*\)\s*$", "", label), re.split(r"\s+vs\.?\s", label)[0]}
+    if label.startswith("See Growth:"):
+        head = re.sub(r"\s*\([^)]*\)\s*$", "", label.split(":", 1)[1]).strip()
+        forms |= {head + " share", head + " rate", head + " (share of starting revenue)"}
+    forms = {f for f in forms if len(re.sub(r"[^A-Za-z0-9]", "", f)) >= 5}
+    return [_tolerant(f) for f in sorted(forms)]
+
+
+def _mention_spans(sent: str, patterns_by_key: Dict[str, Sequence["re.Pattern"]]
+                   ) -> Dict[str, List[Tuple[int, int]]]:
+    """Where each driver is named. A span wholly inside a longer span of another
+    driver is dropped ('Win rate' inside 'Renewal win rate' is not a mention of
+    Win rate)."""
+    raw = {key: sorted({(m.start(), m.end()) for p in pats for m in p.finditer(sent)})
+           for key, pats in patterns_by_key.items()}
+    out = {}
+    for key, spans in raw.items():
+        out[key] = [(a, b) for a, b in spans
+                    if not any(k2 != key and a2 <= a and b <= b2 and (b2 - a2) > (b - a)
+                               for k2, sp in raw.items() for a2, b2 in sp)]
+    return out
+
+
+def _stated_lengths(sent: str, named: bool) -> List[Tuple[int, int]]:
+    """(length, position) for every stated streak length in the sentence."""
+    out: List[Tuple[int, int]] = []
+    for rx in _STREAK_N:
+        out += [(int(m.group(1)), m.start()) for m in rx.finditer(sent)]
+    for m in _ORDINAL_MONTH.finditer(sent):
+        word = m.group(1).lower()
+        n = _ORDINALS.get(word) or int(re.match(r"\d+", word).group(0))
+        if m.group("tail") or named or re.search(_QUAL, m.group(0), re.I):
+            out.append((n, m.start()))
+    if named and _CUE.search(sent):
+        seen = {p for _, p in out}
+        for rx in _STREAK_N_WEAK:
+            out += [(int(m.group(1)), m.start()) for m in rx.finditer(sent)
+                    if not any(abs(m.start() - p) < 12 for p in seen)]
+    return out
+
+
+def _since_months(sent: str) -> List[Tuple[Optional[int], int]]:
+    """(year or None, month number) for each 'since <month>' phrase."""
+    out = []
+    for m in _SINCE.finditer(sent):
+        if m.group("m1"):
+            out.append((int(m.group("y1")), int(m.group("m1"))))
+        else:
+            out.append((int(m.group("y2")) if m.group("y2") else None,
+                        _MONTH_NUM[m.group("mn").lower()[:3]]))
+    return out
+
+
+def _persistence_errors(statements: Sequence[Dict[str, Any]], idx: "_Index") -> List[str]:
+    """Holds every streak or persistence claim to the persistence record of the
+    drill-down it is about. A sentence is a claim when it states a length ('3
+    consecutive months', 'for the last 4 months', 'second month running', 'a 2-month
+    streak'), says 'since <month>', uses persist/streak/consecutive/in a row/month
+    after month, or (when it names a cited driver) uses again/recurring/sustained/
+    repeat/ongoing/continued/keeps, an improvement word or a one-off word. It must
+    name each driver it is about (by its label, or for NRR and GRR by 'expansion
+    share'-style forms) and cite that driver's drill-down; then, for EVERY driver it
+    names: a stated length equals the record's streak (a sentence with several
+    lengths and drivers pairs each length with the nearest driver mention); a bare
+    claim needs status flagged; 'since' equals first_month_of_streak; improvement
+    words and rise/fall words disagreeing with the adverse direction are rejected; a
+    one-off word is rejected when flagged; the streak is adverse months only, so
+    'favorable' is rejected. A denial naming no driver asserts nothing and passes;
+    a driver named but not cited is rejected."""
+    errs: List[str] = []
+    patterns = {key: _driver_aliases(e) for key, e in idx.entries.items()}
+    for i, st in enumerate(statements):
+        cited_keys = [c.split(":", 1)[1] for c in st["cites"]
+                      if c.startswith("drilldown:") and c.split(":", 1)[1] in idx.entries]
+        for sent in _claim_sentences(st["text"]):
+            spans = _mention_spans(sent, patterns)
+            mentions = {k: [a for a, _ in sp] for k, sp in spans.items()}
+            mentioned = [k for k, pos in mentions.items() if pos]
+            # wording checks run on the sentence with the driver labels taken out, so a
+            # word inside a label ('See Growth', 'Declining share') is not read as a claim
+            plain = sent
+            for sp in spans.values():
+                for a, b in sorted(sp, reverse=True):
+                    plain = plain[:a] + " " * (b - a) + plain[b:]
+            named = [k for k in mentioned if k in cited_keys]
+            unciteds = [k for k in mentioned if k not in cited_keys]
+            lengths = _stated_lengths(sent, bool(mentioned))
+            since = _since_months(sent)
+            strong = bool(lengths) or bool(since) or bool(_PERSIST_WORDS.search(plain))
+            broad = bool(mentioned) and bool(
+                _BROAD_WORDS.search(plain) or _POSITIVE.search(plain) or _ONE_OFF.search(plain))
+            if not (strong or broad):
+                continue
+            negated = bool(_NEGATION.search(sent))
+            if unciteds and not negated:
+                errs.append("statement %d makes a persistence claim about %s but does not cite "
+                            "its drill-down ('drilldown:<layer1_metric_key>')"
+                            % (i, " / ".join(repr(idx.entries[k]["persistence"]["driver_label"])
+                                             for k in unciteds)))
+            if not named:
+                if not negated:
+                    errs.append(
+                        "statement %d makes a persistence or streak claim but the sentence does "
+                        "not name, by its exact label, the Layer-2 driver of a drill-down the "
+                        "statement cites (add the cite 'drilldown:<layer1_metric_key>' and "
+                        "name the driver in the same sentence)" % i)
+                continue
+            recs = {k: idx.entries[k]["persistence"] for k in named}
+            labels = {k: repr(r["driver_label"]) for k, r in recs.items()}
+
+            if _FAVORABLE.search(plain) and not negated:
+                errs.append("statement %d describes a persistence streak as favorable; the "
+                            "streak counts adverse months only" % i)
+            if _POSITIVE.search(plain) and not negated:
+                bad = [labels[k] for k, r in recs.items() if (r["streak_months"] or 0) >= 1]
+                if bad:
+                    errs.append("statement %d uses improvement wording about %s, whose latest "
+                                "months are an adverse streak" % (i, " / ".join(bad)))
+            if len(named) == 1 and not negated:
+                r = recs[named[0]]
+                if r["adverse_direction"] == "down" and _RISE.search(plain) \
+                        and (r["streak_months"] or 0) >= 1:
+                    errs.append("statement %d describes %s as rising, but its adverse direction "
+                                "is down" % (i, labels[named[0]]))
+                if r["adverse_direction"] == "up" and _FALL.search(plain) \
+                        and (r["streak_months"] or 0) >= 1:
+                    errs.append("statement %d describes %s as falling, but its adverse direction "
+                                "is up" % (i, labels[named[0]]))
+
+            # stated lengths, paired with the nearest named driver
+            for n, pos in lengths:
+                targets = named
+                if len(named) > 1 and len(lengths) > 1:
+                    def dist(k):
+                        ps = mentions[k]
+                        before = [pos - p for p in ps if p <= pos]
+                        return (min(before) if before else 10 ** 6 + min(abs(p - pos) for p in ps))
+                    targets = [min(named, key=dist)]
+                for k in targets:
+                    r = recs[k]
+                    if negated:
+                        if r["streak_months"] is not None and r["streak_months"] >= n:
+                            errs.append(
+                                "statement %d says %s has not been the adverse outlier for %d "
+                                "consecutive months, but its persistence streak is %d"
+                                % (i, labels[k], n, r["streak_months"]))
+                    elif not (r["streak_months"] == n and r["status"] != "not_applicable"):
+                        errs.append(
+                            "statement %d says %d months for %s, but the cited persistence "
+                            "streak is %s (status %s); quote the streak length exactly"
+                            % (i, n, labels[k], r["streak_months"], r["status"]))
+
+            # 'since <month>' must be the first month of the streak
+            for year, month in since:
+                for k in named:
+                    r = recs[k]
+                    first = r["first_month_of_streak"]
+                    ok = first is not None and int(first[5:7]) == month and \
+                        (year is None or int(first[:4]) == year)
+                    if not ok and not negated:
+                        errs.append(
+                            "statement %d says %s has been the adverse outlier since %s, but "
+                            "the streak's first month is %s" % (i, labels[k],
+                                                                "%s-%02d" % (year or "????", month),
+                                                                first or "none (no streak)"))
+
+            # bare claims and denials
+            if not lengths and not since:
+                if negated:
+                    flagged = [k for k in named if recs[k]["status"] == "flagged"]
+                    if flagged and (_PERSIST_WORDS.search(plain) or _BROAD_WORDS.search(plain)):
+                        errs.append("statement %d says the driver has not persisted, but its "
+                                    "persistence is flagged (%d consecutive months)"
+                                    % (i, recs[flagged[0]]["streak_months"]))
+                elif (_PERSIST_WORDS.search(plain) or _BROAD_WORDS.search(plain)):
+                    bad = [k for k in named if recs[k]["status"] != "flagged"]
+                    if bad:
+                        errs.append(
+                            "statement %d describes %s as persistent, recurring or a streak, but "
+                            "the cited persistence status is %s; only a flagged status (at least "
+                            "%d consecutive months) supports that"
+                            % (i, " / ".join(labels[k] for k in bad),
+                               ", ".join(recs[k]["status"] for k in bad),
+                               recs[bad[0]]["threshold_months"]))
+            if _ONE_OFF.search(plain) and not (negated and not re.search(
+                    r"\bnot\s+a\s+repeat|\bno\s+repeat|\bnot\s+repeated", plain, re.I)):
+                flagged = [k for k in named if recs[k]["status"] == "flagged"]
+                if flagged:
+                    errs.append("statement %d calls the driver a one-off or not a repeat, but "
+                                "its persistence is flagged (%d consecutive months)"
+                                % (i, recs[flagged[0]]["streak_months"]))
+    return errs
 
 
 _NOT_SCALED = re.compile(r"\bnot[\s\-]+scaled\b", re.I)
@@ -1425,7 +1730,23 @@ MRR movements; never put the two side by side as if comparable. If a segment's \
 must say it is a late-quarter read and that the CRO override is "not scaled" to the remaining \
 pipeline. To state a caveat from the section's `caveats`, paraphrase it in your own words: write \
 numbers as digits (4, not "four"), and do not copy phrases containing "expected", "should" or \
-number words; do not invent a caveat.\
+number words; do not invent a caveat.
+11. Persistence. Each drill-down carries `persistence`: `streak_months` is how many consecutive \
+months the same Layer-2 driver has been the largest adverse outlier against its own trailing \
+baseline, `status` is "flagged" when that reaches `threshold_months`, `first_month_of_streak` is \
+when it began, and `note` says it in plain words. Use the exact phrase "the same driver has been \
+the adverse outlier for N consecutive months", with N exactly `streak_months`, in a sentence that \
+names the Layer-2 driver by its exact label (for the NRR and GRR drivers the label is, for example, \
+"See Growth: Expansion (share of starting revenue)"; "expansion share" is also accepted) and in a \
+statement that cites `drilldown:<layer1_metric_key>`. If you say when it began, write "since \
+YYYY-MM" using `first_month_of_streak`. Do not call a driver persistent, recurring, sustained, a \
+repeat or "again" unless `status` is "flagged", and do not call a flagged streak a one-off or \
+"only this month". Do not describe an adverse streak with improvement words (improved, recovering, \
+better) or with a direction opposite to the driver's `adverse_direction`. When `status` is \
+"not_applicable" (for example a single-candidate read) say persistence is not applicable. The \
+streak counts adverse months only; never describe it as favorable. A persistence flag says the \
+driver keeps being the largest adverse outlier, not why, and in aggregate it fires about as often \
+as it would on unrelated months, so do not present it as evidence of a trend or a cause.\
 """
 
 _TASK_TEXT = (

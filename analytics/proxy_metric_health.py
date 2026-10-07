@@ -494,80 +494,45 @@ TIER_NOT_ACTIONABLE = "E_not_a_real_gap"
 # and `rationale` judgment.
 DATA_GAP_ROOTS = [
     dict(
-        node_key="discount_rate_vs_list",
-        tier=TIER_MART_EXPOSURE_ONLY,
-        rationale=(
-            "Already named and scoped in the Pricing/packaging analytics methods-"
-            "doc entry as a separate, already-flagged piece of work: "
-            "fact_opportunities is confirmed to expose list_price/discount_rate/"
-            "loss_reason; the fix is a Phase 2 mart change (expose the columns "
-            "through a mart), not new Phase 1 data."
-        ),
-    ),
-    dict(
-        node_key="deal_size_trend_within_band",
-        tier=TIER_MART_EXPOSURE_ONLY,
-        rationale="Same already-scoped fix as discount_rate_vs_list -- see that entry.",
-    ),
-    dict(
-        node_key="loss_reason_mix",
-        tier=TIER_MART_EXPOSURE_ONLY,
-        rationale="Same already-scoped fix as discount_rate_vs_list -- loss_reason is the field this leaf needs.",
-    ),
-    dict(
         node_key="stage_to_stage_conversion",
-        tier=TIER_MART_EXPOSURE_ONLY,
+        tier=TIER_GENUINE_NEW_PHASE1_DATA,
         rationale=(
-            "Needs fact_opportunity_stage_history's stage-transition detail exposed "
-            "through a mart -- the raw fact already exists (fact_opportunity_stage_"
-            "history), it is simply outside the mart_*-only read scope Phase 4 code "
-            "operates under. Same root cause as poc_pass_rate, renewal_win_rate and "
-            "churn_reason_category below -- one mart change could close several of "
-            "these at once."
-        ),
-    ),
-    dict(
-        node_key="poc_pass_rate",
-        tier=TIER_MART_EXPOSURE_ONLY,
-        rationale="Same stage-history mart-exposure gap as stage_to_stage_conversion.",
-    ),
-    dict(
-        node_key="renewal_win_rate",
-        tier=TIER_MART_EXPOSURE_ONLY,
-        rationale=(
-            "Same opportunity-detail mart-exposure gap. Blocks its own two Layer-3 "
-            "children (time_to_respond_churn_risk_flag, loud_vs_silent_churn_mix) "
-            "as well -- closing the parent mart gap would also need those two "
-            "leaves' own source events (a churn-risk-flag timestamp, an AM response "
-            "timestamp) which are a separate, smaller gap on top."
+            "Not a mart gap: mart_deal_funnel and fact_opportunity_stage_history both "
+            "expose the stage path, and every new-business deal logs every stage of its "
+            "segment's path (SAL, SQO, Proposal/Negotiation, plus POC for Enterprise), won "
+            "or lost, so conversion is 100% at every hop in every month. A real series "
+            "needs the generator to let lost deals stop at the stage where they died, which "
+            "is a Phase 1 change with its own QA-plan tests."
         ),
     ),
     dict(
         node_key="churn_reason_category",
-        tier=TIER_MART_EXPOSURE_ONLY,
-        rationale="Same opportunity-detail (loss_reason) mart-exposure gap as the other opportunity-mart leaves.",
-    ),
-    dict(
-        node_key="overage_realization",
-        tier=TIER_MART_EXPOSURE_ONLY,
+        tier=TIER_GENUINE_NEW_PHASE1_DATA,
         rationale=(
-            "fact_committed_vs_utilized_monthly already exists and mart_efficiency "
-            "already consumes it internally (exposing only a derived utilisation-"
-            "haircut margin) -- realised overage billing itself just needs its own "
-            "mart exposure, not new raw data."
+            "No churn, subscription or account record carries a reason or mode field "
+            "(loud cancellation versus silent non-renewal); tenure at churn is the only "
+            "churn-event attribute. Needs a churn-reason field in the raw data, the same "
+            "gap as loud_vs_silent_churn_mix."
         ),
     ),
     dict(
-        node_key="workflow_chain_underutilization",
-        tier=TIER_MART_EXPOSURE_ONLY,
+        node_key="loud_vs_silent_churn_mix",
+        tier=TIER_GENUINE_NEW_PHASE1_DATA,
         rationale=(
-            "fact_workflow_chain_events already exists but is not exposed through "
-            "any mart_* table. Closing this one mart gap would also close its three "
-            "Layer-3 children (ingestion_without_completion_rate, mid_chain_"
-            "abandonment, full_vs_partial_chain_share) -- notably, "
-            "analytics/playbook_triggers.py's own ingestion_without_completion rule "
-            "already computes a version of this signal for its own purpose, so "
-            "this project's own other artifacts have already done some of this work."
+            "Needs each churn classified as an explicit cancellation or a non-renewal. "
+            "Subscription status carries no mode field and a lost renewal's loss_reason "
+            "(price, no_decision, competitive, other) is not that flag; the generator's "
+            "abrupt-versus-gradual usage-decline switch is not persisted. Same gap as "
+            "churn_reason_category."
+        ),
+    ),
+    dict(
+        node_key="time_to_respond_churn_risk_flag",
+        tier=TIER_GENUINE_NEW_PHASE1_DATA,
+        rationale=(
+            "Needs a churn-risk flag timestamp and an AM response timestamp. fact_am_activity "
+            "records AM touches but no churn-risk flag event exists to measure a response "
+            "against."
         ),
     ),
     dict(
@@ -577,12 +542,14 @@ DATA_GAP_ROOTS = [
             "No new data and no new mart needed -- mart_account_health already "
             "carries everything. analytics/health_score.py's score_accounts() "
             "defines its scored population by customer_status = 'Active' (a "
-            "final-status field), which biases a historical trailing series. "
-            "Gating the population on churn_month > month instead (a code change "
-            "to health_score.py, out of the variance-diagnostic engine's own scope "
-            "per that entry's explicit note) would close this node and its four "
-            "Layer-3 children -- the single largest node count closed by a pure "
-            "code fix with zero new data anywhere in this catalog."
+            "final-status field) at a single as-of date, so no monthly history exists "
+            "and a historical series would be biased. Gating the population on "
+            "churn_month > month instead (a code change to health_score.py, out of the "
+            "variance-diagnostic engine's own scope per that entry's explicit note) "
+            "would make the composite a series. Its four Layer-3 inputs are already "
+            "computed from mart_account_health but cannot be reached from a drill-down "
+            "while the composite is blocked, so closing this node is what makes them "
+            "appear."
         ),
     ),
     dict(
@@ -604,10 +571,10 @@ DATA_GAP_ROOTS = [
         rationale=(
             "Not a gap of its own: the tree defines this node by reference "
             "('See Growth -- expansion revenue drivers'), so it is computable "
-            "exactly when Expansion consumption revenue's own drivers "
-            "(wallet_share_progression, overage_realization, both catalogued "
-            "above) are. AM cost, the other side of AM efficiency, is already a "
-            "real input. No separate investment closes it."
+            "exactly when Expansion consumption revenue's own drivers are. Overage "
+            "realization is computed (partial); wallet_share_progression, catalogued "
+            "below, is the one driver still blocked. AM cost, the other side of AM "
+            "efficiency, is already a real input. No separate investment closes it."
         ),
     ),
     dict(
@@ -645,23 +612,11 @@ DATA_GAP_ROOTS = [
         rationale=(
             "Needs an estimate of an account's non-Acme workflow footprint (the "
             "wallet-share denominator) -- nothing in this project's raw data or "
-            "marts estimates it. This is Expansion consumption revenue's ONLY "
-            "Layer-2 driver (0 of 2 computable per the variance-diagnostic "
-            "engine's own coverage table, once overage_realization above is also "
-            "counted) -- closing this is what it would take for the Expansion "
-            "branch to produce any drill-down evidence at all when it breaches "
-            "variance, which today it structurally cannot."
-        ),
-    ),
-    dict(
-        node_key="rep_capacity_ramp_mix",
-        tier=TIER_MART_EXPOSURE_ONLY,
-        rationale=(
-            "dim_reps and int_rep_capacity_periods already exist with the needed "
-            "ramp/quota detail; win rate cut by rep ramp status just needs a mart "
-            "that joins deal ownership to that detail. Distinct root cause from "
-            "the opportunity-detail group above -- a different mart, not the "
-            "same fix."
+            "marts estimates it. Of Expansion consumption revenue's two Layer-2 "
+            "drivers, overage_realization is now computed, so this is the one blocked "
+            "(1 of 2 computable per the variance-diagnostic engine's own coverage "
+            "table): until it closes, an Expansion drill-down is a single-candidate "
+            "read, not a sibling comparison."
         ),
     ),
     dict(
@@ -738,6 +693,20 @@ def verify_data_gap_keys_are_live() -> dict:
         results.append(dict(node_key=key, exists_live=exists, still_not_computable=still_not_computable))
     n_passed = sum(1 for r in results if r["exists_live"] and r["still_not_computable"])
     return dict(passed=n_passed == len(results), n_total=len(results), n_passed=n_passed, results=results)
+
+
+def find_uncatalogued_gap_roots() -> list:
+    """Live NOT_COMPUTABLE root subtrees in vd._TREE that DATA_GAP_ROOTS does not
+    list: the reverse direction of verify_data_gap_keys_are_live(), which only
+    confirms the catalog's own keys are still blocked. A node newly blocked, or a
+    child exposed when its parent was wired, appears here until it is catalogued."""
+    cat = {r["node_key"] for r in DATA_GAP_ROOTS}
+    roots = [
+        k for k, n in vd._TREE.items()
+        if n.computability == vd.NOT_COMPUTABLE
+        and (n.parent_key is None or vd._TREE[n.parent_key].computability != vd.NOT_COMPUTABLE)
+    ]
+    return sorted(set(roots) - cat)
 
 
 def rank_data_gap_priorities() -> list:

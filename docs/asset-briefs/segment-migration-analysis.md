@@ -16,6 +16,8 @@ The Growth pillar's math nets segment migration out to zero on purpose — an ac
 
 The analysis looks across the full history of every account that has ever moved from SMB to Commercial or from Commercial to Enterprise and summarizes that history several ways: how many moves happened recently and at what rate relative to the size of the segment they moved out of; whether each move happened because the account's own usage organically grew past the segment's spend line, or because a closer look at the account's business profile revealed it belonged in a bigger segment all along; how long, typically, an account stayed in its prior segment before moving up; and how much monthly recurring revenue moved with each account into its new segment. None of this is a prediction about which accounts will move next — it's a direct summary of moves that have already happened, checked against other parts of the portfolio to make sure the revenue figures agree exactly.
 
+The weekly executive readout draws on this analysis for its "are we moving upmarket" view: for a given month it combines the migration rate out of SMB and out of Commercial and the revenue that graduated with each segment's share of company recurring revenue, and compares each to the previous month and to a year earlier. The view is not produced for the last month of the data, which is partial.
+
 ## Key decisions and why
 
 - **This is built as a descriptive summary of what has already happened, not a model that predicts which accounts will move next.** Segment migration in this business follows a known, largely rule-based path — an account's usage or spend crossing a defined line for two consecutive months, plus a separate manual re-classification process — so a predictive model would mostly be re-discovering that existing rule rather than adding genuine insight. Measuring and validating the pattern directly is the more honest use of the effort.
@@ -30,6 +32,7 @@ The analysis looks across the full history of every account that has ever moved 
 - **Why the move happened** — either the account's usage or spend held above roughly $1,250 a month (into Commercial) or roughly $6,250 a month (into Enterprise) for two consecutive months, or a later, closer look at the account's business profile revealed it belonged in the bigger segment regardless of usage
 - **When it happened, and how long the account had been in its prior segment beforehand**
 - **How much monthly recurring revenue reclassified into the new segment** along with the account
+- **Each segment's share of company recurring revenue** (from the revenue bridge), used by the readout's upmarket view
 
 ## Current result
 
@@ -38,6 +41,8 @@ As of December 2025, 809 accounts have migrated up a segment over the company's 
 Just under a third of all migrations — 30.3% — happened because a closer look at the account's business profile revealed it belonged in a bigger segment, rather than because its usage crossed the spend line on its own. That re-classification path shows up meaningfully in both directions: 28.9% of SMB-to-Commercial moves and 41.4% of Commercial-to-Enterprise moves. This confirms both ways an account can graduate are genuinely active in the business, not just the more visible usage-driven one.
 
 Typical accounts spend a meaningful stretch of time in their starting segment before moving up: a median of about 297 days (roughly ten months) in SMB before graduating to Commercial, and about 212 days (roughly seven months) in Commercial before graduating to Enterprise.
+
+For the month of November 2025, Commercial and Enterprise together hold 87.9% of recurring revenue, 5.2 percentage points more than a year earlier. Over the twelve months to November, 10.7% of SMB accounts graduated into Commercial, against 6.2% in the twelve months a year before, and 9.0% of Commercial accounts graduated into Enterprise, against 4.8%. Because accounts can only move up, counts of graduations rise with the size of the base; the rates and the shares are the comparable measures.
 
 ## Known limitations
 

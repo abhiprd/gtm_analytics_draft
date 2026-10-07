@@ -51,7 +51,7 @@
           "passed": true,
           "n_rows_checked": 210,
           "n_rows_skipped_null": 3,
-          "max_abs_diff": 1.862645149230957e-09,
+          "max_abs_diff": 3.725290298461914e-09,
           "tolerance": 0.01
         }
       },
@@ -64,7 +64,7 @@
           "passed": true,
           "n_rows_checked": 210,
           "n_rows_skipped_null": 3,
-          "max_abs_diff": 1.862645149230957e-09,
+          "max_abs_diff": 3.725290298461914e-09,
           "tolerance": 0.01
         }
       },
@@ -213,7 +213,7 @@
           "passed": true,
           "n_rows_checked": 210,
           "n_rows_skipped_null": 0,
-          "max_abs_diff": 1.862645149230957e-09,
+          "max_abs_diff": 1.1641532182693481e-09,
           "tolerance": 0.01
         }
       }
@@ -241,7 +241,7 @@
         "formula": "Wallet share progression x Overage realization",
         "formula_type": "product",
         "status": "NOT_COMPUTABLE",
-        "reason": "Wallet share progression (% of an account's total addressable workflow footprint running through Acme Corp) has no source anywhere in the raw data or the marts layer -- nothing estimates the non-Acme denominator. This is a genuine Phase 1 data gap (confirmed in analytics/variance_diagnostic.py's coverage table: 'Expansion consumption revenue | 0 of 2'), not a scope choice a Phase 4 workaround could close."
+        "reason": "Wallet share progression (% of an account's total addressable workflow footprint running through Acme Corp) has no source anywhere in the raw data or the marts layer -- nothing estimates the non-Acme denominator. This is a genuine Phase 1 data gap (confirmed in analytics/variance_diagnostic.py's coverage table: 'Expansion consumption revenue | 1 of 2' -- Overage realization is computed as an overage share of MRR, but the product needs both factors), not a scope choice a Phase 4 workaround could close."
       }
     ],
     "excluded_nodes": [
@@ -652,7 +652,7 @@
         "passed": true
       },
       "currency_usd_only": {
-        "columns_scanned": 374,
+        "columns_scanned": 418,
         "currency_or_fx_columns_found": [],
         "passed": true
       },
@@ -729,9 +729,9 @@
       "usage_growth_not_random": {
         "driver": "usage_threshold migration trigger (metric tree's own segment-migration mechanism)",
         "n_migrating_events_measured": 564,
-        "migrating_accounts_mean_pre_migration_growth": 4.4594219008560945,
+        "migrating_accounts_mean_pre_migration_growth": 4.459421900856094,
         "non_migrating_population_mean_growth": 0.49082687775252276,
-        "ratio": 9.085529140693383,
+        "ratio": 9.085529140693382,
         "min_ratio_floor": 1.5,
         "passed": true
       }

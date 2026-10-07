@@ -221,3 +221,236 @@ models:
         tests: [not_null]
       - name: total_companies
         tests: [not_null]
+
+  - name: mart_deal_funnel
+    description: >
+      Deal-level funnel inputs for the metric tree's New logo consumption
+      revenue branch (win rate, average initial commitment, POC pass rate,
+      loss-reason mix, discount rate vs list, deal size within the ACV band,
+      rep capacity ramp mix) and for the renewal win rate. Plain counts and
+      sums only; each rate is a ratio of two columns computed by the
+      consumer from the metric tree's definition, which this mart does not
+      restate. Grain: one row per segment (Commercial, Enterprise) per month
+      of close_date, a dense spine per segment (a month with no closes is a
+      row of zero counts and NULL averages). SMB is excluded: SMB
+      opportunities are created already Closed Won with no rep and no funnel.
+      Column scope: new-business columns cover opportunity_type =
+      new_business; renewal_* columns cover opportunity_type = renewal;
+      expansion opportunities are not in this mart. Caveats. list_price is
+      generated as amount / (1 - discount_rate), so discount versus list is
+      an identity up to rounding, not an independent observation. The
+      owning rep_id on fact_opportunities is reassigned after a departure,
+      so ramp attribution (owner hire_date vs created_date) is approximate.
+      Lost new-business opportunities carry no account_id. POC exists only
+      in the Enterprise motion, so poc_pass_count / poc_fail_count are NULL
+      for Commercial. The ACV band is dbt var acv_bands, test-checked
+      against generators/config.py ACV_RANGES.
+    columns:
+      - name: segment
+        description: "Commercial or Enterprise."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+      - name: month
+        description: "Calendar month (first day) of the opportunity close_date."
+        tests: [not_null]
+      - name: new_business_won_count
+        description: >
+          Closed-won new-business opportunities closed in the month. Reconciles to mart_growth_bridge.new_business_won_count (tests/assert_mart_deal_funnel_reconciles.sql).
+        tests: [not_null]
+      - name: new_business_lost_count
+        description: >
+          Closed-lost new-business opportunities closed in the month. Reconciles to mart_growth_bridge.new_business_lost_count.
+        tests: [not_null]
+      - name: lost_competitive_count
+        description: >
+          Lost new-business opportunities with loss_reason = competitive.
+        tests: [not_null]
+      - name: lost_no_decision_count
+        description: >
+          Lost new-business opportunities with loss_reason = no_decision.
+        tests: [not_null]
+      - name: lost_price_count
+        description: >
+          Lost new-business opportunities with loss_reason = price.
+        tests: [not_null]
+      - name: lost_other_count
+        description: >
+          Lost new-business opportunities with loss_reason = other. The four lost_* counts sum to new_business_lost_count (test-enforced).
+        tests: [not_null]
+      - name: won_amount_sum
+        description: >
+          Sum of amount (USD) over won new-business opportunities closed in the month.
+      - name: won_list_price_sum
+        description: >
+          Sum of list_price (USD) over the same won opportunities. Derived from amount / (1 - discount_rate) at generation, so it carries no information beyond amount and the discount.
+      - name: avg_discount_rate_won
+        description: >
+          Amount-weighted discount of won new-business deals: 1 - won_amount_sum / won_list_price_sum. NULL when no deal was won in the month.
+      - name: share_won_at_band_floor
+        description: >
+          Share of won new-business deals whose amount is at or below the segment's ACV band floor (dbt var acv_bands, equal to generators/config.py ACV_RANGES). Deal amounts are clipped to the band at generation, so a high share means the clip is binding. NULL when no deal was won.
+      - name: share_won_at_band_cap
+        description: >
+          Share of won new-business deals whose amount is at or above the segment's ACV band cap. NULL when no deal was won.
+      - name: poc_pass_count
+        description: >
+          Enterprise new-business closed deals (won or lost) with poc_outcome = pass. NULL for Commercial, which has no POC stage.
+      - name: poc_fail_count
+        description: >
+          Enterprise new-business closed deals (won or lost) with poc_outcome = fail. A won deal can carry fail. pass + fail equals the Enterprise closed new-business deals with a poc_outcome (test-enforced). NULL for Commercial.
+      - name: stage_regression_count
+        description: >
+          New-business opportunities closed in the month whose stage history contains the same stage more than once, i.e. a re-entry of an earlier stage.
+        tests: [not_null]
+      - name: avg_days_in_sal
+        description: >
+          Mean over the month's closed new-business opportunities of total days spent in stage SAL (summed over re-entries). NULL when none.
+      - name: avg_days_in_sqo
+        description: >
+          Same, for stage SQO.
+      - name: avg_days_in_poc
+        description: >
+          Same, for stage POC. NULL for Commercial (no POC stage).
+      - name: avg_days_in_proposal
+        description: >
+          Same, for stage Proposal/Negotiation.
+      - name: closed_by_ramping_rep_count
+        description: >
+          Closed (won or lost) new-business opportunities created within dbt var rep_ramp_window_days (180, equal to analytics/rep_productivity.py _RAMP_FULL_DAYS) of the owning rep's hire_date. Approximate: the owner is the current rep_id after any reassignment.
+        tests: [not_null]
+      - name: won_by_ramping_rep_count
+        description: >
+          The won subset of closed_by_ramping_rep_count.
+        tests: [not_null]
+      - name: renewal_won_count
+        description: >
+          Closed-won renewal opportunities closed in the month. Kept separate from the new-business columns.
+        tests: [not_null]
+      - name: renewal_lost_count
+        description: >
+          Closed-lost renewal opportunities closed in the month.
+        tests: [not_null]
+
+  - name: mart_workflow_chain_health
+    description: >
+      Workflow-chain health inputs for the metric tree's Workflow chain
+      under-utilization node: upstream (trigger) and downstream (completion)
+      Action sums, the Actions-weighted ingestion-without-completion rate,
+      and account counts by chain state. Grain: one row per segment per
+      month; segment is the account's segment in that month
+      (fact_usage_monthly.segment). Built from fact_workflow_chain_events
+      joined 1:1 on (account_id, month) to fact_usage_monthly (identical key
+      sets, no account-month fails to join). A partial-chain account-month
+      has full_chain_completion_rate strictly below dbt var
+      workflow_chain_completion_threshold (0.70, the value
+      analytics/playbook_triggers.py uses for its ingestion_without_completion
+      rule; proposed, not confirmed). Sums reconcile to the fact per month
+      (tests/assert_mart_workflow_chain_health_reconciles.sql).
+    columns:
+      - name: segment
+        description: "The account's segment in the month."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['SMB', 'Commercial', 'Enterprise']
+      - name: month
+        description: "Calendar month (first day)."
+        tests: [not_null]
+      - name: upstream_actions_sum
+        description: >
+          Sum of upstream_actions (trigger Actions) over the segment-month's accounts.
+        tests: [not_null]
+      - name: downstream_actions_sum
+        description: >
+          Sum of downstream_actions (completion Actions). Never exceeds upstream_actions_sum.
+        tests: [not_null]
+      - name: ingestion_without_completion_actions_sum
+        description: >
+          Sum of upstream_actions - downstream_actions.
+        tests: [not_null]
+      - name: ingestion_without_completion_rate
+        description: >
+          1 - downstream_actions_sum / upstream_actions_sum, Actions-weighted (a ratio of sums, not a mean of account rates).
+      - name: accounts_with_chain
+        description: >
+          Account-months with a workflow-chain row in the segment-month. Equals partial_chain_account_count + full_chain_account_count.
+        tests: [not_null]
+      - name: partial_chain_account_count
+        description: >
+          Accounts with full_chain_completion_rate below the threshold in the month.
+        tests: [not_null]
+      - name: full_chain_account_count
+        description: >
+          Accounts at or above the threshold in the month.
+        tests: [not_null]
+      - name: sustained_partial_account_count
+        description: >
+          Accounts partial in this month and in the calendar-prior month (the two-consecutive-month idea of the playbook rule). An account's first month, or a month after a gap, is never sustained.
+        tests: [not_null]
+
+  - name: mart_consumption_utilization
+    description: >
+      Committed vs utilized consumption and the overage it implies, for the
+      metric tree's Overage realization node. Grain: one row per segment
+      (Commercial, Enterprise) per month. SMB is excluded: SMB accounts
+      carry no commitment. Built from fact_committed_vs_utilized_monthly
+      joined 1:1 on (account_id, month) to fact_revenue_monthly. In the
+      data, mrr = unit_price * greatest(committed, utilized) on every
+      committed account-month, so overage realization as a rate is
+      identically 100%; the informative series are overage_mrr and
+      overage_share_of_mrr, in dollars. overage_mrr apportions each
+      account's own mrr by its overage share of billed Actions, with no
+      unit price hard-coded. committed_actions_sum, utilized_actions_sum,
+      overage_actions_sum, overage_mrr and the two account counts cover
+      only account-months with a commitment (committed > 0); a
+      Commercial/Enterprise account-month with a NULL commitment is
+      excluded from them. total_mrr covers every account-month of the
+      segment and equals the sum in fact_revenue_monthly. Utilization above
+      commitment is the norm for Commercial and Enterprise (about 89-93% of
+      committed account-months), so overage is a large share of MRR.
+    columns:
+      - name: segment
+        description: "Commercial or Enterprise."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Commercial', 'Enterprise']
+      - name: month
+        description: "Calendar month (first day)."
+        tests: [not_null]
+      - name: committed_actions_sum
+        description: >
+          Sum of committed_actions_monthly over committed account-months.
+        tests: [not_null]
+      - name: utilized_actions_sum
+        description: >
+          Sum of utilized_actions_monthly over the same account-months.
+        tests: [not_null]
+      - name: overage_actions_sum
+        description: >
+          Sum of greatest(utilized - committed, 0) over committed account-months.
+        tests: [not_null]
+      - name: overage_mrr
+        description: >
+          Sum over committed account-months of mrr * greatest(utilized - committed, 0) / greatest(committed, utilized), USD. At most total_mrr and non-negative (test-enforced).
+        tests: [not_null]
+      - name: total_mrr
+        description: >
+          Sum of fact_revenue_monthly.mrr over all account-months of the segment-month, committed or not (USD). Reconciles to fact_revenue_monthly (test-enforced).
+        tests: [not_null]
+      - name: overage_share_of_mrr
+        description: >
+          overage_mrr / total_mrr, between 0 and 1.
+      - name: accounts_over_commit_count
+        description: >
+          Committed account-months with utilized above committed.
+        tests: [not_null]
+      - name: accounts_with_commitment_count
+        description: >
+          Account-months with committed_actions_monthly > 0.
+        tests: [not_null]

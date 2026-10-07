@@ -19,7 +19,21 @@ from dashboard.lib import routing  # noqa: E402
 with open(os.path.join(REPO, "semantic", "metric_registry.json")) as _f:
     REGISTRY = json.load(_f)
 METRICS = REGISTRY["metrics"]
-VOCAB = routing.build_vocabulary(METRICS, aliases={"cac": "cac_by_channel", "nrr": "nrr"})
+
+
+def _server_aliases():
+    """The semantic layer's own alias table (the literal `_ALIASES` in semantic/server.py),
+    read with ast so these tests need neither the mcp package nor the dashboard venv."""
+    import ast
+    with open(os.path.join(REPO, "semantic", "server.py")) as f:
+        tree = ast.parse(f.read())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "_ALIASES" for t in node.targets):
+            return ast.literal_eval(node.value)
+    raise AssertionError("_ALIASES not found in semantic/server.py")
+
+
+VOCAB = routing.build_vocabulary(METRICS, aliases=_server_aliases())
 
 
 def fake_query(metric, dimensions=None, filters=None, grain="month", date_range=None):
@@ -55,7 +69,7 @@ def answer(q):
 
 class TestNonLeafAnswersIncludeImmediateChildren:
     def test_win_rate_answer_carries_its_value_and_all_four_layer3_children(self):
-        a = answer("What is Win rate and what is driving it?")
+        a = answer("What is Win rate for Enterprise and what is driving it?")
         assert a["kind"] == "answer"
         assert a["own"]["state"] == "value" and a["own"]["layer"] == 2
         assert a["own"]["values"] == {"": 0.3} and a["own"]["period"] == "2025-11-01"
@@ -65,9 +79,14 @@ class TestNonLeafAnswersIncludeImmediateChildren:
 
     def test_children_that_cannot_be_queried_are_listed_with_their_reason_and_no_value(self):
         a = answer("What is Win rate?")
-        for c in a["children"]:
-            assert c["state"] == "not_computable" and c["message"]
+        blocked = [c for c in a["children"] if c["state"] == "not_computable"]
+        # stage-to-stage conversion is the one Win rate child with no series (degenerate by construction)
+        assert [c["key"] for c in blocked] == ["stage_to_stage_conversion"]
+        for c in blocked:
+            assert c["message"]
             assert "values" not in c
+        assert {c["key"] for c in a["children"] if c["state"] == "value"} == {
+            "poc_pass_rate", "rep_capacity_ramp_mix", "loss_reason_mix"}
 
     def test_a_queryable_child_carries_a_value_aligned_to_the_parent_period(self):
         a = answer("What is New logo consumption revenue?")
@@ -238,7 +257,7 @@ class TestLastCompleteMonth:
             if "data" in res:
                 res["data"].append({"period": "2025-12-01", "value": -9.0})
             return res
-        a = A.build_answer(routing.route_question("What is Win rate?", VOCAB), q, METRICS,
+        a = A.build_answer(routing.route_question("What is Win rate for Enterprise?", VOCAB), q, METRICS,
                            partial_month="2025-12-01")
         own = a["own"]
         assert own["period"] == "2025-11-01" and own["values"] == {"": 0.3}
@@ -326,7 +345,7 @@ class TestUnitsForEngineKeys:
         ("automated_action_volume", 196504227.0, "196,504,227"),
         ("avg_initial_commitment", 121963.53, "$122.0K"),
         ("nrr_expansion_rate", 0.07897, "7.9%"),
-        ("pipeline_generated", 53.0, "53"),
+        ("pipeline_generated", 53.0, "53 leads converted"),
         ("win_rate", 0.425, "42.5%"),
     ])
     def test_values_are_formatted_with_units_never_scientific(self, key, v, expected):
@@ -395,3 +414,114 @@ class TestStructuralConstants:
         a = A.build_answer(routing.route_question("What is win rate for SMB?", VOCAB), q, METRICS)
         assert a["own"]["state"] == "degenerate" and "values" not in a["own"]
         assert "100%" in a["own"]["message"]
+
+
+# --------------------------------------------------------------------------
+# Query-interface gaps, overlays, default views, unsupported splits, failures
+# --------------------------------------------------------------------------
+
+class TestQueryInterfaceGap:
+    def test_pipeline_generated_says_it_is_shown_in_the_weekly_readout(self):
+        a = answer("pipeline generated")
+        own = a["own"]
+        assert own["state"] == "not_computable" and own["query_gap"] is True
+        assert own["message"] == "Not available through this query interface; shown in the weekly readout."
+        assert "no data source mapped" not in own["message"].lower()
+        assert own["detail"] and "marketing attribution" in own["detail"]
+
+    def test_the_long_paragraph_is_not_repeated_under_each_child(self):
+        a = answer("pipeline generated")
+        for c in a["children"]:
+            if c["query_gap"]:
+                assert c["reason"] == "Not available through this query interface; shown in the weekly readout."
+                assert c["status_label"] == "Not queryable here"
+
+    def test_a_genuinely_uncomputable_node_gives_its_reason_without_the_old_prefix(self):
+        a = answer("workflow migration rate")
+        assert a["own"]["query_gap"] is False
+        assert "no data source mapped" not in a["own"]["message"].lower()
+        assert "business-process-level onboarding events" in a["own"]["message"]
+
+    def test_detection_keys_on_the_registry_wording(self):
+        from dashboard.lib import labels
+        assert labels.is_query_interface_gap("Computed and validated by analytics/x.py from y")
+        assert not labels.is_query_interface_gap("Needs a churn-risk flag event.")
+        assert not labels.is_query_interface_gap(None)
+
+
+class TestOverlayWording:
+    def test_ltv_has_no_registered_source_phrase(self):
+        m = answer("LTV")["own"]["message"]
+        assert "No data source is registered" not in m and "overlay" in m.lower()
+
+    def test_overlay_without_a_gap_note_says_it_has_no_series(self):
+        from dashboard.lib import labels
+        assert labels.overlay_sentence("X", None, False, None).endswith("It has no series of its own.")
+
+
+class TestDefaultSegmentView:
+    def test_win_rate_with_no_segment_defaults_to_commercial_and_enterprise(self):
+        a = answer("What is win rate?")
+        assert a["parsed"]["segment_subset"] == ["Commercial", "Enterprise"]
+        assert "segment" in a["parsed"]["dimensions"] and a["parsed"]["default_view_note"]
+
+    @pytest.mark.parametrize("q", ["win rate for Enterprise", "win rate by segment", "win rate for SMB and Enterprise"])
+    def test_a_named_segment_or_split_is_left_alone(self, q):
+        assert answer(q)["parsed"]["default_view_note"] is None
+
+    def test_other_metrics_have_no_default(self):
+        assert answer("What is NRR?")["parsed"]["default_view_note"] is None
+
+
+class TestUnsupportedSplitNotice:
+    def test_notice_text(self):
+        assert A.split_notice(["loss reason"], "Win rate") == (
+            "Split by loss reason is not available for Win rate. The figures below are not split.")
+        assert A.split_notice(["region", "industry"], "NRR").startswith("Split by region or industry")
+
+    def test_loss_reason_offers_the_loss_reason_node(self):
+        sug = A.split_suggestions(["loss reason"], METRICS, "win_rate")
+        assert [s["key"] for s in sug] == ["loss_reason_mix"]
+        assert sug[0]["label"] == "Loss-reason mix (competitive share)"
+
+    def test_unrelated_splits_offer_nothing_and_every_target_exists(self):
+        assert A.split_suggestions(["region"], METRICS, "nrr") == []
+        for target in A.RELATED_SPLIT_NODES.values():
+            assert target in METRICS
+
+
+class TestNeverCrashes:
+    def test_a_failing_answer_becomes_a_plain_notice(self):
+        def boom(q, **kw):
+            raise RuntimeError("duckdb exploded at /Users/x/db.duckdb")
+        out = A.safe_answer(boom, "logo retention")
+        assert out["kind"] == "failed" and out["notice"] == A.FAILED_NOTICE
+        assert "duckdb" not in json.dumps(out) and "Traceback" not in json.dumps(out)
+
+    def test_a_working_answer_passes_through(self):
+        assert A.safe_answer(lambda q, **kw: {"kind": "answer", "q": q}, "x") == {"kind": "answer", "q": "x"}
+
+
+class TestQualifiedLabels:
+    def test_axis_label_is_not_doubled(self):
+        from dashboard.lib import labels
+        out = labels.qualified_node_label("loss_reason_mix", "Loss-reason mix (competitive / no-decision / price)")
+        assert out == "Loss-reason mix (competitive share)"
+
+    def test_marketing_spend_and_ramp_mix_carry_a_qualifier(self):
+        a = answer("What is win rate for Enterprise?")
+        names = {c["key"]: c["display_name"] for c in a["children"]}
+        assert names["rep_capacity_ramp_mix"] == "Rep capacity / ramp mix (share from ramping reps)"
+        assert names["loss_reason_mix"] == "Loss-reason mix (competitive share)"
+        from dashboard.lib import labels
+        assert "total across channels" in labels.qualified_node_label(
+            "marketing_spend_allocation_by_channel", "Marketing spend allocation by channel")
+
+    def test_the_complement_node_says_what_it_measures(self):
+        from dashboard.lib import labels
+        out = labels.qualified_node_label("declining_share_of_full_chain_vs_partial_chain_runs",
+                                          "Declining share of full-chain vs. partial-chain runs")
+        assert "at or above 70% completion" in out
+
+    def test_pipeline_generated_carries_a_count_unit(self):
+        assert A.format_for_key("pipeline_generated", 69) == "69 leads converted"

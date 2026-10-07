@@ -55,6 +55,13 @@ models:
                 values: ['competitive', 'no_decision', 'price', 'other']
               config:
                 where: "loss_reason is not null"
+      - name: poc_outcome
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['pass', 'fail']
+              config:
+                where: "poc_outcome is not null"
 
   - name: fact_opportunity_stage_history
     description: "Grain: one row per opportunity_id per stage-entered_date."

@@ -173,7 +173,7 @@ export ACME_SUMMARY_MODEL=claude-sonnet-5-5                  # optional; this is
 python3 -m pipeline run --only executive_summary --no-deps   # or: python3 -m analytics.executive_summary
 ```
 
-A summary is reused, with no API call, while the readout it was generated from is unchanged (`input_hash`); `python3 -m analytics.executive_summary --force` regenerates it. The committed readouts carry `not_generated` because no live run has been made from this repository. See `docs/acme-corp-analytics-methods.md`, "Executive summary narrative".
+Each drill-down in the readout carries a persistence record from the variance engine (whether the same Layer-2 driver has been the largest adverse outlier on consecutive months, flagged at 2), and the readout includes a segment-mix section (each segment's share of MRR and migration rates). The summary may cite the persistence records and does not read the segment mix. A summary is reused, with no API call, while the readout it was generated from is unchanged (`input_hash`); `python3 -m analytics.executive_summary --force` regenerates it. The committed readouts carry `not_generated` because no live run has been made from this repository. See `docs/acme-corp-analytics-methods.md`, "Executive summary narrative".
 
 ### 5. Semantic layer and dashboard (Phases 3 and 5)
 

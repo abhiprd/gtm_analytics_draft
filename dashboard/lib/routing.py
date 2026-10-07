@@ -40,30 +40,32 @@ Rules, in the order they are applied
    the tokens that were consumed by the metric's own name (a metric named
    "POC pass rate (Enterprise)" does not filter to Enterprise).
 5. Grain. month / quarter / year words, same name-token exclusion.
+6. Scope words. A scope word beside a broader metric name outranks it: "win rate for
+   renewals" resolves to Renewal win rate, not Win rate (SCOPE_OVERRIDES).
+7. Unsupported splits. A "by <phrase>" or "per <phrase>" split that is not a dimension the
+   registry lists is never dropped silently: it is returned in `unsupported_splits` so the
+   page can say so and offer the nearest real node. A "by" inside a matched metric name, a
+   time phrase ("by end of quarter") and a grain word ("by month") are not splits.
 """
 import re
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 DEFAULT_SEGMENTS = ("SMB", "Commercial", "Enterprise")
 
-# Routing aids the dashboard adds on top of the semantic layer's own alias
-# table (semantic/server.py `_ALIASES`), which has no entry for them.
-# Every target is checked against the registry when the vocabulary is
-# built. Proposed for promotion into server.py `_ALIASES` so MCP clients
-# route the same way.
-SUPPLEMENTARY_ALIASES = {
-    "ltv": "ltv_by_segment_acquisition_channel",
-    "lifetime value": "ltv_by_segment_acquisition_channel",
-    "customer lifetime value": "ltv_by_segment_acquisition_channel",
-    "ltv cac": "ltv_by_segment_acquisition_channel",
-    "ltv to cac": "ltv_by_segment_acquisition_channel",
-    "ltv cac ratio": "ltv_by_segment_acquisition_channel",
-    "lifetime value to cac": "ltv_by_segment_acquisition_channel",
-    "payback": "consumption_payback",
-    "payback period": "consumption_payback",
-    "cac payback": "consumption_payback",
-    "cac payback period": "consumption_payback",
-}
+# Routing aids the dashboard adds on top of the semantic layer's own alias table
+# (semantic/server.py `_ALIASES`). Every phrase the dashboard once added here (LTV, lifetime
+# value, LTV:CAC, payback, CAC payback and their variants) now lives in `_ALIASES`, so MCP
+# clients and this page route the same way, and this table is empty. The mechanism stays for
+# a future page-only phrase; a test fails if an entry duplicates a server alias.
+SUPPLEMENTARY_ALIASES: Dict[str, str] = {}
+
+# A scope word in the question outranks the broader metric name it sits beside: the longest
+# phrase at a position would otherwise take "win rate" in "win rate for renewals" and leave
+# "renewals" as a secondary mention. Each rule names the tokens, the key they override and
+# the key that wins; it applies only when the winning key is in the vocabulary.
+SCOPE_OVERRIDES = (
+    {"tokens": ("renewal", "renewals"), "from_key": "win_rate", "to_key": "renewal_win_rate"},
+)
 
 _GRAIN_WORDS = {
     "month": "month", "monthly": "month",
@@ -179,6 +181,10 @@ def _extract_dimensions(tokens: List[str], vocab: dict) -> List[str]:
     for i, dim, n in mentions:
         lead = tokens[i - 1] if i > 0 else None
         trail = tokens[i + n] if i + n < len(tokens) else None
+        # "across all segments", "by every channel": a quantifier between the lead word
+        # and the dimension does not change the request.
+        if lead in ("all", "every", "each", "the") and i >= 2 and tokens[i - 2] in _DIMENSION_LEAD_WORDS:
+            lead = tokens[i - 2]
         if lead in _DIMENSION_LEAD_WORDS or trail in _DIMENSION_TRAIL_WORDS:
             accepted[i] = dim
         elif lead in ("and", "or") and i >= 2:
@@ -238,6 +244,104 @@ def _segment_qualifiers(
     return recognized, unrecognized
 
 
+_SPLIT_START_WORDS = ("by", "per", "across", "each", "every")
+_SPLIT_BREAK_WORDS = ("by", "per", "across")
+# Tokens that end the phrase after "by": a preposition or time word starts a new clause.
+_SPLIT_STOP_WORDS = {
+    "for", "in", "of", "vs", "versus", "during", "over", "last", "this", "since", "from", "to",
+    "with", "on", "at", "where", "when", "than", "compared", "between", "within", "as", "is",
+    "are", "was", "were", "and", "or", "but", "then", "now", "today",
+}
+_SPLIT_DETERMINERS = {"the", "a", "an", "all", "each", "every", "any", "our", "my", "their"}
+_TIME_WORDS = {"end", "next", "early", "late", "mid", "yesterday", "tomorrow", "eod", "eom", "eoq",
+               "eoy", "date"}
+_MAX_SPLIT_TOKENS = 4
+
+
+def _is_time_like(word: str) -> bool:
+    return word.isdigit() or bool(re.fullmatch(r"q[1-4]", word)) or word in _TIME_WORDS
+
+
+def _dimension_variants(vocab: dict) -> set:
+    out = set()
+    for dtoks in vocab["dimensions"].values():
+        out.add(dtoks)
+        out.add(dtoks[:-1] + (dtoks[-1] + "s",))
+    return out
+
+
+def unsupported_splits(text: str, toks: List[Tuple[str, int, int]], protected: set, vocab: dict) -> List[str]:
+    """Phrases after a "by"/"per"/"across"/"each"/"every" that are neither a dimension the
+    registry lists, a grain word, nor a time phrase, as the reader typed them. `protected`
+    holds the token indexes inside a matched metric name (a "by" there is part of the name).
+    Items are separated by commas, slashes, ampersands, plus signs, "and" and "or"; a
+    preposition, a segment name or another lead word ends the phrase."""
+    words = [t for t, _, _ in toks]
+    variants = _dimension_variants(vocab)
+    out: List[str] = []
+    i = 0
+    while i < len(words):
+        if words[i] not in _SPLIT_START_WORDS or i in protected:
+            i += 1
+            continue
+        j = i + 1
+        items: List[List[int]] = [[]]
+        while j < len(words):
+            w = words[j]
+            gap = text[toks[j - 1][2]:toks[j][1]] if j > i + 1 else ""
+            if w in _SPLIT_BREAK_WORDS or w in vocab["segments"] or w in ("and", "or"):
+                if w in ("and", "or") and items[-1]:
+                    items.append([])
+                    j += 1
+                    continue
+                break
+            if w in _SPLIT_STOP_WORDS:
+                break
+            if any(c in gap for c in ",/&+;") and items[-1]:
+                items.append([])
+            items[-1].append(j)
+            j += 1
+        for item in items:
+            # Drop leading determiners only ("by the region" -> "region").
+            lead = 0
+            while lead < len(item) and words[item[lead]] in _SPLIT_DETERMINERS:
+                lead += 1
+            item = item[lead:]
+            if not item:
+                continue
+            first = words[item[0]]
+            phrase_words = tuple(words[k] for k in item)
+            if _is_time_like(first) or first in _GRAIN_WORDS:
+                continue
+            if any(phrase_words[:n] in variants for n in range(1, len(phrase_words) + 1)):
+                continue
+            span = item[:_MAX_SPLIT_TOKENS]
+            out.append(text[toks[span[0]][1]:toks[span[-1]][2]])
+        i = max(i + 1, j)
+    seen, uniq = set(), []
+    for ph in out:
+        k = " ".join(ph.lower().split())
+        if k not in seen:
+            seen.add(k)
+            uniq.append(ph)
+    return uniq
+
+
+def _apply_scope_overrides(primary: Optional[dict], words: List[str], vocab: dict) -> Optional[dict]:
+    """Swap the primary match for the more specific metric a scope word names
+    (SCOPE_OVERRIDES): 'win rate for renewals' -> Renewal win rate."""
+    if not primary:
+        return primary
+    keys = set(vocab["phrases"].values())
+    consumed = set(range(primary["start"], primary["end"]))
+    for rule in SCOPE_OVERRIDES:
+        if primary["key"] != rule["from_key"] or rule["to_key"] not in keys:
+            continue
+        if any(w in rule["tokens"] for i, w in enumerate(words) if i not in consumed):
+            return {**primary, "key": rule["to_key"], "phrase": f"{primary['phrase']} + scope word"}
+    return primary
+
+
 def route_question(
     text: str,
     vocab: dict,
@@ -251,12 +355,14 @@ def route_question(
     guardrail to reject), grain, secondary_metrics (other metrics named
     after the primary one), segment_subset (several valid segments named:
     display filter for a split-by-segment answer), unrecognized_segment
-    (the segment-like term passed through, or None)."""
+    (the segment-like term passed through, or None), unsupported_splits (split phrases the
+    registry has no dimension for, as typed; empty when nothing resolved)."""
     toks = tokenize(text)
     words = [t for t, _, _ in toks]
 
     matches = _match_metrics(words, vocab)
     primary = matches[0] if matches else None
+    primary = _apply_scope_overrides(primary, words, vocab)
     secondary = []
     for m in matches[1:]:
         if m["key"] != (primary or {}).get("key") and m["key"] not in secondary:
@@ -287,6 +393,9 @@ def route_question(
             grain = _GRAIN_WORDS[w]
             break
 
+    protected = {k for m in matches for k in range(m["start"], m["end"])}
+    splits = unsupported_splits(text, toks, protected, vocab)
+
     suggestions: List[str] = []
     if primary is None and suggest is not None:
         suggestions = suggest(text)
@@ -302,4 +411,5 @@ def route_question(
         "secondary_metrics": secondary,
         "segment_subset": segment_subset,
         "unrecognized_segment": unrecognized[0] if unrecognized else None,
+        "unsupported_splits": splits if primary else [],
     }

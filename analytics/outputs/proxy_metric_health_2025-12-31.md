@@ -6,7 +6,7 @@ This module's own correctness checks: 3 of 3 pass (ALL PASS).
 
 ## Correctness checks
 - Hooks trace to real doc text: 30 of 30
-- Cited data-gap node keys are live in variance_diagnostic.py's `_TREE`: 20 of 20
+- Cited data-gap node keys are live in variance_diagnostic.py's `_TREE`: 14 of 14
 - Checkpoint counts reconcile against an independent CSV parse: PASS (21 models checked)
 - Variance-engine computability markings agree with `marketing_attribution.py`'s validated coverage: PASS
 
@@ -72,21 +72,15 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 
 | Node | Layer | Tier | Blocks full Layer-1? | Nodes blocked |
 |---|---|---|---|---|
-| Workflow chain under-utilization (`workflow_chain_underutilization`) | 2 | B_phase2_mart_exposure_only | False | 4 |
-| Renewal win rate (`renewal_win_rate`) | 2 | B_phase2_mart_exposure_only | False | 3 |
-| Discount rate vs. list (`discount_rate_vs_list`) | 3 | B_phase2_mart_exposure_only | False | 1 |
-| Deal-size trend within segment band (`deal_size_trend_within_band`) | 3 | B_phase2_mart_exposure_only | False | 1 |
-| Loss-reason mix (`loss_reason_mix`) | 3 | B_phase2_mart_exposure_only | False | 1 |
-| Stage-to-stage conversion (`stage_to_stage_conversion`) | 3 | B_phase2_mart_exposure_only | False | 1 |
-| POC pass rate (Enterprise) (`poc_pass_rate`) | 3 | B_phase2_mart_exposure_only | False | 1 |
-| Churn reason category (loud vs. silent) (`churn_reason_category`) | 2 | B_phase2_mart_exposure_only | False | 1 |
-| Overage realization (`overage_realization`) | 2 | B_phase2_mart_exposure_only | False | 1 |
 | Cost per channel activity (`cost_per_channel_activity`) | 3 | B_phase2_mart_exposure_only | False | 1 |
-| Rep capacity / ramp mix (`rep_capacity_ramp_mix`) | 3 | B_phase2_mart_exposure_only | False | 1 |
-| Account health score (`account_health_score`) | 2 | C_phase4_code_or_design_fix | False | 5 |
+| Account health score (`account_health_score`) | 2 | C_phase4_code_or_design_fix | False | 1 |
 | Marketing-sales handoff quality (`marketing_sales_handoff_quality`) | 2 | D_genuine_new_phase1_data | False | 4 |
 | Brand & awareness (`brand_awareness`) | 2 | D_genuine_new_phase1_data | False | 4 |
 | Wallet share progression (`wallet_share_progression`) | 2 | D_genuine_new_phase1_data | False | 4 |
+| Stage-to-stage conversion (`stage_to_stage_conversion`) | 3 | D_genuine_new_phase1_data | False | 1 |
+| Churn reason category (loud vs. silent) (`churn_reason_category`) | 2 | D_genuine_new_phase1_data | False | 1 |
+| Loud vs. silent churn mix (`loud_vs_silent_churn_mix`) | 3 | D_genuine_new_phase1_data | False | 1 |
+| Time-to-respond on churn-risk flag (`time_to_respond_churn_risk_flag`) | 3 | D_genuine_new_phase1_data | False | 1 |
 | Time-to-first-integration / first successful run (`time_to_first_integration`) | 2 | D_genuine_new_phase1_data | False | 1 |
 | Quickstart/docs content engagement rate (`quickstart_docs_engagement_rate`) | 2 | D_genuine_new_phase1_data | False | 1 |
 | Cohort comparison (same account type, same period last cycle) (`cohort_comparison`) | 3 | D_genuine_new_phase1_data | False | 1 |
@@ -102,7 +96,7 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 | Marketing attribution & channel mix | 1 | 0 |
 | Segment/lead scoring model | 2 | 0 |
 | Forecast (sales bottoms-up / ML / CRO overlay reconciliation) | 1 | 0 |
-| Variance-diagnostic engine | 1 | 0 |
+| Variance-diagnostic engine | 2 | 0 |
 | Weekly executive readout | 1 | 0 |
 | Executive summary narrative | 3 | 0 |
 | Capacity planning | 1 | 0 |

@@ -8,7 +8,7 @@
       "deferred": "A deliberate, documented design decision to build this later or not at all right now -- distinct from planned, which implies it's simply not yet scheduled. See CLAUDE.md's 'Current phase' section for the remaining deferred Claude API seam (the chat page's live NL routing)."
     },
     "source_of_truth": "CLAUDE.md's 'Current phase' section and docs/acme-corp-analytics-methods.md are authoritative; this file is a dashboard-consumable projection of that state, not a second source of truth -- update it whenever either changes.",
-    "last_reviewed": "2026-10-01"
+    "last_reviewed": "2026-10-06"
   },
   "components": {
     "weekly_readout": {
@@ -17,7 +17,7 @@
       "shown_on": [
         "Digest"
       ],
-      "note": "The readout's forecast section is a real section (status 'present', or 'unavailable' with a reason code and detail and no figures), not an unbuilt placeholder: it carries analytics/forecast.py's four lenses per segment for the weekly forecast call current at the reporting month's end, which is quarter-grain and earlier than the period end (forecast_as_of_date, period, call_to_quarter_end_days), with the artifact's divergence flag, ML-lens context, caveats and a plan_comparison of not_available. Render it from the JSON; do not branch on 'not_yet_built'."
+      "note": "The readout's forecast section is a real section (status 'present', or 'unavailable' with a reason code and detail and no figures), not an unbuilt placeholder: it carries analytics/forecast.py's four lenses per segment for the weekly forecast call current at the reporting month's end, which is quarter-grain and earlier than the period end (forecast_as_of_date, period, call_to_quarter_end_days), with the artifact's divergence flag, ML-lens context, caveats and a plan_comparison of not_available. Render it from the JSON; do not branch on 'not_yet_built'. Each drill-down entry also carries a persistence record (status flagged, not_flagged or not_applicable with a reason; streak_months, threshold_months, driver_label, first_month_of_streak, note, status_display) read from the variance engine, and the readout carries a segment_mix section (status present, or unavailable with a reason and no figures; per-segment share of ending MRR with prior-month and 12-month changes, upmarket share, migration velocity and graduated MRR, basis, caveats, headline and display strings). The segment mix is not part of the executive summary's evidence."
     },
     "account_health_score": {
       "status": "built_and_validated",
@@ -33,7 +33,7 @@
       "shown_on": [
         "Digest"
       ],
-      "note": "Feeds the Layer-1 scorecard and drill-downs. New logo's Layer-2 ranking includes Pipeline generated (monthly converted-lead flow read from analytics/marketing_attribution.py, company-wide) with organic/paid/community as its Layer-3 legs. The marketing-sales handoff nodes (MQL response SLA, MQL to SAL acceptance, lead recycling) are not computable: no MQL/SAL lifecycle exists in any source, and the page must render them as an explicit gap."
+      "note": "Feeds the Layer-1 scorecard and drill-downs, each with a persistence record (the same Layer-2 driver as the adverse outlier on consecutive months, flagged at 2, not applicable for single-candidate reads and the truncated final month). New logo's Layer-2 ranking includes Pipeline generated (monthly converted-lead flow read from analytics/marketing_attribution.py, company-wide) with organic/paid/community as its Layer-3 legs. Win rate carries Layer-3 evidence from the deal funnel (POC pass rate, loss-reason mix, rep ramp mix) and Avg initial commitment from discount rate and deal size within the ACV band. Contraction + churned revenue ranks Workflow chain under-utilization (with its three Layer-3 legs) and Renewal win rate beside usage-dip breadth, and Overage realization (overage share of MRR) is the computed Expansion driver. The marketing-sales handoff nodes (MQL response SLA, MQL to SAL acceptance, lead recycling) are not computable: no MQL/SAL lifecycle exists in any source, and the page must render them as an explicit gap. Stage-to-stage conversion is also not computable: every new-business deal logs every stage, so it is 100% at every hop."
     },
     "playbook_triggers": {
       "status": "built_and_validated",
@@ -100,7 +100,7 @@
       "shown_on": [
         "Ask the Metric Tree"
       ],
-      "note": "Deterministic keyword routing against the registry's names, keys and aliases, now a pure function with unit tests (tests/test_dashboard_routing.py): left-to-right longest match, whole-token matching, dash and multiplication-sign normalization, dimension extraction (including channel), and pass-through of unrecognized segment qualifiers to the semantic layer's guardrail. Built and tested; the revised router has not had an independent validator pass (semantic-layer-validator). Not a stand-in for the deferred live LLM routing."
+      "note": "Deterministic keyword routing against the registry's names, keys and aliases, now a pure function with unit tests (tests/test_dashboard_routing.py): left-to-right longest match, whole-token matching, dash and multiplication-sign normalization, dimension extraction (including channel), and pass-through of unrecognized segment qualifiers to the semantic layer's guardrail. Built and tested; the revised router has not had an independent validator pass (semantic-layer-validator). Not a stand-in for the deferred live LLM routing. Wave 10a QA fixes: a scope word outranks the broader name beside it ('win rate for renewals' resolves to Renewal win rate); a 'by'/'per' split that is not a registry dimension is returned as an unsupported split and the page says so plainly and offers the nearest real node instead of dropping it; 'across all segments' reads as a segment split; the dashboard's own alias list is empty (every alias lives in the semantic layer's table); the page wraps answer assembly and rendering so a failure shows a plain notice, never a traceback. Unit-tested; still no independent validator pass."
     },
     "chat_live_llm_routing": {
       "status": "deferred",
@@ -124,7 +124,7 @@
       "shown_on": [
         "Ask the Metric Tree"
       ],
-      "note": "An answer about a non-leaf metric carries its own value and one row per immediate child, each queried through query_metric(); children that cannot be queried are listed with their registry reason and no value. The headline is the last complete period (the truncated final month of the data window is excluded, drawn as an open marker and labeled partial), a registry gap note on a live metric is shown above the chart, and a constant series is shown as Not computable instead of a number. Guardrail messages are shown as clean sentences with a readable label. Built and unit-tested with a fake query function; not independently validated. Display units are assigned by the dashboard (the registry has no unit field)."
+      "note": "An answer about a non-leaf metric carries its own value and one row per immediate child, each queried through query_metric(); children that cannot be queried are listed with their registry reason and no value. The headline is the last complete period (the truncated final month of the data window is excluded, drawn as an open marker and labeled partial), a registry gap note on a live metric is shown above the chart, and a constant series is shown as Not computable instead of a number. Guardrail messages are shown as clean sentences with a readable label. Built and unit-tested with a fake query function; not independently validated. Display units are assigned by the dashboard (the registry has no unit field). Wave 10a QA fixes: the four workflow-chain nodes exclude the last 5 months of the data window from the headline (the engine's own censored tail, tied by test to variance_diagnostic's constant), draw them as open markers labelled 'Excluded: incomplete window', flag them in the data table and carry a visible card tag and data note; a node the query interface cannot serve but a validated artifact computes (Pipeline generated) says 'Not available through this query interface; shown in the weekly readout' once, with a short row statement per child; overlays say 'Not queryable (non-additive overlay)'; scalar views carry their slice in the headline card, children table and chart axis; win rate with no segment named opens on Commercial and Enterprise (SMB is 100% by construction). Unit-tested; not independently validated."
     },
     "digest_forecast_section": {
       "status": "in_progress",
@@ -140,7 +140,23 @@
       "shown_on": [
         "Digest"
       ],
-      "note": "Cards for rows whose plan_comparability is caveated carry a Caveated comparison tag and show the gap to plan without a status color or arrow; a Not-computable row whose actual, prior value and baseline are identical shows Not computable instead of a number; every card states its basis (single month or trailing 12 months) and its Layer from the readout. Built, unit-tested and rendered for both committed readout dates; no independent visual-QA pass since these changes."
+      "note": "Cards for rows whose plan_comparability is caveated carry a Caveated comparison tag and show the gap to plan without a status color or arrow; a Not-computable row whose actual, prior value and baseline are identical shows Not computable instead of a number; every card states its basis (single month or trailing 12 months) and its Layer from the readout. Built, unit-tested and rendered for both committed readout dates; no independent visual-QA pass since these changes. Drill-down ranking tables (Wave 10a QA): the caption states the basis the rank was computed on (deviation from own baseline, or absolute change for additive branches such as NRR/GRR and the Magic number legs, with a change column), a row with no data shows a dash instead of a rank, and the Pipeline generated row carries a unit (leads converted). Not independently validated."
+    },
+    "digest_persistence_marker": {
+      "status": "in_progress",
+      "artifact": "dashboard/pages/1_Digest.py, dashboard/lib/persistence_view.py (renders each drill-down entry's persistence record)",
+      "shown_on": [
+        "Digest"
+      ],
+      "note": "A flagged record shows a neutral gray 'Repeat: N consecutive months' chip in the drill-down; a not-flagged record shows 'Streak N of 2 months' and no chip; a not-applicable record shows its reason. The streak table, break month and engine note sit inside the drill-down, and the page's Notes & assumptions carries the scope line (the marker shows the same driver as the adverse outlier in consecutive months; it does not establish a trend or a cause). The 2-month threshold is proposed, not confirmed, and an independent profile found the flag fires about as often on shuffled months as on real ones, so it is a repeat detector only. Built, unit-tested and rendered for both committed readout dates; not independently validated, and the header carries no count of flagged nodes by design. Wave 10a QA fixes: the flagged streak line carries the threshold status ('marker threshold: 2 months, proposed'); the engine's per-record caveat sits under the streak line; the basis is its own sentence-case line; Notes & assumptions adds the chance-level scope line (in aggregate the marker appears about as often on shuffled months as on real data). Not independently validated."
+    },
+    "digest_segment_mix_card": {
+      "status": "in_progress",
+      "artifact": "dashboard/pages/1_Digest.py, dashboard/lib/segment_mix_view.py, dashboard/lib/segment_mix_render.py (renders the weekly readout's segment_mix section)",
+      "shown_on": [
+        "Digest"
+      ],
+      "note": "Context block below the decision tier: the readout's headline verbatim, a 100%-stacked bar of segment share of ending MRR against the same month a year earlier (segment palette), an upmarket-share card and one migration card per segment pair (trailing-12-month velocity against the year before, graduated MRR as a share of source-segment MRR), every card labelled with its basis and shown in neutral gray (no plan or favorable direction exists for it). An unavailable section shows its plain-language reason and no figures. The underlying section is produced by analytics/segment_migration.py and checked by the weekly readout's own gates; this rendering is built, unit-tested and rendered for both committed readout dates and a forced-unavailable fixture, with no independent visual-QA pass. Wave 10a QA fixes: graduated MRR is worded as a share of average source-segment MRR over the window (a flow, not a share of current MRR); a visible line per migration pair explains why the MRR share exceeds the account migration rate (migrating accounts carry about 6x the average account's MRR); the upmarket card carries the SMB-to-Commercial graduation share of company MRR; bar labels use largest-remainder rounding so each bar sums to 100.0%; every readout caveat reaches Notes & assumptions. Not independently validated."
     },
     "segment_efficiency_cards": {
       "status": "in_progress",

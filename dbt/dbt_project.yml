@@ -38,6 +38,26 @@ vars:
   # 2025-12-31; using wall-clock today() would fabricate months of elapsed
   # time the generator never simulated.
   analysis_as_of_date: "2025-12-31"
+  # Per-segment ACV band, USD. MUST equal generators/config.py ACV_RANGES
+  # (the band every generated deal amount is clipped to); tests/
+  # test_phase2_wave10_marts.py parses this block and fails on drift.
+  # Consumed by mart_deal_funnel's share_won_at_band_floor / _cap.
+  acv_bands:
+    SMB: {floor: 0, cap: 15000}
+    Commercial: {floor: 15000, cap: 75000}
+    Enterprise: {floor: 75000, cap: 750000}
+  # Window after a rep's hire_date inside which an opportunity created is
+  # treated as owned by a ramping rep. MUST equal analytics/rep_productivity.py
+  # _RAMP_FULL_DAYS (the "first 2 quarters" of build spec Section 4; also
+  # generators/opportunities.py and analytics/capacity_planning.py); drift is
+  # test-enforced by tests/test_phase2_wave10_marts.py.
+  rep_ramp_window_days: 180
+  # Workflow-chain full_chain_completion_rate below this value marks an
+  # account-month as a partial chain. Equals the "ingestion_without_completion"
+  # rule's completion_rate_threshold in analytics/playbook_triggers.py (0.70,
+  # proposed, not yet confirmed); drift is test-enforced by
+  # tests/test_phase2_wave10_marts.py. Consumed by mart_workflow_chain_health.
+  workflow_chain_completion_threshold: 0.70
 
 models:
   acme_gtm:

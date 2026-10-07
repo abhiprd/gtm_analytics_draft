@@ -31,6 +31,7 @@ _DASHBOARD_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _DASHBOARD_DIR)
 import theme
 from lib import answers as A
+from lib import censoring
 from lib import data
 from lib import labels
 from lib import semantic_bridge as sb
@@ -146,7 +147,7 @@ _render_tree_panel()
 def _axis_meta(own: dict) -> dict:
     """Y-axis title and tick format from the metric's display unit, so a
     unit is never carried by title text alone (Section 3.2)."""
-    unit, name = own["unit"], own["name"]
+    unit, name = own["unit"], own.get("display_name") or labels.qualified_node_label(own["key"], own["name"])
     if unit == "usd":
         return {"title": f"{name} (USD)", "tickprefix": "$", "tickformat": "~s"}
     if unit == "pct":
@@ -159,8 +160,16 @@ def _axis_meta(own: dict) -> dict:
         return {"title": f"{name} (multiple)", "ticksuffix": "x"}
     if unit == "count":
         return {"title": f"{name} (count)"}
+    if unit == "converted_leads":
+        return {"title": f"{name} (leads converted)"}
     if unit == "per_million_actions":
         return {"title": f"{name} (touchpoints per 1M Actions)"}
+    if unit == "weighted_tickets_per_account_month":
+        return {"title": f"{name} (severity-weighted tickets per account-month)"}
+    if unit == "logins_per_account_month":
+        return {"title": f"{name} (logins per account-month)"}
+    if unit == "score":
+        return {"title": f"{name} (score)"}
     return {"title": f"{name} (value)"}
 
 
@@ -174,9 +183,11 @@ def _figure(df: pd.DataFrame, own: dict, pillar_color: str, grain: str = "month"
     metric's pillar color (category identity, not a status judgment)."""
     meta = _axis_meta(own)
     fig = go.Figure()
-    pm = own.get("partial_month")
-    mask = df["period"].map(lambda p: A.period_covers_month(p, grain, pm)) if pm else pd.Series(False, index=df.index)
+    excluded = own.get("excluded_months") or ([own["partial_month"]] if own.get("partial_month") else [])
+    mask = (df["period"].map(lambda p: A.period_is_excluded(p, grain, excluded))
+            if excluded else pd.Series(False, index=df.index))
     partial, df = df[mask], df[~mask]
+    excluded_label = censoring.EXCLUDED_LABEL if own.get("censored_months") else censoring.PARTIAL_LABEL
     if "segment" in df.columns:
         segs = [s for s in _SEGMENT_ORDER if s in df["segment"].unique()]
         segs += [s for s in df["segment"].unique() if s not in _SEGMENT_ORDER]
@@ -193,17 +204,25 @@ def _figure(df: pd.DataFrame, own: dict, pillar_color: str, grain: str = "month"
             x=sdf["period"], y=_scaled(own, sdf["value"]), mode="lines+markers", name=own["name"],
             line=dict(color=pillar_color, width=2.5), marker=dict(color=pillar_color, size=6)))
         show_legend = False
-    # The truncated final period is drawn as an open marker (never part of the line).
+    # The truncated final period, or a node's censored tail, is drawn as open markers
+    # (never part of the line).
     if not partial.empty:
         colors = [theme.SEGMENT_COLOR.get(sg, theme.NEUTRAL_GRAY) for sg in partial["segment"]] \
             if "segment" in partial.columns else pillar_color
         fig.add_trace(go.Scatter(
-            x=partial["period"], y=_scaled(own, partial["value"]), mode="markers", name="Partial month",
+            x=partial["period"], y=_scaled(own, partial["value"]), mode="markers", name=excluded_label,
             marker=dict(symbol="diamond-open", size=11, color=colors, line=dict(width=2))))
         show_legend = True
     fig.update_layout(**theme.plotly_layout(xaxis_title="Period", showlegend=show_legend, height=340))
     theme.style_axes(fig)
-    fig.update_yaxes(title_text=meta["title"], tickformat=meta.get("tickformat"),
+    tickformat = meta.get("tickformat")
+    if own["unit"] == "pct" and "value" in df.columns and len(df) > 1:
+        spread = float(df["value"].max() - df["value"].min())
+        if spread < 0.05:
+            # A narrow range (logo retention spans about 2 pp) needs a decimal, or two
+            # neighboring ticks both read "100%".
+            tickformat = ".1%"
+    fig.update_yaxes(title_text=meta["title"], tickformat=tickformat,
                      tickprefix=meta.get("tickprefix"), ticksuffix=meta.get("ticksuffix"))
     return fig
 
@@ -226,12 +245,12 @@ def _children_table(own: dict, children: list, subset) -> None:
     layer = children[0]["layer"]
     rows = []
     for c in children:
-        status = A.STATUS_LABEL[c["status"]]
+        status = c.get("status_label") or A.STATUS_LABEL[c["status"]]
         glyph = A.STATUS_GLYPH[c["status"]]
         if c["state"] == "value":
             period_note = "" if c.get("aligned") else f' <span class="reason">({c["period_label"]})</span>'
             value = _fmt_by_segment(c["unit"], c["values"], subset) + period_note
-            detail = c.get("gap_note") or ""
+            detail = " ".join(x for x in (c.get("gap_note"), c.get("tail_note")) if x)
         elif c["state"] == "degenerate":
             value = "Not computable"
             detail = c.get("reason") or "The value is the same in every period."
@@ -245,7 +264,7 @@ def _children_table(own: dict, children: list, subset) -> None:
             value = "n/a"
             detail = c.get("reason") or c.get("message") or ""
         rows.append(
-            f'<tr><td><strong>{html.escape(c["name"])}</strong>'
+            f'<tr><td><strong>{html.escape(c.get("display_name") or c["name"])}</strong>'
             f'<div class="reason">Layer {c["layer"]}</div></td>'
             f'<td>{value}</td>'
             f'<td>{glyph} {html.escape(status)}'
@@ -254,7 +273,7 @@ def _children_table(own: dict, children: list, subset) -> None:
     period = own.get("period_label")
     value_head = f"Value ({period})" if period else "Value"
     theme.card_block(
-        f'<div class="card-label">Immediate children of {html.escape(own["name"])} (Layer {layer})</div>'
+        f'<div class="card-label">Immediate children of {html.escape(own.get("display_name") or own["name"])} (Layer {layer})</div>'
         f'<table class="answer-table"><thead><tr><th style="width:34%">Metric</th>'
         f'<th style="width:18%">{html.escape(value_head)}</th><th>Status</th></tr></thead>'
         f'<tbody>{"".join(rows).replace("$", "&#36;")}</tbody></table>'
@@ -281,13 +300,21 @@ def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
     values = own["values"]
     basis = [own["basis"]] if own.get("basis") else []
 
+    censored_note = own.get("censored_note")
     if own.get("headline_is_partial"):
-        st.caption("Every period in this result includes the truncated final month, so the headline is a "
-                   "partial figure.")
+        st.caption("Every period in this result includes the truncated final month or excluded months, so "
+                   "the headline is a partial figure.")
+    elif censored_note and own.get("newest_partial_label"):
+        # A series with a right-censored tail (lib/censoring.py): the headline is the last
+        # uncensored period and the note is visible, not behind a Details toggle.
+        theme.card_block(f'<div style="font-size:0.9rem;line-height:1.45"><strong>Data note.</strong> '
+                         f'{theme.escape_html(censored_note)}</div>')
     elif own.get("newest_partial_label"):
         st.caption(f"{own['newest_partial_label']} is the truncated final period of the data window. It is "
                    "excluded from the headline and drawn as an open marker in the chart; the data table "
                    "labels it.")
+    card_name = own.get("display_name") or own["name"]
+    tag = own.get("censored_tag")
 
     def comparison_for(seg_key):
         prior = own["prior_values"].get(seg_key)
@@ -296,9 +323,9 @@ def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
         return "No prior period in this result"
 
     if set(values) == {""}:
-        cards = [dict(label=f"{own['name']} · {own['period_label']}", pillar=pillar_key,
+        cards = [dict(label=f"{card_name} · {own['period_label']}", pillar=pillar_key,
                       value_display=A.format_value(unit, values[""]),
-                      comparison_display=comparison_for(""), footer=basis)]
+                      comparison_display=comparison_for(""), footer=basis, tag=tag)]
     else:
         segs = [s for s in _SEGMENT_ORDER if s in values and (not subset or s in subset)]
         constant = set(own.get("constant_segments") or [])
@@ -313,7 +340,7 @@ def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
             else:
                 cards.append(dict(label=f"{seg} · {own['period_label']}", dot_color=theme.SEGMENT_COLOR[seg],
                                   value_display=A.format_value(unit, values[seg]),
-                                  comparison_display=comparison_for(seg), footer=basis))
+                                  comparison_display=comparison_for(seg), footer=basis, tag=tag))
     if own.get("gap_note"):
         _note_box(own["gap_note"])
     theme.scorecard_row(cards)
@@ -331,12 +358,28 @@ def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
         st.plotly_chart(_figure(chart_df, own, pillar_color, grain), width="stretch",
                         key=f"chart_{idx}", config={"displayModeBar": False})
     with st.expander("Data"):
-        shown = A.table_rows({"data": df.to_dict("records")}, unit, grain, own.get("partial_month"))
+        shown = A.table_rows({"data": df.to_dict("records")}, unit, grain, own.get("partial_month"),
+                             censored=own.get("censored_months"))
         st.dataframe(pd.DataFrame(shown), hide_index=True, width="stretch")
+
+
+def _render_split_notice(parsed: dict, own: dict, idx: int) -> None:
+    """A split the reader asked for that the registry has no dimension for: said plainly,
+    with the nearest real node offered as a suggestion (never routed to silently)."""
+    phrases = parsed.get("unsupported_splits") or []
+    if not phrases:
+        return
+    st.info(theme.escape_md(A.split_notice(phrases, own.get("display_name") or own["name"])))
+    for j, sug in enumerate(A.split_suggestions(phrases, METRICS, own["key"])):
+        st.button(f"Ask instead: {sug['label']}", key=f"sug_{idx}_{j}", on_click=_queue_question,
+                  args=(sug["question"],))
 
 
 def _render_answer(ans: dict, idx: int) -> None:
     parsed = ans["parsed"]
+    if ans["kind"] == "failed":
+        st.info(theme.escape_md(ans["notice"]))
+        return
     if ans["kind"] == "unresolved":
         # A routing miss is normal for free text, not a failure: neutral box.
         st.info("No exact match in the metric tree for that question.")
@@ -371,14 +414,24 @@ def _render_answer(ans: dict, idx: int) -> None:
 
     filt = ", ".join(f"{k}={v}" for k, v in (parsed["filters"] or {}).items()) or "none"
     split = ", ".join(parsed["dimensions"]) if parsed["dimensions"] else "none"
-    st.caption(theme.escape_md(f"Grain: {parsed['grain']} · Filter: {filt} · Split by: {split}"))
+    st.caption(theme.escape_md(f"Grain: {parsed['grain']} · Filter: {filt} · Split by: {split}"
+                               + (" (default view)" if parsed.get("default_view_note") else "")))
+    if parsed.get("default_view_note"):
+        st.caption(theme.escape_md(parsed["default_view_note"]))
+    _render_split_notice(parsed, own, idx)
 
     state = own["state"]
     if state == "rejected":
         tail_md = f" {theme.escape_md(own['message_tail'])}" if own.get("message_tail") else ""  # already escaped
         st.info(f"**{theme.escape_md(own['guardrail_label'])}.** {theme.escape_md(own['message'])}{tail_md}")
     elif state == "overlay":
-        st.info(f"**Non-additive overlay.** {theme.escape_md(own['message'])}")
+        st.info(f"**Not queryable (non-additive overlay).** {theme.escape_md(own['message'])}")
+    elif own.get("query_gap"):
+        # The artifact exists and is validated; this interface cannot serve it (Section 7:
+        # not the same case as an artifact that is missing). The registry paragraph is
+        # shown once, here; each child row carries the short statement only.
+        detail_md = f" {theme.escape_md(own['detail'])}" if own.get("detail") else ""
+        st.info(f"**{theme.escape_md(own['message'])}**{detail_md}")
     elif state == "not_computable":
         st.info(f"**Not computable.** {theme.escape_md(own['message'])}")
     elif state == "degenerate":
@@ -409,14 +462,18 @@ def _render_answer(ans: dict, idx: int) -> None:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _answer(question: str) -> dict:
-    return sb.answer_question(question, partial_month=data.final_month_in_marts())
+    # Never raises: a failure comes back as kind "failed" with a plain-language notice.
+    return sb.safe_answer_question(question, partial_month=data.final_month_in_marts())
 
 
 def _render_exchange(question: str, idx: int) -> None:
     with st.chat_message("user"):
         st.write(theme.escape_md(question))
     with st.chat_message("assistant"):
-        _render_answer(_answer(question), idx)
+        try:
+            _render_answer(_answer(question), idx)
+        except Exception:  # noqa: BLE001 - a render failure is a notice, never a traceback
+            st.info(theme.escape_md(A.FAILED_NOTICE))
 
 
 def _notes(history: list) -> list:
@@ -450,7 +507,12 @@ def _notes(history: list) -> list:
         ans = _answer(q)
         if ans["kind"] != "answer":
             continue
-        entries = [(ans["own"]["name"], ans["own"]["warnings"])]
+        own_ = ans["own"]
+        for item in ([("Scope", f"{own_['display_name']}: {own_['censored_note']}")] if own_.get("censored_note") else []) \
+                + ([("Scope", ans["parsed"]["default_view_note"])] if ans["parsed"].get("default_view_note") else []):
+            if item not in notes:
+                notes.append(item)
+        entries = [(own_["name"], own_["warnings"])]
         entries += [(c["name"], c["warnings"]) for c in ans["children"]]
         for name, warnings in entries:
             for w in warnings:

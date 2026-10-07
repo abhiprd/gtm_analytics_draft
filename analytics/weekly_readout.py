@@ -8,7 +8,9 @@ fact_campaign_engagement_events) plus, through that engine's watchlist,
 analytics/health_score.py's scored output; analytics/playbook_triggers.py's
 run_playbook_triggers() for the trigger section; and analytics/forecast.py's
 run_forecast() for the forecast section (quarter grain, Commercial and
-Enterprise, one row per segment).
+Enterprise, one row per segment); and analytics/segment_migration.py's
+compute_segment_mix() for the segment-mix section (segment shares of ending
+MRR with migration velocity and graduated MRR).
 
 WHAT THIS IS
 ------------
@@ -49,9 +51,10 @@ Three consequences follow, all deliberate:
 
 SCOPE -- WHAT IS AND IS NOT FILLED HERE
 ----------------------------------------
-Build spec Section 5 names seven sections. Six are assembled here from
-built artifacts; the executive summary is filled by a deliberately
-separate step. No section is an unbuilt placeholder.
+Build spec Section 5 names seven sections, and the readout carries an
+eighth, segment mix. Seven are assembled here from built artifacts; the
+executive summary is filled by a deliberately separate step. No section is an
+unbuilt placeholder.
 
   1. EXECUTIVE SUMMARY NARRATIVE -- a separate step, analytics/
      executive_summary.py, NOT performed by this module. Build spec Section
@@ -91,6 +94,15 @@ separate step. No section is an unbuilt placeholder.
      unit (closed-won opportunity amount, Commercial and Enterprise,
      quarterly); the section says so rather than manufacturing one.
 
+  4. SEGMENT MIX -- reads analytics/segment_migration.py's
+     compute_segment_mix(evaluation_month): each segment's share of company
+     ending MRR (from mart_growth_bridge) with the share change against the
+     prior month and the same month a year earlier, migration velocity
+     (events per source-segment account) and graduated MRR as a share of the
+     source segment's MRR. Migration only moves accounts up, so the section
+     leads with rates and mix, not raw counts. Like every other section it is
+     read verbatim and traced to a fresh run.
+
 DETERMINISM
 -----------
 No stochastic step exists in this module -- no sampling, no simulation,
@@ -114,6 +126,7 @@ import pandas as pd
 from . import executive_summary as es
 from . import forecast as fc
 from . import playbook_triggers as pbt
+from . import segment_migration as sm
 from . import variance_diagnostic as vd
 from .model_performance import log_performance
 
@@ -339,6 +352,7 @@ def assemble_readout(as_of_date: date,
         "forecast": _forecast_section(
             month.to_period("M").to_timestamp("M").date(), forecast_run),
         "watchlist": _watchlist_section(result["watchlist"], month),
+        "segment_mix": _segment_mix_section(month),
         "data_window": {k: _none_if_nan(v) for k, v in result["data_window"].items()},
         "source_coverage": [{k: _none_if_nan(v) for k, v in r.items()}
                             for r in result["coverage"].to_dict(orient="records")],
@@ -639,6 +653,7 @@ def _drilldown_section(drilldowns: List[vd.Drilldown], scorecard: pd.DataFrame) 
         d["layer1"]["status"] = sc["status"]
         d["sibling_ranking"] = _ranking_records(dd.sibling_ranking)
         d["layer3_ranking"] = _ranking_records(dd.layer3_evidence)
+        d["persistence"] = _persistence_record(dd.persistence)
         if d["layer2_outlier"] is not None:
             top = next((r for r in d["sibling_ranking"]
                         if r["metric_key"] == d["layer2_outlier"]["metric_key"]), None)
@@ -657,6 +672,25 @@ def _drilldown_section(drilldowns: List[vd.Drilldown], scorecard: pd.DataFrame) 
             "engine's ranking of that node's siblings against their own trailing baselines. "
             "Layer-3 evidence appears only where the branch has a Layer 3 that can be computed."),
     }
+
+
+def _persistence_status_display(p: Dict[str, Any]) -> str:
+    """The persistence chip text. Presentation only: both numbers are the
+    engine's streak and threshold."""
+    if p["status"] == vd.PERSISTENCE_FLAGGED:
+        return f"Flagged: {p['streak_months']} consecutive months"
+    if p["status"] == vd.PERSISTENCE_NOT_FLAGGED:
+        return f"Not flagged: streak {p['streak_months']} of {p['threshold_months']} months"
+    return "Not applicable"
+
+
+def _persistence_record(persistence: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The engine's persistence record, verbatim, plus its display line."""
+    if persistence is None:
+        raise ValueError("a drill-down reached the readout without a persistence record")
+    rec = json.loads(json.dumps(persistence, default=_json_default))
+    rec["status_display"] = _persistence_status_display(rec)
+    return rec
 
 
 def _ranking_records(df: pd.DataFrame) -> List[Dict[str, Any]]:
@@ -707,6 +741,75 @@ def _watchlist_section(watchlist: pd.DataFrame, month: pd.Timestamp) -> Dict[str
     }
 
 
+_SEGMENT_MIX_NOTE = (
+    "Segment shares are shares of company ending MRR in the reporting month. Migration rates "
+    "are events per account in the source segment; graduated MRR is shown as a share of the "
+    "source segment's MRR.")
+
+
+def _fmt_share(v: Optional[float]) -> str:
+    return "n/a" if v is None else f"{v:.1%}"
+
+
+def _fmt_pp(v: Optional[float]) -> str:
+    """A change in a share, in percentage points."""
+    return "n/a" if v is None else f"{v * 100:+.1f} pp"
+
+
+def _fmt_usd_or_na(v: Optional[float]) -> str:
+    return "n/a" if v is None else _fmt_usd(v)
+
+
+def _segment_mix_section(month: pd.Timestamp) -> Dict[str, Any]:
+    """Segment mix and migration for the reporting month. Reads analytics/
+    segment_migration.py's compute_segment_mix() verbatim and adds display
+    strings only. Grain: one record per reporting month, with one row per
+    segment and one per segment pair."""
+    mix = json.loads(json.dumps(sm.compute_segment_mix(month), default=_json_default))
+    mix["note"] = _SEGMENT_MIX_NOTE
+    if mix["status"] != STATUS_PRESENT:
+        mix["headline"] = None
+        return mix
+    mix["total_ending_mrr_display"] = _fmt_usd(mix["total_ending_mrr"])
+    for r in mix["segments"]:
+        r["ending_mrr_display"] = _fmt_usd(r["ending_mrr"])
+        r["mrr_share_display"] = _fmt_share(r["mrr_share"])
+        r["share_change_vs_prior_month_display"] = _fmt_pp(r["share_change_vs_prior_month"])
+        r["share_change_vs_12m_ago_display"] = _fmt_pp(r["share_change_vs_12m_ago"])
+    up = mix["upmarket_share"]
+    up["mrr_share_display"] = _fmt_share(up["mrr_share"])
+    up["change_vs_prior_month_display"] = _fmt_pp(up["change_vs_prior_month"])
+    up["change_vs_12m_ago_display"] = _fmt_pp(up["change_vs_12m_ago"])
+    for r in mix["migration"]:
+        r["pair_label"] = f"{r['from_segment']} to {r['to_segment']}"
+        r["velocity_in_month_display"] = _fmt_share(r["velocity_in_month"])
+        r["velocity_trailing_12m_display"] = _fmt_share(r["velocity_trailing_12m"])
+        r["velocity_trailing_12m_year_ago_display"] = _fmt_share(r["velocity_trailing_12m_year_ago"])
+        r["velocity_change_vs_year_ago_display"] = _fmt_pp(r["velocity_change_vs_year_ago"])
+        r["graduated_mrr_in_month_display"] = _fmt_usd(r["graduated_mrr_in_month"])
+        r["graduated_mrr_trailing_12m_display"] = _fmt_usd(r["graduated_mrr_trailing_12m"])
+        r["graduated_share_of_source_mrr_in_month_display"] = _fmt_share(
+            r["graduated_share_of_source_mrr_in_month"])
+        r["graduated_share_of_source_mrr_trailing_12m_display"] = _fmt_share(
+            r["graduated_share_of_source_mrr_trailing_12m"])
+    against = (f" ({up['change_vs_12m_ago_display']} against 12 months earlier)"
+               if up["change_vs_12m_ago"] is not None else "")
+    mix["headline"] = (f"Commercial and Enterprise hold {up['mrr_share_display']} of ending "
+                       f"MRR{against}.")
+    return mix
+
+
+def _strip_presentation(obj: Any) -> Any:
+    """The structured section without its display strings, for the exact-equality
+    trace against a fresh run of the owning function."""
+    if isinstance(obj, dict):
+        return {k: _strip_presentation(v) for k, v in obj.items()
+                if not (k.endswith("_display") or k in ("note", "headline", "pair_label"))}
+    if isinstance(obj, list):
+        return [_strip_presentation(v) for v in obj]
+    return obj
+
+
 def _provenance(as_of_date: date, result: dict) -> Dict[str, Any]:
     """Which artifact every section came from, and what this one did to
     it (nothing, by design). Published with the readout so a reader can
@@ -731,6 +834,9 @@ def _provenance(as_of_date: date, result: dict) -> Dict[str, Any]:
              "artifact": "analytics/forecast.py",
              "entry_point": "latest_forecast_call_date(reporting_period_end); "
                             "run_forecast(forecast_call_date)"},
+            {"section": "segment_mix",
+             "artifact": "analytics/segment_migration.py",
+             "entry_point": "compute_segment_mix(evaluation_month)"},
             {"section": "source_coverage",
              "artifact": "analytics/variance_diagnostic.py",
              "entry_point": "run_diagnostic()['coverage']"},
@@ -746,13 +852,11 @@ def _provenance(as_of_date: date, result: dict) -> Dict[str, Any]:
             "drill-down threshold as an open question. This readout consumes the engine's "
             "threshold; it does not set or override one."),
         "segment_migration_analysis": (
-            "analytics/segment_migration.py is Wave 1's third artifact and is not a source "
-            "for any section of this readout. Its outputs (migration velocity, "
-            "trigger-reason mix, graduated revenue) are population-level descriptive "
-            "series that the build spec's readout structure has no section for -- "
-            "graduated revenue is deliberately excluded from the source segment's "
-            "churn/contraction, so it does not belong in the Growth scorecard rows either. "
-            "Stated here rather than left as a silent omission."),
+            "analytics/segment_migration.py is the source of the segment-mix section only: "
+            "migration velocity and graduated MRR beside each segment's share of ending MRR. "
+            "Graduated revenue is deliberately excluded from the source segment's "
+            "churn/contraction, so it does not enter the Growth scorecard rows, and the "
+            "trigger-reason mix and time-in-segment distributions are not in the readout."),
     }
 
 
@@ -889,6 +993,9 @@ def render_markdown(readout: Dict[str, Any]) -> str:
         a(f"- {c}")
     a("")
 
+    # ---- Segment mix: are we moving upmarket -----------------------------
+    out.extend(_render_segment_mix(readout["segment_mix"]))
+
     # ---- Provenance ----------------------------------------------------
     p = readout["provenance"]
     a("## Provenance")
@@ -907,6 +1014,58 @@ def render_markdown(readout: Dict[str, Any]) -> str:
     a(f"- Segment migration: {p['segment_migration_analysis']}")
     a("")
     return "\n".join(out)
+
+
+def _segment_row_line(r: Dict[str, Any]) -> str:
+    return (f"| {r['segment']} | {r['ending_mrr_display']} | {r['mrr_share_display']} "
+            f"| {r['share_change_vs_prior_month_display']} "
+            f"| {r['share_change_vs_12m_ago_display']} |")
+
+
+def _migration_row_line(r: Dict[str, Any]) -> str:
+    return (f"| {r['pair_label']} | {r['events_in_month']} | {r['velocity_in_month_display']} "
+            f"| {r['events_trailing_12m']} | {r['velocity_trailing_12m_display']} "
+            f"| {r['velocity_trailing_12m_year_ago_display']} "
+            f"| {r['velocity_change_vs_year_ago_display']} "
+            f"| {r['graduated_mrr_trailing_12m_display']} "
+            f"| {r['graduated_share_of_source_mrr_trailing_12m_display']} |")
+
+
+def _render_segment_mix(sec: Dict[str, Any]) -> List[str]:
+    """The '## Segment mix' section. Presentation only: every figure comes
+    from the structured section, which comes from analytics/segment_migration.py."""
+    out: List[str] = []
+    a = out.append
+    a("## Segment mix")
+    a("")
+    if sec["status"] != STATUS_PRESENT:
+        a(f"**Status: {sec['status']} ({sec['reason']}).** {sec['detail']}")
+        a("")
+        a(f"_{sec['note']}_")
+        a("")
+        return out
+    a(f"**{sec['headline']}**")
+    a("")
+    a(f"_{sec['note']}_")
+    a("")
+    a("| Segment | Ending MRR | Share of MRR | vs. prior month | vs. 12 months earlier |")
+    a("|---|---|---|---|---|")
+    for r in sec["segments"]:
+        a(_segment_row_line(r))
+    a("")
+    a("| Migration | Events (month) | Rate (month) | Events (12 months) | Rate (12 months) "
+      "| Rate (12 months earlier) | Change | Graduated MRR (12 months) "
+      "| Share of source-segment MRR (12 months) |")
+    a("|---|---|---|---|---|---|---|---|---|")
+    for r in sec["migration"]:
+        a(_migration_row_line(r))
+    a("")
+    a(f"- **Basis:** {sec['basis']}")
+    a(f"- **Data window:** {sec['window']['partial_month_handling']}")
+    for c in sec["caveats"]:
+        a(f"- {c}")
+    a("")
+    return out
 
 
 def _ml_context_line(ml: Dict[str, Any]) -> str:
@@ -1021,6 +1180,7 @@ def _render_drilldown(index: int, entry: Dict[str, Any]) -> str:
         if l2.get("cross_reference_to"):
             a(f"  - Cross-reference to {l2.get('cross_reference_label') or l2['cross_reference_to']} "
               f"under Growth, not an independent driver.")
+    a(_persistence_line(entry["persistence"]))
 
     if entry["sibling_ranking"]:
         a("")
@@ -1058,6 +1218,15 @@ def _render_drilldown(index: int, entry: Dict[str, Any]) -> str:
     return "\n".join(out)
 
 
+def _persistence_line(p: Dict[str, Any]) -> str:
+    """The drill-down's persistence line; an applicable record carries the
+    repeat-marker caveat on the line below it."""
+    line = f"- **Persistence:** {p['status_display']}. {p['note']}"
+    if p["status"] != vd.PERSISTENCE_NOT_APPLICABLE:
+        line += f"\n  - {p['caveat']}"
+    return line
+
+
 def _label_of(metric_key: str) -> str:
     return vd.get_node(metric_key).label
 
@@ -1079,7 +1248,7 @@ def _label_of(metric_key: str) -> str:
 # exist.
 
 _REQUIRED_SECTIONS = ("header", "executive_summary", "layer1_scorecard", "drilldowns",
-                      "playbook_triggers", "forecast", "watchlist")
+                      "playbook_triggers", "forecast", "watchlist", "segment_mix")
 _EXPECTED_LAYER1_NODES = 11
 
 
@@ -1223,6 +1392,36 @@ def verify_source_trace(readout: Dict[str, Any], diagnostic: dict,
         check("playbook_triggers_trace_exactly_to_a_fresh_run",
               not pt_mismatch, "; ".join(pt_mismatch))
 
+    p_ok, p_detail = _verify_persistence_against(readout, {d.layer1_key: d.persistence
+                                                           for d in diagnostic["drilldowns"]})
+    check("drilldown_persistence_matches_engine_output", p_ok,
+          "every drill-down carries the engine's persistence record, untouched, tracking its own "
+          "Layer-2 outlier, with a flag that agrees with its streak; " + p_detail)
+
+    if as_of_date is not None:
+        fresh = vd.run_diagnostic(
+            as_of_date, threshold=readout["header"]["variance_threshold"],
+            baseline_months=readout["header"]["trailing_baseline_months"],
+            include_watchlist=False)
+        f_ok, f_detail = _verify_persistence_against(
+            readout, {d.layer1_key: d.persistence for d in fresh["drilldowns"]})
+        check("drilldown_persistence_traces_exactly_to_a_fresh_engine_run", f_ok, f_detail)
+
+    mix = readout["segment_mix"]
+    mix_problem = _segment_mix_status_problem(mix, readout["header"]["evaluation_month"])
+    check("segment_mix_section_is_built_and_declares_its_status", mix_problem is None,
+          "segment mix is built: the section must be `present`, or `unavailable` with a "
+          f"specific reason, a detail and no figures; {mix_problem}")
+    mix_fresh = json.loads(json.dumps(
+        sm.compute_segment_mix(pd.Timestamp(readout["header"]["evaluation_month"])),
+        default=_json_default))
+    check("segment_mix_traces_exactly_to_a_fresh_run",
+          _strip_presentation(mix) == mix_fresh,
+          "the section, less its display strings, equals a fresh compute_segment_mix() run at "
+          "exact equality")
+    tie_ok, tie_detail = _segment_mix_ties(mix)
+    check("segment_mix_shares_tie_to_ending_mrr", tie_ok, tie_detail)
+
     slot_ok, slot_detail = es.verify_slot(readout)
     check("executive_summary_slot_honors_contract", slot_ok,
           "the executive summary must be generated (passing grounding validation, input_hash "
@@ -1230,6 +1429,83 @@ def verify_source_trace(readout: Dict[str, Any], diagnostic: dict,
           "published; got: " + slot_detail)
 
     return checks
+
+
+def _verify_persistence_against(readout: Dict[str, Any],
+                                engine: Dict[str, Any]) -> Tuple[bool, str]:
+    """Each drill-down's persistence record equals the engine's, field for field
+    at exact equality (less the readout's display string), tracks the
+    drill-down's own Layer-2 outlier, and is internally coherent."""
+    problems: List[str] = []
+    entries = readout["drilldowns"]["entries"]
+    if [e["layer1"]["metric_key"] for e in entries] != list(engine):
+        problems.append("drill-down keys differ from the engine's")
+    for e in entries:
+        key = e["layer1"]["metric_key"]
+        got = e.get("persistence")
+        if not isinstance(got, dict) or key not in engine:
+            problems.append(f"{key}: no persistence record")
+            continue
+        core = {k: v for k, v in got.items() if k != "status_display"}
+        if core != json.loads(json.dumps(engine[key], default=_json_default)):
+            problems.append(f"{key}: differs from the engine's record")
+        l2 = e["layer2_outlier"]["metric_key"] if e["layer2_outlier"] else None
+        if got["driver_key"] != l2:
+            problems.append(f"{key}: tracks {got['driver_key']!r}, not the outlier {l2!r}")
+        if got["flagged"] != (got["status"] == vd.PERSISTENCE_FLAGGED):
+            problems.append(f"{key}: flagged disagrees with status")
+        if got["status"] == vd.PERSISTENCE_FLAGGED and not got["streak_months"] >= got["threshold_months"]:
+            problems.append(f"{key}: flagged below the threshold")
+        if got["status"] == vd.PERSISTENCE_NOT_FLAGGED and not (
+                got["streak_months"] is not None and got["streak_months"] < got["threshold_months"]):
+            problems.append(f"{key}: not flagged yet the streak reaches the threshold")
+        if (got["status"] == vd.PERSISTENCE_NOT_APPLICABLE) != (got["reason"] is not None):
+            problems.append(f"{key}: a not_applicable record needs a reason and nothing else does")
+        if got["status"] == vd.PERSISTENCE_NOT_APPLICABLE and got["streak_months"] is not None:
+            problems.append(f"{key}: a not_applicable record carries a streak")
+    return not problems, "; ".join(problems)
+
+
+def _segment_mix_status_problem(sec: Dict[str, Any], evaluation_month_iso: str) -> Optional[str]:
+    """None when the segment-mix section honestly declares a status the built
+    artifact allows; otherwise what is wrong with it."""
+    status = sec.get("status")
+    if status not in (STATUS_PRESENT, STATUS_UNAVAILABLE):
+        return f"status {status!r} is neither present nor unavailable"
+    if sec.get("evaluation_month") != evaluation_month_iso:
+        return f"section month {sec.get('evaluation_month')!r} != {evaluation_month_iso!r}"
+    if status == STATUS_UNAVAILABLE:
+        if not sec.get("reason") or not sec.get("detail"):
+            return "unavailable without a specific reason and detail"
+        if any(k in sec for k in ("segments", "migration", "upmarket_share")):
+            return "an unavailable section must carry no figures"
+        return None
+    if [r["segment"] for r in sec["segments"]] != list(sm.SEGMENT_ORDER):
+        return "present section does not carry the three segments in order"
+    if not sec["reconciliation"]["reconciles"]:
+        return "graduated MRR does not reconcile to the growth bridge"
+    return None
+
+
+def _segment_mix_ties(sec: Dict[str, Any]) -> Tuple[bool, str]:
+    """Shares are each segment's ending MRR over the total and sum to 1, and the
+    upmarket share is Commercial plus Enterprise. Skipped for an unavailable
+    section, which carries no figures."""
+    if sec.get("status") != STATUS_PRESENT:
+        return True, "unavailable section carries no figures"
+    problems = []
+    total = sum(r["ending_mrr"] for r in sec["segments"])
+    if abs(total - sec["total_ending_mrr"]) > 1e-6 * max(1.0, total):
+        problems.append("segment ending MRR does not sum to the total")
+    if abs(sum(r["mrr_share"] for r in sec["segments"]) - 1.0) > 1e-9:
+        problems.append("segment shares do not sum to 1")
+    for r in sec["segments"]:
+        if abs(r["mrr_share"] - r["ending_mrr"] / total) > 1e-9:
+            problems.append(f"{r['segment']} share is not its ending MRR over the total")
+    up = sum(r["mrr_share"] for r in sec["segments"] if r["segment"] in sm.UPMARKET_SEGMENTS)
+    if abs(up - sec["upmarket_share"]["mrr_share"]) > 1e-9:
+        problems.append("upmarket share is not Commercial plus Enterprise")
+    return not problems, "; ".join(problems)
 
 
 def _forecast_status_problem(fsec: Dict[str, Any], period_end_iso: str) -> Optional[str]:
@@ -1477,6 +1753,38 @@ def verify_rendered_document(markdown: str, readout: Dict[str, Any]) -> List[Dic
           not drilldown_heading_mismatches,
           f"drill-downs whose rendered heading did not match the structured payload verbatim: "
           f"{drilldown_heading_mismatches}")
+
+    persistence_mismatches = [
+        dd["layer1"]["metric_key"] for dd in readout["drilldowns"]["entries"]
+        if _persistence_line(dd["persistence"]) not in markdown]
+    check("drilldown_persistence_rendered_per_payload", not persistence_mismatches,
+          f"drill-downs whose persistence line did not match the structured payload verbatim: "
+          f"{persistence_mismatches}")
+
+    mix = readout["segment_mix"]
+    mix_missing: List[str] = []
+    if "## Segment mix" not in markdown:
+        mix_missing.append("heading")
+    if mix["status"] == STATUS_PRESENT:
+        for r in mix["segments"]:
+            if _segment_row_line(r) not in markdown:
+                mix_missing.append(r["segment"])
+        for r in mix["migration"]:
+            if _migration_row_line(r) not in markdown:
+                mix_missing.append(r["pair_label"])
+        if f"**{mix['headline']}**" not in markdown:
+            mix_missing.append("headline")
+        for c in mix["caveats"]:
+            if f"- {c}" not in markdown:
+                mix_missing.append("caveat: " + c[:40])
+    else:
+        if f"**Status: {mix['status']} ({mix['reason']}).**" not in markdown:
+            mix_missing.append("status line")
+        if "| Segment | Ending MRR |" in markdown:
+            mix_missing.append("figures rendered for an unavailable section")
+    check("segment_mix_section_rendered_per_status", not mix_missing,
+          f"segment-mix elements whose rendering did not match the structured payload "
+          f"verbatim: {mix_missing}")
 
     return checks
 

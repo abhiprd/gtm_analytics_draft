@@ -157,6 +157,8 @@ Proven-out structure (see the sample readout in `acme-corp-claude-design-brief.m
 
 **Status — forecast section:** built. `analytics/weekly_readout.py` carries `analytics/forecast.py`'s four lenses (bottoms-up rep and manager, ML, CRO-adjusted) per segment with the artifact's own divergence flag, its ML-lens accuracy and calibration context and its caveats, for the weekly forecast call that was current at the reporting month's end (the readout is monthly, the forecast quarterly), traced field by field to a fresh run of the forecast artifact. A date with no such call, or a call leaving no open deal in its quarter, is declared `unavailable` with its reason. The forecast has no plan or quota at its grain and unit, so the section states that rather than comparing. See the methods doc's "Weekly executive readout" entry.
 
+**Status — persistence and segment mix:** built, two additions to the readout structure above. Each drill-down carries a persistence record from the variance-diagnostic engine (how many consecutive months the same Layer-2 driver has been the largest adverse outlier against its own trailing baseline; flagged at 2 consecutive months, proposed and not confirmed), computed in the engine and traced to a fresh engine run. A `segment_mix` section ("are we moving upmarket") carries each segment's share of ending MRR with the change against the prior month and 12 months earlier, and migration velocity and graduated MRR from `analytics/segment_migration.py`; it is `unavailable` with a reason for the truncated final month. Neither is a build-spec Section 8 artifact; both are parts of the readout. See the methods doc's "Variance-diagnostic engine" and "Weekly executive readout" entries.
+
 ---
 
 ## 6. Sequencing & Scope Guardrail

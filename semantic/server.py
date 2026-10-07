@@ -53,7 +53,8 @@ _DB_PATH = os.path.join(_REPO_ROOT, "data", "acme_gtm.duckdb")
 
 _VALID_SEGMENTS = ("SMB", "Commercial", "Enterprise")
 _VALID_GRAINS = ("month", "quarter", "year", "all")
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_DATE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+_DATE_RANGE_KEYS = ("start", "end")
 
 
 def _load_registry() -> dict:
@@ -114,11 +115,52 @@ _ALIASES = {
     "cac": "cac_by_channel",
     "customer acquisition cost": "cac_by_channel",
     "customer_acquisition_cost": "cac_by_channel",
+    "ltv": "ltv_by_segment_acquisition_channel",
+    "lifetime value": "ltv_by_segment_acquisition_channel",
+    "customer lifetime value": "ltv_by_segment_acquisition_channel",
+    "ltv:cac": "ltv_by_segment_acquisition_channel",
+    "ltv cac": "ltv_by_segment_acquisition_channel",
+    "ltv to cac": "ltv_by_segment_acquisition_channel",
+    "ltv cac ratio": "ltv_by_segment_acquisition_channel",
+    "lifetime value to cac": "ltv_by_segment_acquisition_channel",
+    "payback": "consumption_payback",
+    "payback period": "consumption_payback",
+    "cac payback": "consumption_payback",
+    "cac payback period": "consumption_payback",
+    "overage": "overage_realization",
+    "overage share": "overage_realization",
+    "overage mrr": "overage_realization",
+    "ingestion without completion": "ingestion_without_completion_rate",
+    "tickets": "support_ticket_volume_severity",
+    "support tickets": "support_ticket_volume_severity",
+    "ticket volume": "support_ticket_volume_severity",
+    "logins": "engagement_login_frequency",
+    "login frequency": "engagement_login_frequency",
+    "am sentiment": "am_sentiment_notes",
+    "account manager sentiment": "am_sentiment_notes",
+    "discount": "discount_rate_vs_list",
+    "discounting": "discount_rate_vs_list",
+    "discount vs list": "discount_rate_vs_list",
+    "renewals": "renewal_win_rate",
+    "renewal rate": "renewal_win_rate",
+    "ramp mix": "rep_capacity_ramp_mix",
+    "ramping reps": "rep_capacity_ramp_mix",
+    "mid-chain abandonment": "mid_chain_workflow_abandonment",
+    "workflow chain under-utilization": "workflow_chain_under_utilization",
 }
 
 
+def _alias_form(text: str) -> str:
+    """Punctuation- and case-insensitive form used to look an alias up, so
+    'LTV:CAC', 'ltv cac' and 'Mid-chain abandonment' all find their entry."""
+    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+
+
+_ALIAS_INDEX: Dict[str, str] = {_alias_form(k): v for k, v in _ALIASES.items()}
+
+
 def _suggestions(name: str, n: int = 3) -> List[str]:
-    alias = _ALIASES.get(name.strip().lower())
+    alias = _ALIAS_INDEX.get(_alias_form(name))
     if alias and alias in _METRICS:
         return [alias]
     candidates = list(_METRICS.keys()) + [m["name"] for m in _METRICS.values()]
@@ -153,6 +195,8 @@ def _public_metric(node: dict) -> dict:
         "scope_note": node["scope_note"],
         "allowed_dimensions": node["allowed_dimensions"],
         "queryable_dimensions": node["queryable_dimensions"],
+        "queryable_segments": node.get("queryable_segments", []),
+        "segment_unavailable_reason": node.get("segment_unavailable_reason"),
         "opportunity_type_filter": node["opportunity_type_filter"],
         "source_mart": node["source_mart"],
         "parent": node["parent"],
@@ -170,16 +214,23 @@ def _public_metric(node: dict) -> dict:
 # query_metric SQL construction
 # =====================================================================
 
-def _grain_expr(grain: str) -> Optional[str]:
+def _period_expr(grain: str, column: str = "month") -> Optional[str]:
+    """The period bucket for a grain, built explicitly from the grain and the
+    mart's own date column -- never by rewriting another expression's text."""
     if grain == "all":
         return None
-    if grain == "month":
-        return "date_trunc('month', month)"
-    if grain == "quarter":
-        return "date_trunc('quarter', month)"
-    if grain == "year":
-        return "date_trunc('year', month)"
+    if grain in ("month", "quarter", "year"):
+        return f"date_trunc('{grain}', {column})"
     raise ValueError(grain)
+
+
+def _segment_scope_clause(node: dict) -> Optional[str]:
+    """Scopes a node to the segments it is defined for, so a cut or an
+    'all segments' total never mixes in rows the metric does not define."""
+    restricted = node.get("queryable_segments", list(_VALID_SEGMENTS))
+    if len(restricted) < len(_VALID_SEGMENTS):
+        return "segment in (" + ", ".join(f"'{x}'" for x in restricted) + ")"
+    return None
 
 
 def _value_expr(query: dict) -> str:
@@ -194,13 +245,35 @@ def _value_expr(query: dict) -> str:
 
 
 def _validate_date_range(date_range: Optional[dict]) -> tuple:
+    """Both ends must be real calendar dates in YYYY-MM-DD form, the range may
+    carry no key other than start/end, and start may not follow end. Any
+    violation is an invalid_request, never a database error."""
     if not date_range:
         return None, None
-    start, end = date_range.get("start"), date_range.get("end")
-    for label, val in (("start", start), ("end", end)):
-        if val is not None and not _DATE_RE.match(str(val)):
+    if not isinstance(date_range, dict):
+        raise ValueError("date_range must be an object with optional 'start' and 'end' keys")
+    unknown = sorted(str(k) for k in date_range if k not in _DATE_RANGE_KEYS)
+    if unknown:
+        raise ValueError(
+            f"date_range has unknown key(s) {unknown}; only 'start' and 'end' are accepted"
+        )
+    parsed: Dict[str, Optional[date]] = {}
+    for label in _DATE_RANGE_KEYS:
+        val = date_range.get(label)
+        if val is None:
+            parsed[label] = None
+            continue
+        if not isinstance(val, str) or not _DATE_RE.match(val):
             raise ValueError(f"date_range.{label} must be 'YYYY-MM-DD', got {val!r}")
-    return start, end
+        try:
+            parsed[label] = datetime.strptime(val, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(f"date_range.{label} {val!r} is not a real calendar date") from None
+    if parsed["start"] and parsed["end"] and parsed["start"] > parsed["end"]:
+        raise ValueError(
+            f"date_range.start ({date_range['start']}) is after date_range.end ({date_range['end']})"
+        )
+    return date_range.get("start"), date_range.get("end")
 
 
 def _connect():
@@ -244,6 +317,19 @@ def _run_query_metric(node: dict, dimensions: List[str], filters: Dict[str, str]
                     f"'{value}' is not a valid segment -- must be one of {_VALID_SEGMENTS} "
                     f"(never 'tier').",
                 )
+            if value not in node.get("queryable_segments", list(_VALID_SEGMENTS)):
+                reason = node.get("segment_unavailable_reason")
+                if reason:
+                    detail = reason.format(segment=value, queryable_segments=node["queryable_segments"],
+                                           source_mart=node["source_mart"])
+                    message = f"'{node['key']}' {detail} gap_note: {node['gap_note']}"
+                else:
+                    message = (
+                        f"'{node['key']}' has no rows for segment '{value}': its source mart "
+                        f"({node['source_mart']}) carries {node['queryable_segments']} only. "
+                        f"gap_note: {node['gap_note']}"
+                    )
+                raise _GuardrailError("segment_not_available", message)
             segment_filter = value
 
     if grain not in _VALID_GRAINS:
@@ -255,7 +341,7 @@ def _run_query_metric(node: dict, dimensions: List[str], filters: Dict[str, str]
         return _run_tenure_at_churn(node, dimensions, segment_filter, grain, start, end, warnings)
 
     select_cols, group_cols, order_cols = [], [], []
-    grain_expr = _grain_expr(grain)
+    grain_expr = _period_expr(grain, "month")
     if grain_expr:
         select_cols.append(f"{grain_expr} as period")
         group_cols.append("1")
@@ -278,6 +364,9 @@ def _run_query_metric(node: dict, dimensions: List[str], filters: Dict[str, str]
     if segment_filter:
         where_clauses.append("segment = ?")
         params.append(segment_filter)
+    scope = _segment_scope_clause(node)
+    if scope:
+        where_clauses.append(scope)
 
     sql = f"select {', '.join(select_cols)} from main_marts.{node['source_mart']}"
     if where_clauses:
@@ -296,30 +385,38 @@ def _run_query_metric(node: dict, dimensions: List[str], filters: Dict[str, str]
         con.close()
 
     data = [_row_to_dict(cols, row) for row in rows]
-    if node["computability"] == "partial":
-        warnings.append(f"Partially computable: {node['gap_note']}")
-    if node["query"]["aggregation"] in ("avg", "sum") and node["gap_note"] and node["computability"] == "full":
-        warnings.append(node["gap_note"])
+    _note_warnings(node, warnings)
     if not data:
         warnings.append("No rows matched the requested filters/date_range.")
 
     return {"sql": sql, "data": data, "warnings": warnings}
 
 
+def _note_warnings(node: dict, warnings: List[str]) -> None:
+    """Surface the node's own gap note next to the data: as a 'partially
+    computable' caveat when the node is partial, and verbatim when the node is
+    fully computable but its note changes how the number should be read."""
+    if not node["gap_note"]:
+        return
+    if node["computability"] == "partial":
+        warnings.append(f"Partially computable: {node['gap_note']}")
+    elif node["computability"] == "full":
+        warnings.append(node["gap_note"])
+
+
 def _run_tenure_at_churn(node, dimensions, segment_filter, grain, start, end, warnings):
-    grain_expr = _grain_expr(grain)
-    period_source = "churn_month"
+    # The period bucket is the churn month, not the calendar month column.
+    period_expr = _period_expr(grain, "churn_month")
     select_cols, group_cols, order_cols = [], [], []
-    if grain_expr:
-        period_expr = grain_expr.replace("month", period_source)
+    if period_expr:
         select_cols.append(f"{period_expr} as period")
         group_cols.append("1")
         order_cols.append("1")
     include_segment = "segment" in dimensions
     if include_segment:
         select_cols.append("segment")
-        group_cols.append(str(len(group_cols) + 1) if grain_expr else "1")
-        order_cols.append(str(len(order_cols) + 1) if grain_expr else "1")
+        group_cols.append(str(len(group_cols) + 1) if period_expr else "1")
+        order_cols.append(str(len(order_cols) + 1) if period_expr else "1")
     select_cols.append("avg(account_tenure_days) as value")
 
     where_clauses = ["month = churn_month", "churn_month is not null"]
@@ -333,6 +430,9 @@ def _run_tenure_at_churn(node, dimensions, segment_filter, grain, start, end, wa
     if segment_filter:
         where_clauses.append("segment = ?")
         params.append(segment_filter)
+    scope = _segment_scope_clause(node)
+    if scope:
+        where_clauses.append(scope)
 
     sql = (
         f"select {', '.join(select_cols)} from main_marts.{node['source_mart']} "
@@ -351,6 +451,7 @@ def _run_tenure_at_churn(node, dimensions, segment_filter, grain, start, end, wa
     finally:
         con.close()
     data = [_row_to_dict(cols, row) for row in rows]
+    _note_warnings(node, warnings)
     if not data:
         warnings.append("No rows matched the requested filters/date_range.")
     return {"sql": sql, "data": data, "warnings": warnings}
@@ -472,7 +573,7 @@ def query_metric(metric: str, dimensions: Optional[List[str]] = None,
                 f"'{node['name']}' is an explicitly non-additive node per the metric tree "
                 f"(note: {node['note']!r}) -- it is never summed into its parent's calculation and "
                 f"is not queryable as a rollup contributor. " +
-                (f"It also has no computable mart data: {node['gap_note']}" if not node["computable"] else "")
+                (f"It also has no queryable series: {node['gap_note']}" if not node["computable"] else "")
             ),
             "metric": public,
             **_registry_stamp(),

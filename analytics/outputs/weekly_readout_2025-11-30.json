@@ -17,8 +17,8 @@
     "statements": [],
     "model": null,
     "generated_at": null,
-    "input_hash": "73a72e2027cb8a92cf3146acdbfab98679712c8ff27e4795ba7b8deb13b9968a",
-    "prompt_version": "exec-summary-v3",
+    "input_hash": "a8d07adfa6034681fe335ce20e63a35c26bdeba7394a9902599c55304eab4a33",
+    "prompt_version": "exec-summary-v5",
     "validation": {
       "passed": null,
       "checks": []
@@ -48,7 +48,7 @@
         "mechanism": "plan_diff",
         "trailing_baseline": 19425.34375,
         "baseline_variance_pct": 1.3260309100064187,
-        "prior_month_value": 21838.45,
+        "prior_month_value": 21838.449999999997,
         "favorable_direction": "higher",
         "plan_comparability": "comparable",
         "plan_comparability_note": null,
@@ -94,13 +94,13 @@
         "layer": 1,
         "pillar": "growth",
         "month": "2025-11-01",
-        "actual": 760588.3500000001,
+        "actual": 760588.3499999999,
         "plan": 173800.0,
-        "variance_pct": 3.3762275604142697,
+        "variance_pct": 3.3762275604142684,
         "mechanism": "plan_diff",
-        "trailing_baseline": 739428.5312499999,
-        "baseline_variance_pct": 0.028616448859810226,
-        "prior_month_value": 1131919.6500000001,
+        "trailing_baseline": 739428.5312500001,
+        "baseline_variance_pct": 0.028616448859809587,
+        "prior_month_value": 1131919.65,
         "favorable_direction": "higher",
         "plan_comparability": "comparable",
         "plan_comparability_note": null,
@@ -120,12 +120,12 @@
         "layer": 1,
         "pillar": "growth",
         "month": "2025-11-01",
-        "actual": 502440.29999999993,
+        "actual": 502440.3,
         "plan": 49300.0,
-        "variance_pct": 9.19148681541582,
+        "variance_pct": 9.191486815415821,
         "mechanism": "plan_diff",
         "trailing_baseline": 318841.1875,
-        "baseline_variance_pct": 0.5758324824329665,
+        "baseline_variance_pct": 0.5758324824329667,
         "prior_month_value": 303824.85000000003,
         "favorable_direction": "lower",
         "plan_comparability": "comparable",
@@ -172,13 +172,13 @@
         "layer": 1,
         "pillar": "efficiency",
         "month": "2025-11-01",
-        "actual": 0.056012275253056486,
+        "actual": 0.0560122752530565,
         "plan": 11.99,
         "variance_pct": -0.995328417410087,
         "mechanism": "plan_diff",
-        "trailing_baseline": 0.12063961198238408,
-        "baseline_variance_pct": -0.5357057741429453,
-        "prior_month_value": 0.1717656728146716,
+        "trailing_baseline": 0.12063961198238407,
+        "baseline_variance_pct": -0.5357057741429452,
+        "prior_month_value": 0.17176567281467156,
         "favorable_direction": "lower",
         "plan_comparability": "caveated",
         "plan_comparability_note": "Caveated: the plan band assumes a fully loaded CAC, while the actual CAC is marketing spend only. The actual sits far below the band by definition.",
@@ -230,7 +230,7 @@
         "mechanism": "plan_diff",
         "trailing_baseline": 2.1309341413778,
         "baseline_variance_pct": 0.2414090816695825,
-        "prior_month_value": 2.571282905264297,
+        "prior_month_value": 2.5712829052642974,
         "favorable_direction": "higher",
         "plan_comparability": "caveated",
         "plan_comparability_note": "Caveated: the actual covers Commercial and Enterprise over a trailing 12 months and counts any usage increase as expansion, while the plan includes SMB expansion.",
@@ -250,13 +250,13 @@
         "layer": 1,
         "pillar": "durability",
         "month": "2025-11-01",
-        "actual": 1.8179653858524363,
+        "actual": 1.817965385852436,
         "plan": 1.1712,
-        "variance_pct": 0.5522245439313834,
+        "variance_pct": 0.5522245439313832,
         "mechanism": "plan_diff",
-        "trailing_baseline": 1.7978550424556499,
-        "baseline_variance_pct": 0.011185742410755288,
-        "prior_month_value": 1.8393320217978302,
+        "trailing_baseline": 1.7978550424556494,
+        "baseline_variance_pct": 0.011185742410755414,
+        "prior_month_value": 1.83933202179783,
         "favorable_direction": "higher",
         "plan_comparability": "caveated",
         "plan_comparability_note": "Caveated: the contraction bucket counts any month-on-month usage decline, so gross expansion and contraction are both large, while the plan benchmark describes durable downsell. Trailing-12-month NRR and GRR differ from plan by definition.",
@@ -337,7 +337,7 @@
           "mechanism": "plan_diff",
           "trailing_baseline": 19425.34375,
           "baseline_variance_pct": 1.3260309100064187,
-          "prior_month_value": 21838.45,
+          "prior_month_value": 21838.449999999997,
           "favorable_direction": "higher",
           "plan_comparability": "comparable",
           "plan_comparability_note": null,
@@ -383,13 +383,13 @@
           "layer": 1,
           "pillar": "growth",
           "month": "2025-11-01",
-          "actual": 760588.3500000001,
+          "actual": 760588.3499999999,
           "plan": 173800.0,
-          "variance_pct": 3.3762275604142697,
+          "variance_pct": 3.3762275604142684,
           "mechanism": "plan_diff",
-          "trailing_baseline": 739428.5312499999,
-          "baseline_variance_pct": 0.028616448859810226,
-          "prior_month_value": 1131919.6500000001,
+          "trailing_baseline": 739428.5312500001,
+          "baseline_variance_pct": 0.028616448859809587,
+          "prior_month_value": 1131919.65,
           "favorable_direction": "higher",
           "plan_comparability": "comparable",
           "plan_comparability_note": null,
@@ -409,12 +409,12 @@
           "layer": 1,
           "pillar": "growth",
           "month": "2025-11-01",
-          "actual": 502440.29999999993,
+          "actual": 502440.3,
           "plan": 49300.0,
-          "variance_pct": 9.19148681541582,
+          "variance_pct": 9.191486815415821,
           "mechanism": "plan_diff",
           "trailing_baseline": 318841.1875,
-          "baseline_variance_pct": 0.5758324824329665,
+          "baseline_variance_pct": 0.5758324824329667,
           "prior_month_value": 303824.85000000003,
           "favorable_direction": "lower",
           "plan_comparability": "comparable",
@@ -463,13 +463,13 @@
           "layer": 1,
           "pillar": "efficiency",
           "month": "2025-11-01",
-          "actual": 0.056012275253056486,
+          "actual": 0.0560122752530565,
           "plan": 11.99,
           "variance_pct": -0.995328417410087,
           "mechanism": "plan_diff",
-          "trailing_baseline": 0.12063961198238408,
-          "baseline_variance_pct": -0.5357057741429453,
-          "prior_month_value": 0.1717656728146716,
+          "trailing_baseline": 0.12063961198238407,
+          "baseline_variance_pct": -0.5357057741429452,
+          "prior_month_value": 0.17176567281467156,
           "favorable_direction": "lower",
           "plan_comparability": "caveated",
           "plan_comparability_note": "Caveated: the plan band assumes a fully loaded CAC, while the actual CAC is marketing spend only. The actual sits far below the band by definition.",
@@ -521,7 +521,7 @@
           "mechanism": "plan_diff",
           "trailing_baseline": 2.1309341413778,
           "baseline_variance_pct": 0.2414090816695825,
-          "prior_month_value": 2.571282905264297,
+          "prior_month_value": 2.5712829052642974,
           "favorable_direction": "higher",
           "plan_comparability": "caveated",
           "plan_comparability_note": "Caveated: the actual covers Commercial and Enterprise over a trailing 12 months and counts any usage increase as expansion, while the plan includes SMB expansion.",
@@ -543,13 +543,13 @@
           "layer": 1,
           "pillar": "durability",
           "month": "2025-11-01",
-          "actual": 1.8179653858524363,
+          "actual": 1.817965385852436,
           "plan": 1.1712,
-          "variance_pct": 0.5522245439313834,
+          "variance_pct": 0.5522245439313832,
           "mechanism": "plan_diff",
-          "trailing_baseline": 1.7978550424556499,
-          "baseline_variance_pct": 0.011185742410755288,
-          "prior_month_value": 1.8393320217978302,
+          "trailing_baseline": 1.7978550424556494,
+          "baseline_variance_pct": 0.011185742410755414,
+          "prior_month_value": 1.83933202179783,
           "favorable_direction": "higher",
           "plan_comparability": "caveated",
           "plan_comparability_note": "Caveated: the contraction bucket counts any month-on-month usage decline, so gross expansion and contraction are both large, while the plan benchmark describes durable downsell. Trailing-12-month NRR and GRR differ from plan by definition.",
@@ -650,8 +650,21 @@
           "deviation_pct": 1.0149442493643748,
           "comparison_basis": "relative_deviation"
         },
-        "layer3_evidence": [],
-        "layer3_status": "no_computable_layer3",
+        "layer3_evidence": [
+          {
+            "metric_key": "deal_size_trend_within_band",
+            "label": "Deal-size trend within segment band",
+            "layer": 3,
+            "parent_key": "avg_initial_commitment"
+          },
+          {
+            "metric_key": "discount_rate_vs_list",
+            "label": "Discount rate vs. list",
+            "layer": 3,
+            "parent_key": "avg_initial_commitment"
+          }
+        ],
+        "layer3_status": "surfaced",
         "branch_max_depth_in_tree": 3,
         "sibling_coverage": {
           "eligible_siblings": 3,
@@ -660,8 +673,7 @@
           "is_genuine_sibling_comparison": true
         },
         "notes": [
-          "Pipeline generated counts inbound-sourced leads converting to signup (PQL) across all three segments; Win rate and Avg initial commitment cover Commercial and Enterprise opportunities. Each sibling is ranked against its own trailing baseline and the three are not multiplied into a New logo figure.",
-          "Avg initial commitment has Layer-3 children in the tree, but none is computable from the reporting tables; the missing leaves and reasons are listed with the drill-down."
+          "Pipeline generated counts inbound-sourced leads converting to signup (PQL) across all three segments; Win rate and Avg initial commitment cover Commercial and Enterprise opportunities. Each sibling is ranked against its own trailing baseline and the three are not multiplied into a New logo figure."
         ],
         "notes_detail": [
           {
@@ -669,6 +681,30 @@
             "detail": "Pipeline generated is read from the marketing attribution artifact as a monthly flow: leads that converted to a PQL (this funnel's signup) in the month, by the lead's sourcing sub-channel (organic, paid, community), company-wide. It covers inbound-marketing-sourced accounts only, across all three segments (SMB included), and is indexed by conversion month rather than lead-creation month so the latest month is not right-censored. Win rate and Avg initial commitment are measured on rep-sold Commercial and Enterprise opportunities, a different population and unit, so Pipeline generated is ranked against its own trailing baseline like any sibling and the three legs are not multiplied into a New logo figure (the governance module's New-logo product edge is Not computable for the same reason)."
           }
         ],
+        "persistence": {
+          "status": "not_flagged",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": 0,
+          "driver_key": "avg_initial_commitment",
+          "driver_label": "Avg initial commitment",
+          "driver_direction": "favorable",
+          "adverse_direction": "down",
+          "first_month_of_streak": null,
+          "streak_detail": [],
+          "streak_break": {
+            "month": "2025-11-01",
+            "reason": "not_adverse",
+            "outlier_key": "avg_initial_commitment",
+            "outlier_label": "Avg initial commitment"
+          },
+          "reason": null,
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "Avg initial commitment is the largest Layer-2 outlier but is moving in the favorable direction, so there is no adverse streak.",
+          "status_display": "Not flagged: streak 0 of 2 months"
+        },
         "sibling_ranking": [
           {
             "metric_key": "avg_initial_commitment",
@@ -737,7 +773,52 @@
             "deviation_display": "-14.9%"
           }
         ],
-        "layer3_ranking": []
+        "layer3_ranking": [
+          {
+            "metric_key": "deal_size_trend_within_band",
+            "label": "Deal-size trend within segment band",
+            "layer": 3,
+            "parent_key": "avg_initial_commitment",
+            "computability": "partial",
+            "cross_reference_to": null,
+            "cross_reference_label": null,
+            "comparison_basis": "relative_deviation",
+            "value": 0.35,
+            "baseline": 0.4948041222417821,
+            "baseline_n": 8,
+            "deviation_pct": -0.2926493853481373,
+            "deviation_z": -1.2423780515309075,
+            "abs_deviation_pct": 0.2926493853481373,
+            "absolute_deviation": -0.14480412224178213,
+            "abs_absolute_deviation": 0.14480412224178213,
+            "rank": 1,
+            "value_display": "0.35",
+            "baseline_display": "0.4948",
+            "deviation_display": "-29.3%"
+          },
+          {
+            "metric_key": "discount_rate_vs_list",
+            "label": "Discount rate vs. list",
+            "layer": 3,
+            "parent_key": "avg_initial_commitment",
+            "computability": "partial",
+            "cross_reference_to": null,
+            "cross_reference_label": null,
+            "comparison_basis": "relative_deviation",
+            "value": 0.20798389905663817,
+            "baseline": 0.18370522166497488,
+            "baseline_n": 8,
+            "deviation_pct": 0.13216106309672873,
+            "deviation_z": 0.5289035959166456,
+            "abs_deviation_pct": 0.13216106309672873,
+            "absolute_deviation": 0.024278677391663284,
+            "abs_absolute_deviation": 0.024278677391663284,
+            "rank": 2,
+            "value_display": "0.208",
+            "baseline_display": "0.1837",
+            "deviation_display": "+13.2%"
+          }
+        ]
       },
       {
         "layer1": {
@@ -745,42 +826,91 @@
           "label": "Expansion consumption revenue",
           "layer": 1,
           "pillar": "growth",
-          "variance_pct": 3.3762275604142697,
+          "variance_pct": 3.3762275604142684,
           "mechanism": "plan_diff",
-          "value": 760588.3500000001,
+          "value": 760588.3499999999,
           "value_display": "$760.6K",
           "comparison_display": "$173.8K plan",
           "variance_display": "+337.6%",
           "status": "Ahead"
         },
-        "layer2_outlier": null,
+        "layer2_outlier": {
+          "metric_key": "overage_realization",
+          "label": "Overage realization",
+          "layer": 2,
+          "parent_key": "expansion_consumption_revenue",
+          "computability": "partial",
+          "cross_reference_to": null,
+          "cross_reference_label": null,
+          "value": 0.41189404651495126,
+          "baseline": 0.37631844891516913,
+          "deviation_pct": 0.0945358849727872,
+          "comparison_basis": "relative_deviation"
+        },
         "layer3_evidence": [],
-        "layer3_status": "no_computable_layer3",
+        "layer3_status": "branch_depth_2",
         "branch_max_depth_in_tree": 3,
         "sibling_coverage": {
           "eligible_siblings": 2,
-          "computable_siblings": 0,
+          "computable_siblings": 1,
           "missing_siblings": [
             {
               "metric_key": "wallet_share_progression",
               "label": "Wallet share progression",
               "layer": 2,
               "gap_note": "Needs an account's total addressable workflow footprint as the denominator of wallet share. No source estimates an account's non-Acme workflow volume, so the ratio has no denominator."
-            },
-            {
-              "metric_key": "overage_realization",
-              "label": "Overage realization",
-              "layer": 2,
-              "gap_note": "Needs committed versus utilized Action volume, which no reporting table exposes (the efficiency table uses it only inside a utilization-haircut margin, not as realized overage billing). Closing the gap needs a new reporting table."
             }
           ],
           "is_genuine_sibling_comparison": false
         },
         "notes": [
-          "No Layer-2 child of Expansion consumption revenue has a computable actual with a usable trailing baseline, so no outlier is identified. The Layer-1 variance stands alone; the missing children and reasons are listed with the drill-down."
+          "Single-candidate read: only 1 of 2 Layer-2 children of Expansion consumption revenue has a computable actual, so no sibling comparison is possible.",
+          "Overage realization has no Layer-3 children in the metric tree; this branch is two layers deep."
         ],
         "notes_detail": [],
-        "sibling_ranking": [],
+        "persistence": {
+          "status": "not_applicable",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": null,
+          "driver_key": "overage_realization",
+          "driver_label": "Overage realization",
+          "driver_direction": null,
+          "adverse_direction": "down",
+          "first_month_of_streak": null,
+          "streak_detail": [],
+          "streak_break": null,
+          "reason": "single_candidate_read",
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "Only one Layer-2 child has a computable value, so there is no sibling comparison and no streak is tracked.",
+          "status_display": "Not applicable"
+        },
+        "sibling_ranking": [
+          {
+            "metric_key": "overage_realization",
+            "label": "Overage realization",
+            "layer": 2,
+            "parent_key": "expansion_consumption_revenue",
+            "computability": "partial",
+            "cross_reference_to": null,
+            "cross_reference_label": null,
+            "comparison_basis": "relative_deviation",
+            "value": 0.41189404651495126,
+            "baseline": 0.37631844891516913,
+            "baseline_n": 8,
+            "deviation_pct": 0.0945358849727872,
+            "deviation_z": 1.273910659277617,
+            "abs_deviation_pct": 0.0945358849727872,
+            "absolute_deviation": 0.03557559759978213,
+            "abs_absolute_deviation": 0.03557559759978213,
+            "rank": 1,
+            "value_display": "0.4119",
+            "baseline_display": "0.3763",
+            "deviation_display": "+9.5%"
+          }
+        ],
         "layer3_ranking": []
       },
       {
@@ -789,9 +919,9 @@
           "label": "Contraction + churned revenue",
           "layer": 1,
           "pillar": "growth",
-          "variance_pct": 9.19148681541582,
+          "variance_pct": 9.191486815415821,
           "mechanism": "plan_diff",
-          "value": 502440.29999999993,
+          "value": 502440.3,
           "value_display": "$502.4K",
           "comparison_display": "$49.3K plan",
           "variance_display": "+919.1%",
@@ -815,34 +945,51 @@
         "branch_max_depth_in_tree": 3,
         "sibling_coverage": {
           "eligible_siblings": 4,
-          "computable_siblings": 1,
+          "computable_siblings": 2,
           "missing_siblings": [
             {
               "metric_key": "workflow_chain_underutilization",
               "label": "Workflow chain under-utilization",
               "layer": 2,
-              "gap_note": "Workflow-chain events are not exposed through any reporting table, so upstream-versus-downstream Action completion is not available."
+              "gap_note": "Breadth, not volume: the share of accounts with a workflow chain in the month whose full-chain completion rate (downstream over upstream Actions) is below 0.70, all three segments combined (SMB is most of the accounts). The 0.70 cut is the playbook rule's value, proposed and not confirmed. Partial chains are a pre-churn state (in the data only accounts within 5 months of churning ever have one), so the series falls away at the end of the data window, where future churners are not yet present; the last 5 months of the window are left blank rather than read as an improvement."
             },
             {
               "metric_key": "account_health_score",
               "label": "Account health score",
               "layer": 2,
-              "gap_note": "Not available as a point-in-time trailing series. The health score population is defined by final account status (Active), so scoring a past month would drop accounts that churned later, which biases older months upward and creates a spurious deterioration trend. A usable series needs the score population gated on churn month instead. The current-month score is used for the watchlist."
-            },
-            {
-              "metric_key": "renewal_win_rate",
-              "label": "Renewal win rate",
-              "layer": 2,
-              "gap_note": "Needs opportunity-level detail (stage history, loss reason, list price, renewal flag). No reporting table exposes it; closing the gap needs a new reporting table."
+              "gap_note": "The composite is a churn-model score computed at a single as-of date over the currently active accounts; no artifact or reporting table holds it as a monthly history. Scoring a past month would need the score population gated on churn month, because defining it by final account status (Active) drops accounts that churned later, biases older months upward and creates a spurious deterioration trend. The current-month score feeds the watchlist. Its four inputs are computed separately (see their notes) but cannot be reached from a drill-down while this node is blocked."
             }
           ],
-          "is_genuine_sibling_comparison": false
+          "is_genuine_sibling_comparison": true
         },
         "notes": [
-          "Single-candidate read: only 1 of 4 Layer-2 children of Contraction + churned revenue has a computable actual, so no sibling comparison is possible.",
           "Cyclical/planned usage dip vs. structural churn has Layer-3 children in the tree, but none is computable from the reporting tables; the missing leaves and reasons are listed with the drill-down."
         ],
         "notes_detail": [],
+        "persistence": {
+          "status": "not_flagged",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": 0,
+          "driver_key": "cyclical_vs_structural_usage_dip",
+          "driver_label": "Cyclical/planned usage dip vs. structural churn",
+          "driver_direction": "favorable",
+          "adverse_direction": "up",
+          "first_month_of_streak": null,
+          "streak_detail": [],
+          "streak_break": {
+            "month": "2025-11-01",
+            "reason": "not_adverse",
+            "outlier_key": "cyclical_vs_structural_usage_dip",
+            "outlier_label": "Cyclical/planned usage dip vs. structural churn"
+          },
+          "reason": null,
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "Cyclical/planned usage dip vs. structural churn is the largest Layer-2 outlier but is moving in the favorable direction, so there is no adverse streak.",
+          "status_display": "Not flagged: streak 0 of 2 months"
+        },
         "sibling_ranking": [
           {
             "metric_key": "cyclical_vs_structural_usage_dip",
@@ -865,6 +1012,50 @@
             "value_display": "0.01194",
             "baseline_display": "0.02769",
             "deviation_display": "-56.9%"
+          },
+          {
+            "metric_key": "renewal_win_rate",
+            "label": "Renewal win rate",
+            "layer": 2,
+            "parent_key": "contraction_churned_revenue",
+            "computability": "computable",
+            "cross_reference_to": null,
+            "cross_reference_label": null,
+            "comparison_basis": "relative_deviation",
+            "value": 0.7027027027027027,
+            "baseline": 0.854473634004884,
+            "baseline_n": 8,
+            "deviation_pct": -0.17761920937318673,
+            "deviation_z": -2.450484575507542,
+            "abs_deviation_pct": 0.17761920937318673,
+            "absolute_deviation": -0.15177093130218122,
+            "abs_absolute_deviation": 0.15177093130218122,
+            "rank": 2,
+            "value_display": "0.7027",
+            "baseline_display": "0.8545",
+            "deviation_display": "-17.8%"
+          },
+          {
+            "metric_key": "workflow_chain_underutilization",
+            "label": "Workflow chain under-utilization",
+            "layer": 2,
+            "parent_key": "contraction_churned_revenue",
+            "computability": "partial",
+            "cross_reference_to": null,
+            "cross_reference_label": null,
+            "comparison_basis": "relative_deviation",
+            "value": null,
+            "baseline": null,
+            "baseline_n": 0,
+            "deviation_pct": null,
+            "deviation_z": null,
+            "abs_deviation_pct": null,
+            "absolute_deviation": null,
+            "abs_absolute_deviation": null,
+            "rank": 3,
+            "value_display": "n/a",
+            "baseline_display": "n/a",
+            "deviation_display": "n/a"
           }
         ],
         "layer3_ranking": []
@@ -928,6 +1119,25 @@
             "detail": "The variance is computed, but plan and actual are not on the same footing, so the gap is not a performance finding on its own. (1) S&M cost scope: the plan anchor is the QA benchmark Magic Number band for Commercial and Enterprise (about 0.7-0.9), a figure for a fully scoped S&M line. The actual uses the metric tree's three-part S&M cost: rep fully-loaded cost (including ramp, with a management and operations allocation in the loading factor) plus marketing program spend. Marketing-team headcount is not in the raw data, so the denominator is a floor and the actual a ceiling against the benchmark. (2) Basis: the actual is a trailing-12-month ratio of net new ARR (new logo plus expansion minus contraction minus churn, so it includes usage-driven expansion) to the prior month's S&M cost over the same 12 months, blended over Commercial and Enterprise only (SMB carries no rep cost and has no benchmark), the same population the plan blend uses. (3) Trend: net new ARR compounds with a revenue base growing about 88% a year while quota-carrying and AM headcount is close to flat, so the actual climbs through the window (about 0.9 to 2.5) against a plan that moves about 3% a year, and the gap widens with scale rather than tracking any one month. The sign and trend of the variance and the Layer-2 drill-down are the comparable signals; the level is not."
           }
         ],
+        "persistence": {
+          "status": "not_applicable",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": null,
+          "driver_key": "sm_cost",
+          "driver_label": "S&M cost",
+          "driver_direction": null,
+          "adverse_direction": "up",
+          "first_month_of_streak": null,
+          "streak_detail": [],
+          "streak_break": null,
+          "reason": "single_candidate_read",
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "Only one Layer-2 child has a computable value, so there is no sibling comparison and no streak is tracked.",
+          "status_display": "Not applicable"
+        },
         "sibling_ranking": [
           {
             "metric_key": "sm_cost",
@@ -1007,7 +1217,7 @@
           "pillar": "efficiency",
           "variance_pct": -0.995328417410087,
           "mechanism": "plan_diff",
-          "value": 0.056012275253056486,
+          "value": 0.0560122752530565,
           "value_display": "0.06 mo",
           "comparison_display": "11.99 mo plan",
           "variance_display": "-99.5%",
@@ -1045,6 +1255,30 @@
             "detail": "The variance is computed, but plan and actual are not on the same footing. The plan anchor is the QA benchmark payback band (Commercial about 14-18 months, Enterprise about 9-13 months), which assumes a fully loaded CAC. The actual CAC comes from marketing spend only: channel spend for outbound SDR covers tooling and data enrichment, not rep headcount cost, so the numerator excludes sales headcount. The actual's denominator is also average utilized margin across the whole installed base rather than per new account. Both push the actual far below the benchmark band. The Layer-2 drill-down is unaffected, because it ranks each leg against its own trailing baseline, which a constant level offset does not change."
           }
         ],
+        "persistence": {
+          "status": "not_flagged",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": 0,
+          "driver_key": "cac_by_channel",
+          "driver_label": "CAC by channel (unblended)",
+          "driver_direction": "favorable",
+          "adverse_direction": "up",
+          "first_month_of_streak": null,
+          "streak_detail": [],
+          "streak_break": {
+            "month": "2025-11-01",
+            "reason": "not_adverse",
+            "outlier_key": "cac_by_channel",
+            "outlier_label": "CAC by channel (unblended)"
+          },
+          "reason": null,
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "CAC by channel (unblended) is the largest Layer-2 outlier but is moving in the favorable direction, so there is no adverse streak.",
+          "status_display": "Not flagged: streak 0 of 2 months"
+        },
         "sibling_ranking": [
           {
             "metric_key": "cac_by_channel",
@@ -1059,7 +1293,7 @@
             "baseline": 868.0022045038944,
             "baseline_n": 8,
             "deviation_pct": -0.5386771481057679,
-            "deviation_z": -1.1415810870206968,
+            "deviation_z": -1.141581087020697,
             "abs_deviation_pct": 0.5386771481057679,
             "absolute_deviation": -467.57295207167743,
             "abs_absolute_deviation": 467.57295207167743,
@@ -1081,7 +1315,7 @@
             "baseline": 22605.318629814465,
             "baseline_n": 8,
             "deviation_pct": 0.03263598635498962,
-            "deviation_z": 0.5875263090581189,
+            "deviation_z": 0.5875263090581182,
             "abs_deviation_pct": 0.03263598635498962,
             "absolute_deviation": 737.7468703528175,
             "abs_absolute_deviation": 737.7468703528175,
@@ -1133,6 +1367,30 @@
           "Automated Action volume delivered has no Layer-3 children in the metric tree; this branch is two layers deep."
         ],
         "notes_detail": [],
+        "persistence": {
+          "status": "not_flagged",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": 0,
+          "driver_key": "automated_action_volume",
+          "driver_label": "Automated Action volume delivered",
+          "driver_direction": "favorable",
+          "adverse_direction": "down",
+          "first_month_of_streak": null,
+          "streak_detail": [],
+          "streak_break": {
+            "month": "2025-11-01",
+            "reason": "not_adverse",
+            "outlier_key": "automated_action_volume",
+            "outlier_label": "Automated Action volume delivered"
+          },
+          "reason": null,
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "Automated Action volume delivered is the largest Layer-2 outlier but is moving in the favorable direction, so there is no adverse streak.",
+          "status_display": "Not flagged: streak 0 of 2 months"
+        },
         "sibling_ranking": [
           {
             "metric_key": "automated_action_volume",
@@ -1219,7 +1477,7 @@
               "metric_key": "expansion_revenue_drivers",
               "label": "Expansion revenue drivers",
               "layer": 2,
-              "gap_note": "Defined by reference in the metric tree ('See Growth \u2014 expansion revenue drivers'). The drivers, Wallet share progression and Overage realization, are not computable (see their gap notes), so this node stays blocked. AM cost, the other side of the ratio, is a computed input."
+              "gap_note": "Defined by reference in the metric tree ('See Growth \u2014 expansion revenue drivers'), so it has no series of its own. Of the two drivers it points to, Overage realization is computed (as overage share of MRR, partial), but Wallet share progression has no footprint denominator (see its gap note), so the driver pair cannot be recombined into the expansion figure and the reference stays blocked. AM cost, the other side of the ratio, is a computed input."
             }
           ],
           "is_genuine_sibling_comparison": false
@@ -1235,6 +1493,25 @@
             "detail": "The variance is computed, with three differences in footing. (1) Units and basis: the tree defines the ratio as Expansion consumption revenue divided by AM cost; both are read as monthly flows (monthly expansion MRR movement over the same month's AM cost), the basis the plan anchor uses, and the actual is a trailing-12-month aggregate because a single month carries the raw data's Q4 seasonality. (2) Population: the plan anchor's numerator is built on the company-wide revenue base (SMB included), while the actual is blended over Commercial and Enterprise, the only segments with an AM, so the actual sits below a like-for-like plan by roughly SMB's share of expansion. (3) Scope of expansion: the revenue-movement model counts any month-on-month usage increase as expansion, the same gross-bucket definition that caveats NRR and GRR. The actual rises through the window (about 0.8 to 2.6) toward a nearly flat plan, so the negative gap narrows over time."
           }
         ],
+        "persistence": {
+          "status": "not_applicable",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": null,
+          "driver_key": "am_cost_by_segment",
+          "driver_label": "AM cost by segment",
+          "driver_direction": null,
+          "adverse_direction": "up",
+          "first_month_of_streak": null,
+          "streak_detail": [],
+          "streak_break": null,
+          "reason": "single_candidate_read",
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "Only one Layer-2 child has a computable value, so there is no sibling comparison and no streak is tracked.",
+          "status_display": "Not applicable"
+        },
         "sibling_ranking": [
           {
             "metric_key": "am_cost_by_segment",
@@ -1267,9 +1544,9 @@
           "label": "NRR",
           "layer": 1,
           "pillar": "durability",
-          "variance_pct": 0.5522245439313834,
+          "variance_pct": 0.5522245439313832,
           "mechanism": "plan_diff",
-          "value": 1.8179653858524363,
+          "value": 1.817965385852436,
           "value_display": "181.8%",
           "comparison_display": "117.1% plan",
           "variance_display": "+55.2%",
@@ -1309,6 +1586,36 @@
             "detail": "Two adjustments apply. (1) Units: the plan's NRR is an annual-equivalent decimal rate while the durability table carries a monthly rate; the engine compounds the trailing 12 company-wide monthly rates before comparing, as the plan table's own header specifies. (2) Scope of the contraction bucket: the plan side is internally consistent, since its monthly expansion and contraction-plus-churn shares of base are derived from the benchmark-blended NRR and GRR anchors (1 - GRR^(1/12), and NRR^(1/12) - 1 plus that), so the plan's flow rows and durability rows are two readings of one identity. The remaining gap is on the actuals side and is definitional, not performance. Over the 12 months to 2025-11 the marts carry gross contraction plus churn at about 5.4% of starting revenue per month against gross expansion at about 10.8%, of which outright churn is about 0.2%. The revenue-movement model counts any month-on-month usage decline as contraction, so in a consumption business whose base grows about 88% a year both gross legs are large and largely offsetting, while a benchmark NRR/GRR band describes durable downsell in a mature base. That one difference drives both signs: trailing-12-month GRR is about 0.51 against a 0.93 plan and NRR about 1.82 against a 1.17 plan. Logo retention, which has no gross-flow bucket, reconciles to plan within 2%, which indicates the churn leg is sound and the contraction bucket's scope is what differs. The Layer-2 drill-down ranks each leg against its own trailing baseline and is not affected by a definitional level offset."
           }
         ],
+        "persistence": {
+          "status": "not_flagged",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": 1,
+          "driver_key": "nrr_expansion_rate",
+          "driver_label": "See Growth: Expansion (share of starting revenue)",
+          "driver_direction": "adverse",
+          "adverse_direction": "down",
+          "first_month_of_streak": "2025-11-01",
+          "streak_detail": [
+            {
+              "month": "2025-11-01",
+              "deviation_pct": -0.23621637208663573,
+              "baseline_n": 8
+            }
+          ],
+          "streak_break": {
+            "month": "2025-10-01",
+            "reason": "not_adverse",
+            "outlier_key": "nrr_expansion_rate",
+            "outlier_label": "See Growth: Expansion (share of starting revenue)"
+          },
+          "reason": null,
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "See Growth: Expansion (share of starting revenue) is the largest adverse Layer-2 outlier this month; the streak is 1 month, short of the 2-month flag. In 2025-10 it was not moving in the adverse direction.",
+          "status_display": "Not flagged: streak 1 of 2 months"
+        },
         "sibling_ranking": [
           {
             "metric_key": "nrr_expansion_rate",
@@ -1323,7 +1630,7 @@
             "baseline": 0.10339581177209664,
             "baseline_n": 8,
             "deviation_pct": -0.23621637208663573,
-            "deviation_z": -0.7208370142493092,
+            "deviation_z": -0.7208370142493096,
             "abs_deviation_pct": 0.23621637208663573,
             "absolute_deviation": -0.024423783545757333,
             "abs_absolute_deviation": 0.024423783545757333,
@@ -1341,14 +1648,14 @@
             "cross_reference_to": "contraction_churned_revenue",
             "cross_reference_label": "Contraction + churned revenue",
             "comparison_basis": "additive_share",
-            "value": 0.05118806779373814,
-            "baseline": 0.045207642326302575,
+            "value": 0.05118806779373812,
+            "baseline": 0.04520764232630256,
             "baseline_n": 8,
-            "deviation_pct": 0.13228793097126532,
-            "deviation_z": 0.33617253844674994,
-            "abs_deviation_pct": 0.13228793097126532,
-            "absolute_deviation": 0.005980425467435567,
-            "abs_absolute_deviation": 0.005980425467435567,
+            "deviation_pct": 0.1322879309712652,
+            "deviation_z": 0.3361725384467495,
+            "abs_deviation_pct": 0.1322879309712652,
+            "absolute_deviation": 0.00598042546743556,
+            "abs_absolute_deviation": 0.00598042546743556,
             "rank": 2,
             "value_display": "0.05119",
             "baseline_display": "0.04521",
@@ -1363,14 +1670,14 @@
             "cross_reference_to": "contraction_churned_revenue",
             "cross_reference_label": "Contraction + churned revenue",
             "comparison_basis": "additive_share",
-            "value": 0.0009804009366209399,
-            "baseline": 0.0014892898541695421,
+            "value": 0.0009804009366209394,
+            "baseline": 0.001489289854169542,
             "baseline_n": 8,
-            "deviation_pct": -0.34169904275106266,
-            "deviation_z": -0.6028881293915969,
-            "abs_deviation_pct": 0.34169904275106266,
-            "absolute_deviation": -0.0005088889175486023,
-            "abs_absolute_deviation": 0.0005088889175486023,
+            "deviation_pct": -0.3416990427510629,
+            "deviation_z": -0.6028881293915973,
+            "abs_deviation_pct": 0.3416990427510629,
+            "absolute_deviation": -0.0005088889175486025,
+            "abs_absolute_deviation": 0.0005088889175486025,
             "rank": 3,
             "value_display": "0.0009804",
             "baseline_display": "0.001489",
@@ -1401,9 +1708,9 @@
           "computability": "computable",
           "cross_reference_to": "contraction_churned_revenue",
           "cross_reference_label": "Contraction + churned revenue",
-          "value": 0.05118806779373814,
-          "baseline": 0.045207642326302575,
-          "deviation_pct": 0.13228793097126532,
+          "value": 0.05118806779373812,
+          "baseline": 0.04520764232630256,
+          "deviation_pct": 0.1322879309712652,
           "comparison_basis": "additive_share"
         },
         "layer3_evidence": [],
@@ -1427,6 +1734,36 @@
             "detail": "Same two adjustments as NRR (units, and the scope of the contraction bucket); the NRR detail gives the full explanation and figures."
           }
         ],
+        "persistence": {
+          "status": "not_flagged",
+          "flagged": false,
+          "threshold_months": 2,
+          "threshold_status": "Proposed, not yet confirmed",
+          "streak_months": 1,
+          "driver_key": "grr_contraction_rate",
+          "driver_label": "See Growth: Contraction (share of starting revenue)",
+          "driver_direction": "adverse",
+          "adverse_direction": "up",
+          "first_month_of_streak": "2025-11-01",
+          "streak_detail": [
+            {
+              "month": "2025-11-01",
+              "deviation_pct": 0.1322879309712652,
+              "baseline_n": 8
+            }
+          ],
+          "streak_break": {
+            "month": "2025-10-01",
+            "reason": "not_adverse",
+            "outlier_key": "grr_contraction_rate",
+            "outlier_label": "See Growth: Contraction (share of starting revenue)"
+          },
+          "reason": null,
+          "basis": "The same Layer-2 driver as the largest adverse outlier against its own trailing baseline, counted back from the reporting month. Sibling comparisons with at least 2 computable children only.",
+          "caveat": "Repeat marker: the same driver as the adverse outlier in consecutive months; not evidence of a trend or cause.",
+          "note": "See Growth: Contraction (share of starting revenue) is the largest adverse Layer-2 outlier this month; the streak is 1 month, short of the 2-month flag. In 2025-10 it was not moving in the adverse direction.",
+          "status_display": "Not flagged: streak 1 of 2 months"
+        },
         "sibling_ranking": [
           {
             "metric_key": "grr_contraction_rate",
@@ -1437,14 +1774,14 @@
             "cross_reference_to": "contraction_churned_revenue",
             "cross_reference_label": "Contraction + churned revenue",
             "comparison_basis": "additive_share",
-            "value": 0.05118806779373814,
-            "baseline": 0.045207642326302575,
+            "value": 0.05118806779373812,
+            "baseline": 0.04520764232630256,
             "baseline_n": 8,
-            "deviation_pct": 0.13228793097126532,
-            "deviation_z": 0.33617253844674994,
-            "abs_deviation_pct": 0.13228793097126532,
-            "absolute_deviation": 0.005980425467435567,
-            "abs_absolute_deviation": 0.005980425467435567,
+            "deviation_pct": 0.1322879309712652,
+            "deviation_z": 0.3361725384467495,
+            "abs_deviation_pct": 0.1322879309712652,
+            "absolute_deviation": 0.00598042546743556,
+            "abs_absolute_deviation": 0.00598042546743556,
             "rank": 1,
             "value_display": "0.05119",
             "baseline_display": "0.04521",
@@ -1459,14 +1796,14 @@
             "cross_reference_to": "contraction_churned_revenue",
             "cross_reference_label": "Contraction + churned revenue",
             "comparison_basis": "additive_share",
-            "value": 0.0009804009366209399,
-            "baseline": 0.0014892898541695421,
+            "value": 0.0009804009366209394,
+            "baseline": 0.001489289854169542,
             "baseline_n": 8,
-            "deviation_pct": -0.34169904275106266,
-            "deviation_z": -0.6028881293915969,
-            "abs_deviation_pct": 0.34169904275106266,
-            "absolute_deviation": -0.0005088889175486023,
-            "abs_absolute_deviation": 0.0005088889175486023,
+            "deviation_pct": -0.3416990427510629,
+            "deviation_z": -0.6028881293915973,
+            "abs_deviation_pct": 0.3416990427510629,
+            "absolute_deviation": -0.0005088889175486025,
+            "abs_absolute_deviation": 0.0005088889175486025,
             "rank": 2,
             "value_display": "0.0009804",
             "baseline_display": "0.001489",
@@ -12452,7 +12789,7 @@
         "bottoms_up_manager": 1317083.7890626395,
         "deals_without_submission": 0,
         "bottoms_up_rep": 1326386.352973928,
-        "ml": 1364597.4056298712,
+        "ml": 1364268.189185449,
         "deals_priced_structurally": 50,
         "ml_computable": true,
         "ml_not_computable_reason": null,
@@ -12461,12 +12798,12 @@
         "is_downward_adjustment": true,
         "has_logged_cro_adjustment": true,
         "cro_adjusted": 1133139.0590626395,
-        "cro_adjusted_ml_forecast": 1180652.6756298712,
+        "cro_adjusted_ml_forecast": 1180323.459185449,
         "lenses_computable": 4,
-        "lens_max": 1364597.4056298712,
+        "lens_max": 1364268.189185449,
         "lens_min": 1133139.0590626395,
-        "lens_mean": 1285301.6516822695,
-        "lens_spread_pct": 0.1800809531865823,
+        "lens_mean": 1285219.347571164,
+        "lens_spread_pct": 0.1798363295414144,
         "diverges_materially": false,
         "widest_pair": "ml vs cro_adjusted",
         "bottoms_up_rep_display": "$1.33M",
@@ -12487,7 +12824,7 @@
         "bottoms_up_manager": 4538193.376532541,
         "deals_without_submission": 0,
         "bottoms_up_rep": 4476780.8815661175,
-        "ml": 4284769.837094632,
+        "ml": 4282518.3207657365,
         "deals_priced_structurally": 13,
         "ml_computable": true,
         "ml_not_computable_reason": null,
@@ -12496,12 +12833,12 @@
         "is_downward_adjustment": true,
         "has_logged_cro_adjustment": true,
         "cro_adjusted": 4069909.5965325404,
-        "cro_adjusted_ml_forecast": 3816486.0570946317,
+        "cro_adjusted_ml_forecast": 3814234.5407657363,
         "lenses_computable": 4,
         "lens_max": 4538193.376532541,
         "lens_min": 4069909.5965325404,
-        "lens_mean": 4342413.422931457,
-        "lens_spread_pct": 0.10783952019102624,
+        "lens_mean": 4341850.543849234,
+        "lens_spread_pct": 0.10785350054560996,
         "diverges_materially": false,
         "widest_pair": "bottoms_up_manager vs cro_adjusted",
         "bottoms_up_rep_display": "$4.48M",
@@ -12519,7 +12856,7 @@
     "divergence_threshold_status": "spread > 25% of the mean of the computable lenses; proposed, not yet confirmed (non-vacuous and non-trivial on the backtest per the Forecast entry of the analytics methods document, not a derived number)",
     "ml_lens": {
       "computable": true,
-      "auc_holdout": 0.7989203778677463,
+      "auc_holdout": 0.7996214312003785,
       "auc_target_range": [
         0.7,
         0.85
@@ -12527,12 +12864,12 @@
       "meets_auc_target": true,
       "auc_target_position": "within",
       "manager_lookup_baseline_auc": 0.7760485128906182,
-      "auc_ratio_vs_leak_proof_baseline": 1.0294722103028524,
-      "calibration_gap": -0.020496529703338706,
+      "auc_ratio_vs_leak_proof_baseline": 1.0303755730707558,
+      "calibration_gap": -0.020570338104194064,
       "calibration_gap_target": 0.05,
       "calibration_within_target": true,
       "ml_targets_passed": true,
-      "ml_targets_detail": "out-of-time holdout AUC 0.7989 vs target 0.7-0.85 (True); 2 gated strata, all meeting the 0.95x manager-lookup ratio: True; calibration gap -0.0205 vs +/-0.05 (True); leak diagnostic -- model AUC is 1.029x the leak-proof manager-lookup AUC (0.7760) on the same held-out rows",
+      "ml_targets_detail": "out-of-time holdout AUC 0.7996 vs target 0.7-0.85 (True); 2 gated strata, all meeting the 0.95x manager-lookup ratio: True; calibration gap -0.0206 vs +/-0.05 (True); leak diagnostic -- model AUC is 1.030x the leak-proof manager-lookup AUC (0.7760) on the same held-out rows",
       "n_train": 1433,
       "n_test": 478,
       "n_train_positive": 527,
@@ -12574,7 +12911,7 @@
         "risk_tier": "High",
         "churn_probability": 0.9138017207268871,
         "health_score": 8.6,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 1,
         "est_arr_at_risk_display": "$26.7K"
@@ -12585,7 +12922,7 @@
         "risk_tier": "High",
         "churn_probability": 0.9102831247257442,
         "health_score": 9.0,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 2,
         "est_arr_at_risk_display": "$26.7K"
@@ -12596,7 +12933,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8984204327950331,
         "health_score": 10.2,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 3,
         "est_arr_at_risk_display": "$26.7K"
@@ -12607,7 +12944,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8964561715237471,
         "health_score": 10.4,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 4,
         "est_arr_at_risk_display": "$26.7K"
@@ -12618,7 +12955,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8875194442407075,
         "health_score": 11.2,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 5,
         "est_arr_at_risk_display": "$26.7K"
@@ -12629,7 +12966,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8865330692459672,
         "health_score": 11.3,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 6,
         "est_arr_at_risk_display": "$26.7K"
@@ -12640,7 +12977,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8693234480228593,
         "health_score": 13.1,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 7,
         "est_arr_at_risk_display": "$26.7K"
@@ -12651,7 +12988,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8637737409046454,
         "health_score": 13.6,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 8,
         "est_arr_at_risk_display": "$26.7K"
@@ -12662,7 +12999,7 @@
         "risk_tier": "High",
         "churn_probability": 0.852700810946607,
         "health_score": 14.7,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 9,
         "est_arr_at_risk_display": "$26.7K"
@@ -12673,7 +13010,7 @@
         "risk_tier": "High",
         "churn_probability": 0.837600578864541,
         "health_score": 16.2,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 10,
         "est_arr_at_risk_display": "$26.7K"
@@ -12684,7 +13021,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8309431464024294,
         "health_score": 16.9,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 11,
         "est_arr_at_risk_display": "$26.7K"
@@ -12695,7 +13032,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8242953109743404,
         "health_score": 17.6,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 12,
         "est_arr_at_risk_display": "$26.7K"
@@ -12706,7 +13043,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8195069595518109,
         "health_score": 18.0,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 13,
         "est_arr_at_risk_display": "$26.7K"
@@ -12717,7 +13054,7 @@
         "risk_tier": "High",
         "churn_probability": 0.8002680855370377,
         "health_score": 20.0,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 14,
         "est_arr_at_risk_display": "$26.7K"
@@ -12728,7 +13065,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7892004569867956,
         "health_score": 21.1,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 15,
         "est_arr_at_risk_display": "$26.7K"
@@ -12739,7 +13076,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7877564108517747,
         "health_score": 21.2,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 16,
         "est_arr_at_risk_display": "$26.7K"
@@ -12750,7 +13087,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7833341742436294,
         "health_score": 21.7,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 17,
         "est_arr_at_risk_display": "$26.7K"
@@ -12761,7 +13098,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7786044059591619,
         "health_score": 22.1,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 18,
         "est_arr_at_risk_display": "$26.7K"
@@ -12772,7 +13109,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7671660413989748,
         "health_score": 23.3,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 19,
         "est_arr_at_risk_display": "$26.7K"
@@ -12783,7 +13120,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7668844719225397,
         "health_score": 23.3,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 20,
         "est_arr_at_risk_display": "$26.7K"
@@ -12794,7 +13131,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7666557726908634,
         "health_score": 23.3,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 21,
         "est_arr_at_risk_display": "$26.7K"
@@ -12805,7 +13142,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7663667628797789,
         "health_score": 23.4,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 22,
         "est_arr_at_risk_display": "$26.7K"
@@ -12816,7 +13153,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7662643561780367,
         "health_score": 23.4,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 23,
         "est_arr_at_risk_display": "$26.7K"
@@ -12827,7 +13164,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7624138050346583,
         "health_score": 23.8,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 24,
         "est_arr_at_risk_display": "$26.7K"
@@ -12838,7 +13175,7 @@
         "risk_tier": "High",
         "churn_probability": 0.7621885765491232,
         "health_score": 23.8,
-        "est_arr_at_risk_usd": 26741.64185493458,
+        "est_arr_at_risk_usd": 26741.641854934598,
         "scoring_date": "2025-11-01",
         "rank": 25,
         "est_arr_at_risk_display": "$26.7K"
@@ -12851,6 +13188,153 @@
       "Churn probability is a ranking signal, not a calibrated probability: class weighting in the health model shifts predicted probabilities upward systematically (see the health score's calibration note in docs/acme-corp-analytics-methods.md). It is not a literal likelihood of churn."
     ],
     "evaluation_month": "2025-11-01"
+  },
+  "segment_mix": {
+    "status": "present",
+    "evaluation_month": "2025-11-01",
+    "basis": "Each segment's share of company ending MRR, with share changes against the prior month and the same month a year earlier, beside migration velocity (migration events divided by the source segment's accounts) and graduated MRR (MRR reclassified out of the source segment) as a share of the source segment's MRR. Monthly rates cover one month and trailing rates cover 12 months, so the two are not comparable with each other.",
+    "caveats": [
+      "Migration only moves accounts up (SMB to Commercial, Commercial to Enterprise; there is no downgrade path), so migration counts and graduated MRR rise with the base. The rates and the segment shares are the comparable measures.",
+      "A segment's share of MRR also moves with expansion, contraction and churn inside each segment, not only with migration. A migrating account takes its whole MRR to the higher segment.",
+      "Velocity divides events by the source segment's average starting accounts over the window; graduated MRR is divided by the source segment's average starting MRR over the window. A 12-month flow against an average base can exceed 100% when the base is replenished by new logos and expansion.",
+      "The final month of the data window is not a representative month (each active account's last observed month is bucketed as contraction), so the section is unavailable for it.",
+      "Graduated MRR over 12 months is a flow set against an average base, so its share of the source segment's MRR can exceed 100%. The accounts that migrate are large for their segment: SMB accounts that moved to Commercial carried about 6 times the MRR of the average SMB account, and the $722K that left SMB is 60% of ending SMB MRR and 79% of SMB MRR 12 months earlier.",
+      "The upmarket share of MRR rises partly because existing accounts are reclassified upward: the $722K that moved from SMB to Commercial over 12 months is 7.3% of company ending MRR, more than the +5.2 pp change in the upmarket share over the same period. The share answers where MRR is booked more than who the company is selling to."
+    ],
+    "window": {
+      "evaluation_month": "2025-11-01",
+      "prior_month": "2025-10-01",
+      "year_ago_month": "2024-11-01",
+      "trailing_window_months": 12,
+      "trailing_window_first_month": "2024-12-01",
+      "trailing_window_last_month": "2025-11-01",
+      "year_ago_window_available": true,
+      "last_month_in_marts": "2025-12-01",
+      "partial_month_handling": "The evaluation month is a complete month before the final month of the data window; the final month, which is truncated, is not reported."
+    },
+    "total_ending_mrr": 9934442.75,
+    "segments": [
+      {
+        "segment": "SMB",
+        "ending_mrr": 1206986.5500000003,
+        "mrr_share": 0.12149514375126881,
+        "mrr_share_prior_month": 0.13094049925653695,
+        "share_change_vs_prior_month": -0.009445355505268135,
+        "mrr_share_12m_ago": 0.17375444010036137,
+        "share_change_vs_12m_ago": -0.05225929634909256,
+        "ending_mrr_display": "$1.21M",
+        "mrr_share_display": "12.1%",
+        "share_change_vs_prior_month_display": "-0.9 pp",
+        "share_change_vs_12m_ago_display": "-5.2 pp"
+      },
+      {
+        "segment": "Commercial",
+        "ending_mrr": 1902397.8999999997,
+        "mrr_share": 0.1914951797371825,
+        "mrr_share_prior_month": 0.19459265381202265,
+        "share_change_vs_prior_month": -0.003097474074840151,
+        "mrr_share_12m_ago": 0.181076556795048,
+        "share_change_vs_12m_ago": 0.010418622942134498,
+        "ending_mrr_display": "$1.90M",
+        "mrr_share_display": "19.1%",
+        "share_change_vs_prior_month_display": "-0.3 pp",
+        "share_change_vs_12m_ago_display": "+1.0 pp"
+      },
+      {
+        "segment": "Enterprise",
+        "ending_mrr": 6825058.3,
+        "mrr_share": 0.6870096765115487,
+        "mrr_share_prior_month": 0.6744668469314403,
+        "share_change_vs_prior_month": 0.012542829580108328,
+        "mrr_share_12m_ago": 0.6451690031045907,
+        "share_change_vs_12m_ago": 0.04184067340695796,
+        "ending_mrr_display": "$6.83M",
+        "mrr_share_display": "68.7%",
+        "share_change_vs_prior_month_display": "+1.3 pp",
+        "share_change_vs_12m_ago_display": "+4.2 pp"
+      }
+    ],
+    "upmarket_share": {
+      "segments": [
+        "Commercial",
+        "Enterprise"
+      ],
+      "mrr_share": 0.8785048562487311,
+      "mrr_share_prior_month": 0.8690595007434629,
+      "change_vs_prior_month": 0.00944535550526815,
+      "mrr_share_12m_ago": 0.8262455598996387,
+      "change_vs_12m_ago": 0.05225929634909243,
+      "smb_to_commercial_graduated_share_of_total_mrr_trailing_12m": 0.07266483064689261,
+      "mrr_share_display": "87.9%",
+      "change_vs_prior_month_display": "+0.9 pp",
+      "change_vs_12m_ago_display": "+5.2 pp"
+    },
+    "migration": [
+      {
+        "from_segment": "SMB",
+        "to_segment": "Commercial",
+        "events_in_month": 48,
+        "velocity_in_month": 0.01060070671378092,
+        "events_trailing_12m": 415,
+        "velocity_trailing_12m": 0.10670895026677236,
+        "avg_from_segment_accounts_trailing_12m": 3889.0833333333335,
+        "events_trailing_12m_year_ago": 157,
+        "velocity_trailing_12m_year_ago": 0.062231617889938556,
+        "velocity_change_vs_year_ago": 0.04447733237683381,
+        "graduated_mrr_in_month": 85359.05,
+        "graduated_mrr_trailing_12m": 721884.6000000001,
+        "graduated_share_of_source_mrr_in_month": 0.06768605516546254,
+        "graduated_share_of_source_mrr_trailing_12m": 0.6652293781951969,
+        "migrating_account_mrr_multiple_trailing_12m": 6.234054186946112,
+        "graduated_share_of_source_ending_mrr_trailing_12m": 0.598088354837094,
+        "graduated_share_of_source_mrr_a_year_earlier_trailing_12m": 0.7859445425308339,
+        "pair_label": "SMB to Commercial",
+        "velocity_in_month_display": "1.1%",
+        "velocity_trailing_12m_display": "10.7%",
+        "velocity_trailing_12m_year_ago_display": "6.2%",
+        "velocity_change_vs_year_ago_display": "+4.4 pp",
+        "graduated_mrr_in_month_display": "$85.4K",
+        "graduated_mrr_trailing_12m_display": "$721.9K",
+        "graduated_share_of_source_mrr_in_month_display": "6.8%",
+        "graduated_share_of_source_mrr_trailing_12m_display": "66.5%"
+      },
+      {
+        "from_segment": "Commercial",
+        "to_segment": "Enterprise",
+        "events_in_month": 8,
+        "velocity_in_month": 0.009512485136741973,
+        "events_trailing_12m": 55,
+        "velocity_trailing_12m": 0.08997955010224949,
+        "avg_from_segment_accounts_trailing_12m": 611.25,
+        "events_trailing_12m_year_ago": 14,
+        "velocity_trailing_12m_year_ago": 0.0476460578559274,
+        "velocity_change_vs_year_ago": 0.042333492246322095,
+        "graduated_mrr_in_month": 97907.45,
+        "graduated_mrr_trailing_12m": 679649.95,
+        "graduated_share_of_source_mrr_in_month": 0.05224117322078984,
+        "graduated_share_of_source_mrr_trailing_12m": 0.5248937194400451,
+        "migrating_account_mrr_multiple_trailing_12m": 5.833477927413229,
+        "graduated_share_of_source_ending_mrr_trailing_12m": 0.35725961955698127,
+        "graduated_share_of_source_mrr_a_year_earlier_trailing_12m": 0.7100404628546897,
+        "pair_label": "Commercial to Enterprise",
+        "velocity_in_month_display": "1.0%",
+        "velocity_trailing_12m_display": "9.0%",
+        "velocity_trailing_12m_year_ago_display": "4.8%",
+        "velocity_change_vs_year_ago_display": "+4.2 pp",
+        "graduated_mrr_in_month_display": "$97.9K",
+        "graduated_mrr_trailing_12m_display": "$679.6K",
+        "graduated_share_of_source_mrr_in_month_display": "5.2%",
+        "graduated_share_of_source_mrr_trailing_12m_display": "52.5%"
+      }
+    ],
+    "reconciliation": {
+      "max_abs_diff_usd": 2.1827872842550278e-11,
+      "tolerance_usd": 0.01,
+      "reconciles": true
+    },
+    "note": "Segment shares are shares of company ending MRR in the reporting month. Migration rates are events per account in the source segment; graduated MRR is shown as a share of the source segment's MRR.",
+    "total_ending_mrr_display": "$9.93M",
+    "headline": "Commercial and Enterprise hold 87.9% of ending MRR (+5.2 pp against 12 months earlier)."
   },
   "data_window": {
     "last_month_in_marts": "2025-12-01",
@@ -12869,7 +13353,8 @@
       "layer2_siblings_in_tree": 3,
       "layer2_siblings_computable": 3,
       "branch_max_depth_in_tree": 3,
-      "layer3_computable_anywhere": true
+      "layer3_computable_anywhere": true,
+      "layer3_computable_reachable": true
     },
     {
       "metric_key": "activation",
@@ -12881,7 +13366,8 @@
       "layer2_siblings_in_tree": 3,
       "layer2_siblings_computable": 1,
       "branch_max_depth_in_tree": 2,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": false,
+      "layer3_computable_reachable": false
     },
     {
       "metric_key": "expansion_consumption_revenue",
@@ -12891,9 +13377,10 @@
       "layer1_actual_computable": true,
       "plan_comparability": "comparable",
       "layer2_siblings_in_tree": 2,
-      "layer2_siblings_computable": 0,
+      "layer2_siblings_computable": 1,
       "branch_max_depth_in_tree": 3,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": false,
+      "layer3_computable_reachable": false
     },
     {
       "metric_key": "contraction_churned_revenue",
@@ -12903,9 +13390,10 @@
       "layer1_actual_computable": true,
       "plan_comparability": "comparable",
       "layer2_siblings_in_tree": 4,
-      "layer2_siblings_computable": 1,
+      "layer2_siblings_computable": 3,
       "branch_max_depth_in_tree": 3,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": true,
+      "layer3_computable_reachable": true
     },
     {
       "metric_key": "magic_number",
@@ -12917,7 +13405,8 @@
       "layer2_siblings_in_tree": 1,
       "layer2_siblings_computable": 1,
       "branch_max_depth_in_tree": 3,
-      "layer3_computable_anywhere": true
+      "layer3_computable_anywhere": true,
+      "layer3_computable_reachable": true
     },
     {
       "metric_key": "consumption_payback",
@@ -12929,7 +13418,8 @@
       "layer2_siblings_in_tree": 2,
       "layer2_siblings_computable": 2,
       "branch_max_depth_in_tree": 2,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": false,
+      "layer3_computable_reachable": false
     },
     {
       "metric_key": "onboarding_cs_efficiency",
@@ -12941,7 +13431,8 @@
       "layer2_siblings_in_tree": 2,
       "layer2_siblings_computable": 2,
       "branch_max_depth_in_tree": 2,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": false,
+      "layer3_computable_reachable": false
     },
     {
       "metric_key": "am_efficiency",
@@ -12953,7 +13444,8 @@
       "layer2_siblings_in_tree": 2,
       "layer2_siblings_computable": 1,
       "branch_max_depth_in_tree": 2,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": false,
+      "layer3_computable_reachable": false
     },
     {
       "metric_key": "nrr",
@@ -12965,7 +13457,8 @@
       "layer2_siblings_in_tree": 3,
       "layer2_siblings_computable": 3,
       "branch_max_depth_in_tree": 2,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": false,
+      "layer3_computable_reachable": false
     },
     {
       "metric_key": "grr",
@@ -12977,7 +13470,8 @@
       "layer2_siblings_in_tree": 2,
       "layer2_siblings_computable": 2,
       "branch_max_depth_in_tree": 2,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": false,
+      "layer3_computable_reachable": false
     },
     {
       "metric_key": "logo_retention",
@@ -12989,7 +13483,8 @@
       "layer2_siblings_in_tree": 2,
       "layer2_siblings_computable": 1,
       "branch_max_depth_in_tree": 2,
-      "layer3_computable_anywhere": false
+      "layer3_computable_anywhere": false,
+      "layer3_computable_reachable": false
     }
   ],
   "provenance": {
@@ -13022,6 +13517,11 @@
         "entry_point": "latest_forecast_call_date(reporting_period_end); run_forecast(forecast_call_date)"
       },
       {
+        "section": "segment_mix",
+        "artifact": "analytics/segment_migration.py",
+        "entry_point": "compute_segment_mix(evaluation_month)"
+      },
+      {
         "section": "source_coverage",
         "artifact": "analytics/variance_diagnostic.py",
         "entry_point": "run_diagnostic()['coverage']"
@@ -13036,6 +13536,6 @@
     "as_of_date": "2025-11-30",
     "variance_threshold": 0.08,
     "variance_threshold_status": "+/-8%, proposed and not yet confirmed -- build spec Section 7 lists the drill-down threshold as an open question. This readout consumes the engine's threshold; it does not set or override one.",
-    "segment_migration_analysis": "analytics/segment_migration.py is Wave 1's third artifact and is not a source for any section of this readout. Its outputs (migration velocity, trigger-reason mix, graduated revenue) are population-level descriptive series that the build spec's readout structure has no section for -- graduated revenue is deliberately excluded from the source segment's churn/contraction, so it does not belong in the Growth scorecard rows either. Stated here rather than left as a silent omission."
+    "segment_migration_analysis": "analytics/segment_migration.py is the source of the segment-mix section only: migration velocity and graduated MRR beside each segment's share of ending MRR. Graduated revenue is deliberately excluded from the source segment's churn/contraction, so it does not enter the Growth scorecard rows, and the trigger-reason mix and time-in-segment distributions are not in the readout."
   }
 }
