@@ -435,6 +435,22 @@ class TestVoice:
         for e in readouts[d]["drilldowns"]["entries"]:
             assert len(e["persistence"]["note"]) <= 330, e["layer1"]["metric_key"]
 
+def _assert_equal_up_to_float_noise(got, exp, path="root", rel=1e-9):
+    """Structural equality where floats match at a relative tolerance and all other
+    values match exactly."""
+    if isinstance(exp, dict):
+        assert isinstance(got, dict) and set(got) == set(exp), f"{path}: keys differ"
+        for k in exp:
+            _assert_equal_up_to_float_noise(got[k], exp[k], f"{path}.{k}", rel)
+    elif isinstance(exp, (list, tuple)):
+        assert isinstance(got, (list, tuple)) and len(got) == len(exp), f"{path}: length differs"
+        for i, (g, e) in enumerate(zip(got, exp)):
+            _assert_equal_up_to_float_noise(g, e, f"{path}[{i}]", rel)
+    elif isinstance(exp, float) and isinstance(got, (int, float)) and not isinstance(got, bool):
+        assert got == pytest.approx(exp, rel=rel, abs=1e-12), f"{path}: {got!r} != {exp!r}"
+    else:
+        assert got == exp, f"{path}: {got!r} != {exp!r}"
+
 
 # --------------------------------------------------------------------------
 # Fresh runs against the dbt database
@@ -466,11 +482,16 @@ class TestFreshRuns:
         assert "drilldown_persistence_matches_engine_output" in names
 
     def test_the_committed_sections_equal_a_fresh_run(self, readouts, built):
+        # The committed JSON may have been written on a different platform than the one
+        # running the tests; floating-point sums can differ in the last digit across
+        # platforms, so floats compare at a relative tolerance of 1e-9 and everything
+        # else compares exactly.
         _, fresh = built
         nov = readouts["2025-11-30"]
-        assert wr._strip_presentation(nov["segment_mix"]) == wr._strip_presentation(fresh["segment_mix"])
+        _assert_equal_up_to_float_noise(wr._strip_presentation(nov["segment_mix"]),
+                                        wr._strip_presentation(fresh["segment_mix"]))
         for got, exp in zip(nov["drilldowns"]["entries"], fresh["drilldowns"]["entries"]):
-            assert got["persistence"] == exp["persistence"]
+            _assert_equal_up_to_float_noise(got["persistence"], exp["persistence"])
 
     def test_a_tampered_persistence_record_fails_the_fresh_run_trace(self, built):
         diag, readout = built
