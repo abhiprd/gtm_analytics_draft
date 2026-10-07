@@ -167,7 +167,7 @@ Phases 1–3 are the technical backbone and the actual differentiator — go dee
 
 ## 7. Design Decisions and Open Questions
 
-**Established:** entry logic is firmographic-driven and channel-independent; migration `trigger_reason` has 4 values, not 2; AM (not ISR/AE) owns retention/expansion; `opportunity_type`/`owner_role`/`loss_reason` are real fields; account health score inputs are genuine time series; marketing's footprint is distributed across New Logo/Activation/Expansion with population-distinct metrics, not duplicated. Dashboard framework: Streamlit, chosen because every other layer of this system (marts, semantic layer, all twenty Phase 4 artifacts) is already Python end-to-end, so the dashboard reads DuckDB and imports `analytics`/`semantic` in-process with no separate API layer or second language — see `dashboard/README.md`.
+**Established:** entry logic is firmographic-driven and channel-independent; migration `trigger_reason` has 4 values, not 2; AM (not ISR/AE) owns retention/expansion; `opportunity_type`/`owner_role`/`loss_reason` are real fields; account health score inputs are genuine time series; marketing's footprint is distributed across New Logo/Activation/Expansion with population-distinct metrics, not duplicated. Dashboard framework: Streamlit, chosen because every other layer of this system (marts, semantic layer, all twenty-one Phase 4 artifacts) is already Python end-to-end, so the dashboard reads DuckDB and imports `analytics`/`semantic` in-process with no separate API layer or second language — see `dashboard/README.md`.
 
 **Still open:**
 - Exact variance threshold for triggering a drill-down (used ±8% in the sample readout — confirm or adjust)
@@ -216,6 +216,10 @@ Both #21's whitespace piece and #22 run off a single new data source (see Phase 
 - **Wave 5 (strategic/market-facing, runs off `market_universe`, not part of weekly cadence):** Territory / coverage & routing, TAM/ICP, Pricing/packaging analytics.
 - **Wave 6 (advanced methods needing Wave 2's baseline and the tree's equations fully live):** MMM/incrementality, Scenario planning, Retention/expansion cohort analytics.
 - **Wave 7 (last by necessity — not computable meaningfully until real history accumulates):** Lead-scoring model validation & drift detection, Testing/experimentation platform, Proxy-metric health / analytics investment prioritization.
+
+**Added after the 22-artifact order closed (not one of the 22):**
+
+23. Pipeline coverage (`analytics/pipeline_coverage.py`, Wave 10 of the post-Wave-8 improvement plan) — by segment, open new-business pipeline against realized conversion, with the gap to the quota still to book in dollars. A deliberate scope addition: the 22-artifact priority order above is complete without it, and it needs no new raw data. It is a coverage reading, not a forecast: the Forecast artifact (#2) remains the only owner of what will close, and the two are reconciled rather than merged. It is the twenty-first `analytics/*.py` module (the metric tree and the semantic layer are among the 22 but are not `analytics/*.py` modules).
 
 ---
 
