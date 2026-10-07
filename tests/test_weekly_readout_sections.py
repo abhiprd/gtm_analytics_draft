@@ -435,19 +435,20 @@ class TestVoice:
         for e in readouts[d]["drilldowns"]["entries"]:
             assert len(e["persistence"]["note"]) <= 330, e["layer1"]["metric_key"]
 
-def _assert_equal_up_to_float_noise(got, exp, path="root", rel=1e-9):
-    """Structural equality where floats match at a relative tolerance and all other
-    values match exactly."""
+def _assert_equal_up_to_float_noise(got, exp, path="root", rel=1e-9, floor=1e-9):
+    """Structural equality where floats match at a relative tolerance (and an absolute
+    floor, so a rounding residual that is zero for practical purposes on one platform
+    and 1e-11 on another still matches) and all other values match exactly."""
     if isinstance(exp, dict):
         assert isinstance(got, dict) and set(got) == set(exp), f"{path}: keys differ"
         for k in exp:
-            _assert_equal_up_to_float_noise(got[k], exp[k], f"{path}.{k}", rel)
+            _assert_equal_up_to_float_noise(got[k], exp[k], f"{path}.{k}", rel, floor)
     elif isinstance(exp, (list, tuple)):
         assert isinstance(got, (list, tuple)) and len(got) == len(exp), f"{path}: length differs"
         for i, (g, e) in enumerate(zip(got, exp)):
-            _assert_equal_up_to_float_noise(g, e, f"{path}[{i}]", rel)
+            _assert_equal_up_to_float_noise(g, e, f"{path}[{i}]", rel, floor)
     elif isinstance(exp, float) and isinstance(got, (int, float)) and not isinstance(got, bool):
-        assert got == pytest.approx(exp, rel=rel, abs=1e-12), f"{path}: {got!r} != {exp!r}"
+        assert got == pytest.approx(exp, rel=rel, abs=floor), f"{path}: {got!r} != {exp!r}"
     else:
         assert got == exp, f"{path}: {got!r} != {exp!r}"
 
