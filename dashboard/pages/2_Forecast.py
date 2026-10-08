@@ -74,9 +74,18 @@ def _run_coverage(as_of_date: date) -> dict:
     returns a flag, never the exception text: the page shows a plain notice."""
     try:
         from analytics import pipeline_coverage as pcov
-        return {"reading": pcov.run_pipeline_coverage(as_of_date), "failed": False}
+        reading = pcov.run_pipeline_coverage(as_of_date)
     except Exception:
-        return {"reading": None, "failed": True}
+        return {"reading": None, "failed": True, "mid_quarter_date": None}
+    try:
+        # The artifact's own evaluation point for the quarter (the only date its backtest
+        # covers); the page compares the call date with it and computes nothing else.
+        import pandas as pd
+        quarter = pd.Period(str(reading["period"]).replace("-", ""), freq="Q")
+        mid = pcov.mid_quarter_eval_date(quarter).date().isoformat()
+    except Exception:
+        mid = None
+    return {"reading": reading, "failed": False, "mid_quarter_date": mid}
 
 
 @st.cache_data(ttl=600, show_spinner="Training the win-probability model and reconciling lenses...")
@@ -162,8 +171,9 @@ if coverage_reading is None:
     st.info(theme.escape_md(coverage_view.ERROR_NOTICE))
     coverage_notes = coverage_view.notes_for(None)
 else:
-    coverage_render.render_reading(coverage_reading)
-    coverage_notes = coverage_view.notes_for(coverage_reading, data.load_pipeline_coverage_backtest())
+    backtest = data.load_pipeline_coverage_backtest()
+    coverage_render.render_reading(coverage_reading, backtest, coverage["mid_quarter_date"])
+    coverage_notes = coverage_view.notes_for(coverage_reading, backtest)
 st.divider()
 
 if recon.empty:

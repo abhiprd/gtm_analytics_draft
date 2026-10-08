@@ -275,8 +275,9 @@ class TestNotes:
             summary = json.load(f)["backtest_summary"]
         text = " ".join(t for _, t in V.backtest_notes(summary))
         assert "21 segment-quarters" in text and "29.6%" in text and "47.7%" in text and "50.5%" in text
-        assert "15% below actual bookings" in text and "23% of Commercial quarter bookings" in text
         assert "22 segment-quarters" in V.band_evidence_note(summary)
+        kind, floor = V.commercial_floor_note(summary)
+        assert kind == "Data gap" and "15% below actual bookings" in floor and "23% of Commercial bookings" in floor
 
     def test_missing_backtest_adds_no_figures(self):
         assert V.backtest_notes(None) == []
@@ -367,3 +368,281 @@ class TestCommittedReports:
                     V.segment_cards(s, r["period"], r["as_of_date"])
                 else:
                     assert V.unavailable_message(s, r["data_window"])
+
+
+def committed_summary(date="2025-11-14"):
+    with open(os.path.join(OUT, f"pipeline_coverage_{date}.json")) as f:
+        return json.load(f)["backtest_summary"]
+
+
+class TestBacktestNoteIsFair:
+    """The backtest note states every comparator the report carries, the conclusion the
+    report's own flags support, and never quotes a subset silently."""
+
+    def text(self, summary):
+        return " ".join(t for _, t in V.backtest_notes(summary))
+
+    @pytest.mark.parametrize("date", DATES)
+    def test_every_comparator_pooled_and_by_segment(self, date):
+        sm = committed_summary(date)
+        text = self.text(sm)
+        for key in ("mape_coverage_implied", "mape_naive_won_to_date", "mape_naive_trailing_4q_mean",
+                    "mape_naive_constant_rate_025", "mape_naive_pace"):
+            assert f"{sm['pooled'][key] * 100:.1f}%" in text
+            for seg_ in ("Commercial", "Enterprise"):
+                assert f"{sm['by_segment'][seg_][key] * 100:.1f}%" in text
+        assert "incomplete" not in text
+
+    def test_2025_11_14_figures(self):
+        text = self.text(committed_summary())
+        for figure in ("29.6%", "47.7%", "50.5%", "26.1%", "32.8%", "19.9%", "40.3%", "15.0%", "38.3%", "39.8%"):
+            assert figure in text
+
+    def test_conclusion_says_the_constant_rate_scores_as_well_or_better(self):
+        text = self.text(committed_summary())
+        assert "beats won to date alone and the prior four-quarter mean" in text
+        assert "scores as well or better, so the reading's value is the coverage and gap framing" in text
+        assert "not extra accuracy" in text
+        assert "Enterprise does not beat the pace comparator" in text
+
+    def test_figures_are_driven_by_the_report_not_hard_coded(self):
+        sm = copy.deepcopy(committed_summary())
+        sm["pooled"]["mape_naive_constant_rate_025"] = 0.1234
+        sm["by_segment"]["Enterprise"]["mape_coverage_implied"] = 0.5678
+        text = self.text(sm)
+        assert "12.3%" in text and "56.8%" in text and "26.1%" not in text and "40.3%" not in text
+
+    def test_a_report_that_beats_the_constant_rate_says_so(self):
+        sm = copy.deepcopy(committed_summary())
+        sm["pooled"]["beats_constant_rate_baseline"] = True
+        text = self.text(sm)
+        assert "also beats the fixed constant-rate comparator" in text and "as well or better" not in text
+
+    def test_missing_comparators_are_omitted_and_flagged_incomplete(self):
+        sm = copy.deepcopy(committed_summary())
+        for key in ("mape_naive_constant_rate_025", "mape_naive_pace"):
+            del sm["pooled"][key]
+            for row in sm["by_segment"].values():
+                del row[key]
+        sm["pooled"].pop("beats_constant_rate_baseline")
+        text = self.text(sm)
+        assert "26.1%" not in text and "32.8%" not in text
+        assert "47.7%" in text and "50.5%" in text
+        assert "The comparison is incomplete: constant rate, pace not in this report." in text
+        assert "scores as well or better" not in text
+
+    def test_every_line_fits_the_notes_display_limit(self):
+        # theme.NOTE_LINE_LIMIT is 200: longer text moves behind a Details toggle, which would
+        # hide the conclusion.
+        for date in DATES:
+            for _, line in V.backtest_notes(committed_summary(date)):
+                assert len(line) <= 200, line
+
+    def test_no_backtest_means_no_note(self):
+        assert V.backtest_notes(None) == [] and V.backtest_notes({}) == []
+
+    def test_hindsight_free_scoping_is_quoted_when_present(self):
+        text = self.text(committed_summary())
+        assert "27.9% pooled error against 29.6%" in text and "70.1%" in text
+
+
+class TestCommercialFloorIsOneLine:
+    def commercial_floor_lines(self, items):
+        return [t for _, t in items if "Commercial" in t and ("floor" in t or "not yet visible" in t
+                                                              or "cannot see pipeline" in t)]
+
+    def test_one_line_with_backtest(self):
+        items = V.notes_for(reading("2025-11-14"), committed_summary())
+        lines = self.commercial_floor_lines(items)
+        assert len(lines) == 1 and "about 15% below" in lines[0] and "23%" in lines[0]
+
+    def test_one_artifact_caveat_without_backtest(self):
+        items = V.notes_for(reading("2025-11-14"), None)
+        assert len(self.commercial_floor_lines(items)) == 1
+
+
+class TestSummaryAndQualifier:
+    def test_summary_reads_as_coverage_not_a_point_forecast(self):
+        s = seg(reading("2025-11-14"), "Commercial")
+        text = V.segment_summary(s)
+        assert "would close about $184.9K, $181.7K less than the quota still to book" in text
+        assert "expected to close" not in text and "1.98x coverage" in text and "25.5% win rate" in text
+
+    def test_quota_met_keeps_the_artifacts_summary(self):
+        s = seg(reading("2025-11-14"), "Enterprise")
+        assert V.segment_summary(s) == s["display"]["summary"]
+
+    def test_gap_sentence_ahead_reads_more_than(self):
+        s = fake_seg(display=dict(fake_seg()["display"], conversion_implied_gap="$5.0K ahead",
+                                  conversion_implied_expected_close="$9.0K"))
+        assert V.gap_sentence(s) == ("At the recent win rate the open pipeline would close about $9.0K, "
+                                     "$5.0K more than the quota still to book.")
+
+    def test_qualifier_commercial_floor_and_error(self):
+        q = V.segment_qualifier("Commercial", committed_summary())
+        assert "Average error in the mid-quarter backtest: 20% for Commercial." in q
+        assert "about 15% below actual bookings" in q and "23%" in q and "floor" in q
+
+    def test_qualifier_enterprise_has_error_and_no_floor_claim(self):
+        q = V.segment_qualifier("Enterprise", committed_summary())
+        assert q == "Average error in the mid-quarter backtest: 40% for Enterprise."
+
+    def test_no_qualifier_without_a_backtest(self):
+        assert V.segment_qualifier("Commercial", None) is None
+
+
+class TestEvaluationPoint:
+    def test_mid_quarter_date_has_no_note(self):
+        assert V.evaluation_point_note("2025-11-14", "2025-11-14") is None
+
+    def test_other_dates_are_flagged(self):
+        note = V.evaluation_point_note("2025-11-28", "2025-11-14")
+        assert note.startswith("Outside the mid-quarter backtest window: this date is not validated.")
+        assert "2025-11-14" in note
+
+    def test_unknown_checkpoint_shows_nothing(self):
+        assert V.evaluation_point_note("2025-11-28", None) is None
+
+
+class TestCardWordingAndEdgeStates:
+    def test_gap_card_uses_coverage_language(self):
+        s = seg(reading("2025-11-14"), "Commercial")
+        gap = V.segment_cards(s, "2025-Q4", "2025-11-14")[3]
+        assert gap["footer"][0] == ("At the recent win rate the open pipeline would close about $184.9K, "
+                                    "$181.7K less than the quota still to book.")
+        assert "Expected close" not in json.dumps(gap)
+
+    def test_quota_met_card_clarifies_the_surplus(self):
+        s = seg(reading("2025-11-14"), "Enterprise")
+        gap = V.segment_cards(s, "2025-Q4", "2025-11-14")[3]
+        assert gap["value_display"] == "$1.27M ahead"
+        assert ("Expected surplus over the quota still to book (none remaining); $2.67M won against $2.30M quota."
+                in gap["footer"])
+
+    def test_real_zero_pipeline_says_so_in_plain_words(self):
+        s = fake_seg(open_pipeline_deals=0, display=dict(fake_seg()["display"], open_pipeline="$0 across 0 deals"))
+        card = V.segment_cards(s, "2025-Q4", "2025-12-26")[1]
+        assert card["value_display"] == "None open"
+        assert card["footer"][0] == "No open new-business pipeline for this quarter"
+
+    def test_zero_pipeline_summary_has_no_zero_close_claim(self):
+        s = fake_seg(open_pipeline_deals=0, display=dict(
+            fake_seg()["display"], open_pipeline="$0 across 0 deals", remaining_quota="$969.6K",
+            required_pipeline_multiple="9.31x", realized_conversion="10.7% over 68 closed deals since 2023-01-01",
+            status_text="Shortfall"))
+        text = V.segment_summary(s)
+        assert text.startswith("Commercial: Shortfall. No open new-business pipeline against $969.6K still to book")
+        assert "would close" not in text and "10.7% win rate" in text
+
+    def test_basis_states_the_window_actually_used(self):
+        s = seg(reading("2025-11-14"), "Commercial")
+        foot = V.segment_cards(s, "2025-Q4", "2025-11-14")[2]["footer"][-1]
+        assert "trailing 365" not in foot
+        assert V.keep_dates_whole("2024-11-15 to 2025-11-14") in foot
+        early = fake_seg(conversion_window_start="2023-01-01", conversion_window_end="2023-06-30")
+        assert V.keep_dates_whole("2023-01-01 to 2023-06-30") in V.segment_cards(early, "2023-Q2", "2023-06-30")[2]["footer"][-1]
+        fallback = V.segment_cards(fake_seg(), "p", "d")[2]["footer"][-1]
+        assert V.keep_dates_whole("since the later of 2023-01-01 and 365 days before the date") in fallback
+
+
+class TestPocCaveats:
+    def test_not_backtested_and_n_on_face(self):
+        block = V.poc_view_block(seg(reading("2025-11-14"), "Enterprise")["poc_view"])
+        assert "Not backtested; thin sample" in block["chips"]
+        assert block["lines"][0] == "Not backtested; thin sample: 59 passed and 78 failed closed deals."
+        assert block["window_start"] == "2024-11-15"
+
+    def test_unavailable_reason_has_no_process_wording(self):
+        block = V.poc_view_block({"status": "unavailable", "label": "x",
+                                  "reason": "no open deal carries a point-in-time POC state at this date"})
+        assert "point-in-time" not in block["lines"][0] and "POC outcome" in block["lines"][0]
+
+
+class TestHiddenSegments:
+    def reading_with_hidden_commercial(self):
+        r = copy.deepcopy(reading("2025-08-15"))
+        r["segments"][0].update(status="unavailable", coverage_status="unavailable", reason_code="no_quota")
+        return r
+
+    def test_hidden_segments_lists_unavailable_ones(self):
+        r = self.reading_with_hidden_commercial()
+        assert V.hidden_segments(r) == ["Commercial"]
+        assert V.hidden_segments(reading("2025-08-15")) == []
+
+    def test_next_quarter_line_is_replaced_not_shown(self):
+        r = self.reading_with_hidden_commercial()
+        v = V.next_quarter_view(r["next_quarter"], r["data_window"], V.hidden_segments(r))
+        lines = dict(v["lines"])
+        assert lines["Commercial"] == "not shown: coverage unavailable for Commercial"
+        assert "$639.0K" not in json.dumps(v["lines"][0])
+        assert lines["Enterprise"].startswith("$8.13M across 31 deals")
+
+    def test_reconciliation_drops_the_row_and_says_why(self):
+        r = self.reading_with_hidden_commercial()
+        v = V.reconciliation_view(r["reconciliation"], V.hidden_segments(r))
+        assert [row[0] for row in v["rows"]] == ["Enterprise"]
+        assert v["hidden_notes"] == ["Not shown: coverage unavailable for Commercial."]
+        assert "$910.3K" not in json.dumps(v["rows"])
+
+
+class TestSplitUnitValue:
+    from dashboard.lib import formatting as F
+
+    @pytest.mark.parametrize("text,expected", [
+        ("$1.27M ahead", ("$1.27M", "ahead")),
+        ("$47.6K short", ("$47.6K", "short")),
+        ("$181.7K short", ("$181.7K", "short")),
+        ("$5.0K short", ("$5.0K", "short")),
+        ("$725.9K across 34 deals", ("$725.9K", "across 34 deals")),
+        ("0.50x of required", ("0.50x", "of required")),
+    ])
+    def test_splits(self, text, expected):
+        assert self.F.split_unit_value(text) == expected
+
+    @pytest.mark.parametrize("text", ["$0", "Quota met", "None open", "$2.67M", "<b>x</b> short", ""])
+    def test_no_split(self, text):
+        assert self.F.split_unit_value(text) is None
+
+
+class TestCopyVoice:
+    def test_phrase_map_removes_process_wording(self):
+        from dashboard.lib import labels
+        t = labels.apply_phrase_map(
+            "The two are reconciled in the reconciliation block and never merged. "
+            "A backtest scenario scoping by created date plus the trailing median cycle instead, which uses no "
+            "hindsight, is reported in the methods document. Deals expected to close after the quarter end are x.")
+        assert "reconciliation block" not in t and "methods document" not in t and "Deals expected" in t
+        assert "needs the forecast" not in labels.apply_phrase_map(
+            "needs the forecast's point-in-time POC state, which is unavailable at this date")
+
+    def test_no_note_carries_process_wording(self):
+        items = V.notes_for(reading("2025-11-14"), committed_summary())
+        from dashboard.lib import labels
+        for _, t in items:
+            shown = labels.apply_phrase_map(t)
+            for bad in ("reconciliation block", "methods document", "coverage-implied", "point-in-time POC state"):
+                assert bad not in shown
+
+    def test_lens_wording_note(self):
+        items = V.notes_for(reading("2025-11-14"), None)
+        assert any("override reason" in t and "pipeline coverage" in t for _, t in items)
+
+    def test_one_day_left(self):
+        r = dict(reading("2025-11-14"), days_to_quarter_end=1)
+        assert dict(V.info_items(r, "x"))["Quarter"] == "2025-Q4, 1 day left"
+        r["days_to_quarter_end"] = 2
+        assert dict(V.info_items(r, "x"))["Quarter"] == "2025-Q4, 2 days left"
+
+    def test_dates_in_notes_do_not_wrap(self):
+        items = V.notes_for(reading("2025-11-14"), None)
+        text = " ".join(t for _, t in items)
+        assert "2025-12-28" not in text and "2025‑12‑28" in text
+
+    def test_every_alert_in_the_renderer_keeps_dates_whole(self):
+        src = open(os.path.join(REPO, "dashboard", "lib", "coverage_render.py")).read()
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "info" and node.args
+                    and not isinstance(node.args[0], ast.Constant)):
+                assert "_keep" in ast.unparse(node.args[0])

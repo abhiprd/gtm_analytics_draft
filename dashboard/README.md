@@ -170,27 +170,44 @@ shows a plain notice and leaves the lenses untouched; no exception text reaches 
   status) and one line saying open pipeline is new business only (ISR- and AE-owned, closing in the quarter) and so
   differs from the lenses above, which also price renewal and expansion. The artifact status ("In progress, not yet
   independently validated") reads from `project_status.json` and drops its suffix when the component is
-  `built_and_validated`.
+  `built_and_validated`. When the call date is not the quarter's mid-quarter checkpoint (the artifact's own
+  `mid_quarter_eval_date`, the only date its backtest covers) a bold line under the chip says "Outside the mid-quarter
+  backtest window: this date is not validated" and names the checkpoint date.
 - **Per segment.** A heading, a neutral gray chip "Proposed band: Thin, 0.75x to below 1.00x of required" (bands from the
   artifact's `status_rule`; never green or red, because the bands are proposed and the evidence is a small set of
-  mid-quarter readings), the artifact's one-sentence summary, then four equal-height cards: remaining quota, open
-  new-business pipeline, coverage vs required ("0.50x of required"), conversion-implied gap ("$181.7K short" or
-  "$1.27M ahead"). Each ends in a "Basis:" line. A segment whose quota is met has a null coverage ratio and reads
-  "Quota met", never 0.00x. Enterprise adds a small card for the POC outcome view, labelled "Indicative, not a
-  forecast", with its closed-deal and won counts.
+  mid-quarter readings), a summary line in coverage language built from the artifact's display strings ("... the
+  pipeline is 0.50x of required. At the recent win rate the open pipeline would close about $184.9K, $181.7K less than
+  the quota still to book"; a segment with quota met keeps the artifact's own summary), a qualifier line from the backtest
+  summary (average error per segment and, for Commercial, that the reading runs about 15% below actual bookings because
+  deals created after mid-quarter are not visible: treat it as a floor), then four equal-height cards: remaining quota,
+  open new-business pipeline, coverage vs required ("0.50x of required"), conversion-implied gap ("$181.7K short" or
+  "$1.27M ahead"; a trailing "short"/"ahead" always splits into a large figure and a small unit, `formatting.split_unit_value`).
+  Each ends in a "Basis:" line that states the win-rate window actually used. A segment whose quota is met has a null
+  coverage ratio and reads "Quota met", never 0.00x, and its gap card says the figure is an expected surplus over
+  the quota still to book. A real zero pipeline reads "None open" with "No open new-business pipeline for this quarter".
+  Enterprise adds a small card for the POC outcome view, labelled "Indicative, not a forecast" and "Not backtested;
+  thin sample", with its closed-deal and won counts. Key sentences use the page's body-small style (`.note-line`), not
+  `st.caption`, which measures below 4.5:1.
 - **Unavailable segment.** A plain-language info box per reason code (no quota, before the conversion window, too
-  few closed deals, no wins in the window, after the data window) and no figures.
+  few closed deals, no wins in the window, after the data window) and no figures; the segment is also left out of the
+  next-quarter block and the comparison table, each with a one-line "not shown: coverage unavailable for <Segment>".
 - **Next quarter.** At the data-window end the block is an honest blank ("coverage is blank: the data ends ..., before ...
   starts ... not zero coverage") with a "Why this is blank" expander. When present it is one line per segment with
   "no verdict"; Commercial with no open deal reads "none yet".
 - **Compared with the forecast.** A table with the coverage reading's open pipeline and expected close beside the
   forecast manager lens's, the difference and the forecast's all-opportunity-type pipeline. Open pipeline ties
   exactly; the expected-close figures differ by design (one realized win rate per segment against per-deal category
-  weights) and are never merged.
-- **Notes & assumptions.** The artifact's caveats as written, the proposed-band assumption, and, when the newest
-  committed `pipeline_coverage_*.json` carries a `backtest_summary`, the backtest accuracy and the Commercial
-  understatement figures quoted from it (`data.load_pipeline_coverage_backtest`). The in-process call does not carry
-  the backtest.
+  weights) and are never merged. On a narrow viewport the table scrolls sideways inside its card and the explanation and
+  basis lines stay visible.
+- **Notes & assumptions.** The artifact's caveats (process wording removed by `labels.PHRASE_MAP`), the proposed-band
+  assumption, one Commercial late-created-deal line, a note that the lenses' "pipeline coverage" wording in a CRO override
+  reason is the CRO's logged reason and not this reading, and, when the newest committed `pipeline_coverage_*.json`
+  carries a `backtest_summary`, the backtest stated in full (`data.load_pipeline_coverage_backtest`): the reading's
+  average error pooled and by segment next to every comparator the report carries (won to date alone, prior four-quarter
+  mean, a fixed constant rate, pace), the plain conclusion from the report's own flags (open pipeline beats the first
+  two, a fixed constant-rate formula scores as well or better, so the value is the coverage and gap framing and not extra
+  accuracy), and the hindsight-free scoping result. A comparator the report lacks is omitted and the note says the
+  comparison is incomplete. The in-process call does not carry the backtest.
 
 ## The Digest's repeat marker
 
