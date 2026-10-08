@@ -1,0 +1,2054 @@
+{
+  "as_of_date": "2025-06-30",
+  "data_through": "2025-06-30",
+  "reading": {
+    "artifact": "ltv_by_segment",
+    "node": "ltv_by_segment_acquisition_channel",
+    "label": "modeled lifetime view, a projection from observed rates; non-additive overlay on Consumption payback",
+    "non_additive": true,
+    "as_of_date": "2025-06-30",
+    "data_through": "2025-06-30",
+    "constants": {
+      "horizon_months": 60,
+      "annual_discount_rate": 0.1,
+      "gross_margin": 0.8,
+      "min_at_risk": 30,
+      "min_survivors_mrr": 15,
+      "min_survivors_share": 0.05,
+      "tail_window_months": 12,
+      "recent_vintage_months": 36,
+      "timing": "revenue of age a is discounted a months; month 0 (the signup month) is undiscounted",
+      "status": "proposed, not yet confirmed"
+    },
+    "headline": "Modeled five-year lifetime value per new account, discounted: SMB $15.6K ($13.5K to $21.4K); Commercial $202.6K ($118.6K to $269.0K); Enterprise $1.15M ($1.01M to $1.48M).",
+    "segments": [
+      {
+        "entry_segment": "SMB",
+        "status": "present",
+        "evidence_grade": "point",
+        "n_accounts": 5862,
+        "n_churned": 1347,
+        "retention": {
+          "observed_through_month": 60,
+          "at_risk_at_observed_end": 111.0,
+          "checkpoints": {
+            "6": {
+              "central": 0.937668,
+              "low": 0.930915,
+              "high": 0.944421,
+              "kind": "observed"
+            },
+            "12": {
+              "central": 0.852831,
+              "low": 0.842223,
+              "high": 0.86344,
+              "kind": "observed"
+            },
+            "24": {
+              "central": 0.705176,
+              "low": 0.689051,
+              "high": 0.721301,
+              "kind": "observed"
+            },
+            "36": {
+              "central": 0.586115,
+              "low": 0.565156,
+              "high": 0.607075,
+              "kind": "observed"
+            },
+            "48": {
+              "central": 0.497224,
+              "low": 0.472032,
+              "high": 0.522416,
+              "kind": "observed"
+            },
+            "60": {
+              "central": 0.426642,
+              "low": 0.395548,
+              "high": 0.457736,
+              "kind": "observed"
+            }
+          },
+          "tail": null,
+          "curve": {
+            "ages": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55,
+              56,
+              57,
+              58,
+              59,
+              60
+            ],
+            "central": [
+              1.0,
+              1.0,
+              1.0,
+              0.98296,
+              0.968256,
+              0.952972,
+              0.937668,
+              0.923948,
+              0.911466,
+              0.896205,
+              0.88108,
+              0.863704,
+              0.852831,
+              0.842091,
+              0.827499,
+              0.813871,
+              0.802206,
+              0.788224,
+              0.773429,
+              0.765243,
+              0.752475,
+              0.740324,
+              0.726218,
+              0.716132,
+              0.705176,
+              0.697294,
+              0.683959,
+              0.672833,
+              0.660339,
+              0.647904,
+              0.636934,
+              0.627015,
+              0.616844,
+              0.608569,
+              0.600041,
+              0.594441,
+              0.586115,
+              0.576676,
+              0.567817,
+              0.563216,
+              0.557449,
+              0.550506,
+              0.543289,
+              0.538978,
+              0.52438,
+              0.517181,
+              0.509538,
+              0.504188,
+              0.497224,
+              0.491426,
+              0.486833,
+              0.482013,
+              0.468241,
+              0.45895,
+              0.45299,
+              0.444483,
+              0.442119,
+              0.439503,
+              0.433523,
+              0.426642,
+              0.426642
+            ],
+            "low": [
+              1.0,
+              1.0,
+              1.0,
+              0.97945,
+              0.96346,
+              0.947122,
+              0.930915,
+              0.916468,
+              0.903366,
+              0.887395,
+              0.871611,
+              0.853524,
+              0.842223,
+              0.831066,
+              0.815918,
+              0.801785,
+              0.789691,
+              0.775199,
+              0.759865,
+              0.751378,
+              0.738131,
+              0.725523,
+              0.710889,
+              0.70042,
+              0.689051,
+              0.680863,
+              0.666999,
+              0.655427,
+              0.642415,
+              0.629466,
+              0.618041,
+              0.607715,
+              0.597135,
+              0.588527,
+              0.579657,
+              0.573829,
+              0.565156,
+              0.555324,
+              0.5461,
+              0.541303,
+              0.53528,
+              0.528024,
+              0.520476,
+              0.515957,
+              0.500655,
+              0.493092,
+              0.485041,
+              0.479394,
+              0.472032,
+              0.465894,
+              0.461017,
+              0.455882,
+              0.441171,
+              0.431219,
+              0.424811,
+              0.415626,
+              0.413046,
+              0.410153,
+              0.403426,
+              0.395548,
+              0.395548
+            ],
+            "high": [
+              1.0,
+              1.0,
+              1.0,
+              0.98647,
+              0.973053,
+              0.958822,
+              0.944421,
+              0.931429,
+              0.919565,
+              0.905014,
+              0.890548,
+              0.873885,
+              0.86344,
+              0.853116,
+              0.83908,
+              0.825957,
+              0.814721,
+              0.80125,
+              0.786993,
+              0.779107,
+              0.766818,
+              0.755125,
+              0.741548,
+              0.731844,
+              0.721301,
+              0.713724,
+              0.700919,
+              0.69024,
+              0.678262,
+              0.666342,
+              0.655827,
+              0.646315,
+              0.636552,
+              0.62861,
+              0.620426,
+              0.615053,
+              0.607075,
+              0.598027,
+              0.589535,
+              0.585129,
+              0.579618,
+              0.572988,
+              0.566103,
+              0.561998,
+              0.548106,
+              0.54127,
+              0.534035,
+              0.528982,
+              0.522416,
+              0.516957,
+              0.512649,
+              0.508143,
+              0.495311,
+              0.486682,
+              0.481169,
+              0.47334,
+              0.471192,
+              0.468852,
+              0.463621,
+              0.457736,
+              0.457736
+            ]
+          }
+        },
+        "mrr_path": {
+          "recent_flat": {
+            "role": "central",
+            "directly_observed_through_month": 28,
+            "month_12": 392.96,
+            "month_36": 875.79,
+            "month_59": 875.79
+          },
+          "recent_chain": {
+            "role": "alternative: older vintages' growth for the tail",
+            "directly_observed_through_month": 28,
+            "month_12": 392.96,
+            "month_36": 1115.9,
+            "month_59": 2078.98
+          },
+          "older_flat": {
+            "role": "alternative: the older vintages' own path",
+            "directly_observed_through_month": 59,
+            "month_12": 304.22,
+            "month_36": 690.38,
+            "month_59": 1478.47
+          }
+        },
+        "ltv": {
+          "central_usd": 15563.59,
+          "low_usd": 13484.43,
+          "high_usd": 21387.19,
+          "observed_through_month": 28,
+          "observed_usd": 7372.93,
+          "observed_share": 0.473729,
+          "projected_share": 0.526271,
+          "sensitivity_usd": {
+            "retention_band_low": 15083.74,
+            "retention_band_high": 16043.43,
+            "mrr_path_recent_chain": 20642.4,
+            "mrr_path_older_flat": 13976.06,
+            "entry_segment_revenue_only": 7063.51,
+            "undiscounted": 19867.55,
+            "tail_window_24_months": 15563.59,
+            "observed_window_only": 7372.93
+          }
+        },
+        "cac": {
+          "status": "present",
+          "new_accounts": 4413,
+          "marketing_spend_allocated_usd": 2027837.01,
+          "marketing_only_cac_usd": 459.51,
+          "rep_acquisition_roles": [],
+          "rep_cost_usd": 0.0,
+          "won_new_business_logos": 4413,
+          "rep_cost_per_logo_usd": 0.0,
+          "rep_loaded_cac_usd": 459.51,
+          "thin": false
+        },
+        "cac_status": "present",
+        "ltv_to_cac": {
+          "marketing_only": {
+            "cac_usd": 459.5144,
+            "central": 33.8696,
+            "low": 29.345,
+            "high": 46.543,
+            "entry_segment_revenue_only": 15.3717
+          },
+          "rep_loaded": {
+            "cac_usd": 459.5144,
+            "central": 33.8696,
+            "low": 29.345,
+            "high": 46.543,
+            "entry_segment_revenue_only": 15.3717,
+            "if_am_cost_netted": 32.3347
+          },
+          "marketing_only_decision_grade": false,
+          "rep_loaded_decision_grade": false,
+          "decision_grade_unmet_conditions": [
+            "55% of the value arrives after the account moves up a segment"
+          ],
+          "decision_grade_rule": "A rep-loaded LTV:CAC is decision-grade only if (1) the segment's evidence grade is 'point', (2) rep cost is loaded wherever the segment has acquisition reps, and (3) no more than half of the LTV is revenue earned after the account moves up a segment. The marketing-only ratio is decision-grade only where the segment has no acquisition reps and the same three conditions hold. PROPOSED, not yet confirmed.",
+          "how_to_read": "a floor on cost (no marketing headcount in the data) and a data-generation CAC parameter: read as 'far above any threshold', not as a precise multiple"
+        },
+        "graduation": {
+          "share_of_ltv_after_move": 0.546151,
+          "entry_segment_revenue_only_usd": 7063.51414,
+          "accounts": 5862,
+          "accounts_moved_up": 436,
+          "share_of_accounts_moved_up": 0.074377,
+          "am_cost_netting_factor": 0.95468,
+          "ltv_to_cac_rep_loaded_if_am_cost_netted": 32.334666,
+          "am_cost_share_of_segment_revenue": {
+            "Commercial": 0.065853,
+            "Enterprise": 0.066917
+          }
+        },
+        "display": {
+          "evidence": "point estimate with a band",
+          "ltv": "$15.6K of margin-adjusted revenue per new account over five years, discounted (range $13.5K to $21.4K); point estimate with a band",
+          "retention_month_60": "42.7% of accounts remain at month 60 (95% interval 39.6% to 45.8%; observed)",
+          "projection_share": "53% of the five-year value is projection beyond what the data directly shows (observed through month 28)",
+          "graduation": "55% of the value is revenue earned after the account moves up a segment, carried by 436 of 5862 accounts (7%); revenue earned inside SMB alone is $7.1K. Account-management cost is about 6.6% of Commercial and 6.7% of Enterprise revenue, so netting it would lower the ratio only to about 32.3x; the gap to the inside-segment ratio is how the upside of the few accounts that move up is credited, not that cost",
+          "cac": "$460 marketing-only (no sales reps in this segment, so the same figure with rep cost)",
+          "ltv_to_cac": "33.9x (range 29.3x to 46.5x) against marketing cost, which is the whole CAC for SMB (no sales reps), 15.4x counting only revenue earned inside SMB; a floor on cost, so read it as a direction rather than a multiple; not decision-grade itself: 55% of the value arrives after the account moves up a segment",
+          "summary": "A new SMB account is worth about $15.6K of margin-adjusted revenue over five years, discounted (point estimate with a band; range $13.5K to $21.4K). 55% of the value is revenue earned after the account moves up a segment, carried by 436 of 5862 accounts (7%); revenue earned inside SMB alone is $7.1K. Account-management cost is about 6.6% of Commercial and 6.7% of Enterprise revenue, so netting it would lower the ratio only to about 32.3x; the gap to the inside-segment ratio is how the upside of the few accounts that move up is credited, not that cost. LTV:CAC 33.9x (range 29.3x to 46.5x) against marketing cost, which is the whole CAC for SMB (no sales reps), 15.4x counting only revenue earned inside SMB; a floor on cost, so read it as a direction rather than a multiple; not decision-grade itself: 55% of the value arrives after the account moves up a segment."
+        },
+        "caveats": [
+          "1347 churn events in this entry segment in total; 248 accounts are old enough to have reached month 60. Survival is observed through month 60."
+        ]
+      },
+      {
+        "entry_segment": "Commercial",
+        "status": "present",
+        "evidence_grade": "range",
+        "n_accounts": 294,
+        "n_churned": 30,
+        "retention": {
+          "observed_through_month": 45,
+          "at_risk_at_observed_end": 31.0,
+          "checkpoints": {
+            "6": {
+              "central": 1.0,
+              "low": 1.0,
+              "high": 1.0,
+              "kind": "observed"
+            },
+            "12": {
+              "central": 1.0,
+              "low": 1.0,
+              "high": 1.0,
+              "kind": "observed"
+            },
+            "24": {
+              "central": 0.883436,
+              "low": 0.834172,
+              "high": 0.932699,
+              "kind": "observed"
+            },
+            "36": {
+              "central": 0.80802,
+              "low": 0.738128,
+              "high": 0.877913,
+              "kind": "observed"
+            },
+            "48": {
+              "central": 0.734245,
+              "low": 0.620546,
+              "high": 0.834625,
+              "kind": "projected"
+            },
+            "60": {
+              "central": 0.678448,
+              "low": 0.492224,
+              "high": 0.812514,
+              "kind": "projected"
+            }
+          },
+          "tail": {
+            "monthly_hazard": 0.00656455,
+            "monthly_hazard_low": 0.002235,
+            "monthly_hazard_high": 0.01912041,
+            "window_events": 3.0,
+            "window_exposure_months": 457.0,
+            "window_start_age": 33.0,
+            "window_end_age": 45.0
+          },
+          "curve": {
+            "ages": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55,
+              56,
+              57,
+              58,
+              59,
+              60
+            ],
+            "central": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.883436,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.80802,
+              0.748897,
+              0.748897,
+              0.748897,
+              0.748897,
+              0.748897,
+              0.748897,
+              0.748897,
+              0.748897,
+              0.748897,
+              0.743981,
+              0.739097,
+              0.734245,
+              0.729425,
+              0.724637,
+              0.71988,
+              0.715154,
+              0.710459,
+              0.705796,
+              0.701162,
+              0.696559,
+              0.691987,
+              0.687444,
+              0.682932,
+              0.678448
+            ],
+            "low": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.834172,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.738128,
+              0.657547,
+              0.657547,
+              0.657547,
+              0.657547,
+              0.657547,
+              0.657547,
+              0.657547,
+              0.657547,
+              0.657547,
+              0.644975,
+              0.632643,
+              0.620546,
+              0.608681,
+              0.597043,
+              0.585627,
+              0.57443,
+              0.563446,
+              0.552673,
+              0.542106,
+              0.53174,
+              0.521573,
+              0.511601,
+              0.501819,
+              0.492224
+            ],
+            "high": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.932699,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.877913,
+              0.840247,
+              0.840247,
+              0.840247,
+              0.840247,
+              0.840247,
+              0.840247,
+              0.840247,
+              0.840247,
+              0.840247,
+              0.838369,
+              0.836495,
+              0.834625,
+              0.83276,
+              0.830899,
+              0.829042,
+              0.827189,
+              0.82534,
+              0.823495,
+              0.821655,
+              0.819818,
+              0.817986,
+              0.816158,
+              0.814334,
+              0.812514
+            ]
+          }
+        },
+        "mrr_path": {
+          "recent_flat": {
+            "role": "central",
+            "directly_observed_through_month": 28,
+            "month_12": 4388.97,
+            "month_36": 9177.82,
+            "month_59": 9177.82
+          },
+          "recent_chain": {
+            "role": "alternative: older vintages' growth for the tail",
+            "directly_observed_through_month": 28,
+            "month_12": 4388.97,
+            "month_36": 11395.44,
+            "month_59": 15179.84
+          },
+          "older_flat": {
+            "role": "alternative: the older vintages' own path",
+            "directly_observed_through_month": 54,
+            "month_12": 2248.61,
+            "month_36": 5472.25,
+            "month_59": 10056.46
+          }
+        },
+        "ltv": {
+          "central_usd": 202643.67,
+          "low_usd": 118646.33,
+          "high_usd": 268984.88,
+          "observed_through_month": 28,
+          "observed_usd": 81863.1,
+          "observed_share": 0.403976,
+          "projected_share": 0.596024,
+          "sensitivity_usd": {
+            "retention_band_low": 181946.58,
+            "retention_band_high": 221393.66,
+            "mrr_path_recent_chain": 244297.05,
+            "mrr_path_older_flat": 134044.22,
+            "entry_segment_revenue_only": 62141.59,
+            "undiscounted": 263755.35,
+            "tail_window_24_months": 202223.73,
+            "observed_window_only": 81863.1
+          }
+        },
+        "cac": {
+          "status": "present",
+          "new_accounts": 226,
+          "marketing_spend_allocated_usd": 182072.73,
+          "marketing_only_cac_usd": 805.63,
+          "rep_acquisition_roles": [
+            "ISR"
+          ],
+          "rep_cost_usd": 7600464.99,
+          "won_new_business_logos": 226,
+          "rep_cost_per_logo_usd": 33630.38,
+          "rep_loaded_cac_usd": 34436.01,
+          "thin": false
+        },
+        "cac_status": "present",
+        "ltv_to_cac": {
+          "marketing_only": {
+            "cac_usd": 805.6316,
+            "central": 251.5339,
+            "low": 147.2712,
+            "high": 333.8808,
+            "entry_segment_revenue_only": 77.134
+          },
+          "rep_loaded": {
+            "cac_usd": 34436.0076,
+            "central": 5.8846,
+            "low": 3.4454,
+            "high": 7.8112,
+            "entry_segment_revenue_only": 1.8046,
+            "if_am_cost_netted": 5.3948
+          },
+          "marketing_only_decision_grade": false,
+          "rep_loaded_decision_grade": false,
+          "decision_grade_unmet_conditions": [
+            "evidence is 'range', not 'point'",
+            "69% of the value arrives after the account moves up a segment"
+          ],
+          "decision_grade_rule": "A rep-loaded LTV:CAC is decision-grade only if (1) the segment's evidence grade is 'point', (2) rep cost is loaded wherever the segment has acquisition reps, and (3) no more than half of the LTV is revenue earned after the account moves up a segment. The marketing-only ratio is decision-grade only where the segment has no acquisition reps and the same three conditions hold. PROPOSED, not yet confirmed.",
+          "how_to_read": "usable as a range against the rep-loaded cost only; the marketing-only ratio omits the reps, who are the acquisition cost"
+        },
+        "graduation": {
+          "share_of_ltv_after_move": 0.693346,
+          "entry_segment_revenue_only_usd": 62141.590819,
+          "accounts": 294,
+          "accounts_moved_up": 23,
+          "share_of_accounts_moved_up": 0.078231,
+          "am_cost_netting_factor": 0.916762,
+          "ltv_to_cac_rep_loaded_if_am_cost_netted": 5.39482,
+          "am_cost_share_of_segment_revenue": {
+            "Commercial": 0.065853,
+            "Enterprise": 0.066917
+          }
+        },
+        "display": {
+          "evidence": "a range, not a point",
+          "ltv": "$202.6K of margin-adjusted revenue per new account over five years, discounted (range $118.6K to $269.0K); a range, not a point",
+          "retention_month_60": "67.8% of accounts remain at month 60 (worst-to-best-case range 49.2% to 81.3%, not a 95% interval; projected beyond month 45)",
+          "projection_share": "60% of the five-year value is projection beyond what the data directly shows (observed through month 28)",
+          "graduation": "69% of the value is revenue earned after the account moves up a segment, carried by 23 of 294 accounts (8%); revenue earned inside Commercial alone is $62.1K. Account-management cost is about 6.6% of Commercial and 6.7% of Enterprise revenue, so netting it would lower the ratio only to about 5.4x; the gap to the inside-segment ratio is how the upside of the few accounts that move up is credited, not that cost",
+          "cac": "$806 marketing-only, $34.4K with sales-rep cost",
+          "ltv_to_cac": "5.9x (range 3.4x to 7.8x) against the rep-loaded cost, 1.8x counting only revenue earned inside Commercial; the marketing-only ratio is not decision-grade here because the reps are the acquisition cost; not decision-grade itself: evidence is 'range', not 'point'; 69% of the value arrives after the account moves up a segment",
+          "summary": "A new Commercial account is worth about $202.6K of margin-adjusted revenue over five years, discounted (a range, not a point; range $118.6K to $269.0K). 69% of the value is revenue earned after the account moves up a segment, carried by 23 of 294 accounts (8%); revenue earned inside Commercial alone is $62.1K. Account-management cost is about 6.6% of Commercial and 6.7% of Enterprise revenue, so netting it would lower the ratio only to about 5.4x; the gap to the inside-segment ratio is how the upside of the few accounts that move up is credited, not that cost. LTV:CAC 5.9x (range 3.4x to 7.8x) against the rep-loaded cost, 1.8x counting only revenue earned inside Commercial; the marketing-only ratio is not decision-grade here because the reps are the acquisition cost; not decision-grade itself: evidence is 'range', not 'point'; 69% of the value arrives after the account moves up a segment."
+        },
+        "caveats": [
+          "30 churn events in this entry segment in total; 6 accounts are old enough to have reached month 60. Survival is observed through month 45; beyond it a constant monthly hazard of 0.66% from 3 events in the last 12 observed months.",
+          "Report the range, not the central value."
+        ]
+      },
+      {
+        "entry_segment": "Enterprise",
+        "status": "present",
+        "evidence_grade": "directional",
+        "n_accounts": 90,
+        "n_churned": 4,
+        "retention": {
+          "observed_through_month": 25,
+          "at_risk_at_observed_end": 30.0,
+          "checkpoints": {
+            "6": {
+              "central": 1.0,
+              "low": 1.0,
+              "high": 1.0,
+              "kind": "observed"
+            },
+            "12": {
+              "central": 1.0,
+              "low": 1.0,
+              "high": 1.0,
+              "kind": "observed"
+            },
+            "24": {
+              "central": 1.0,
+              "low": 1.0,
+              "high": 1.0,
+              "kind": "observed"
+            },
+            "36": {
+              "central": 0.890474,
+              "low": 0.711496,
+              "high": 0.987203,
+              "kind": "projected"
+            },
+            "48": {
+              "central": 0.84596,
+              "low": 0.590499,
+              "high": 0.973428,
+              "kind": "projected"
+            },
+            "60": {
+              "central": 0.803671,
+              "low": 0.490079,
+              "high": 0.959846,
+              "kind": "projected"
+            }
+          },
+          "tail": {
+            "monthly_hazard": 0.00426439,
+            "monthly_hazard_low": 0.00117023,
+            "monthly_hazard_high": 0.01541347,
+            "window_events": 2.0,
+            "window_exposure_months": 469.0,
+            "window_start_age": 13.0,
+            "window_end_age": 25.0
+          },
+          "curve": {
+            "ages": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55,
+              56,
+              57,
+              58,
+              59,
+              60
+            ],
+            "central": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              0.933333,
+              0.929353,
+              0.92539,
+              0.921444,
+              0.917514,
+              0.913602,
+              0.909706,
+              0.905827,
+              0.901964,
+              0.898117,
+              0.894287,
+              0.890474,
+              0.886677,
+              0.882895,
+              0.87913,
+              0.875381,
+              0.871648,
+              0.867931,
+              0.86423,
+              0.860545,
+              0.856875,
+              0.853221,
+              0.849583,
+              0.84596,
+              0.842352,
+              0.83876,
+              0.835183,
+              0.831622,
+              0.828075,
+              0.824544,
+              0.821028,
+              0.817527,
+              0.81404,
+              0.810569,
+              0.807112,
+              0.803671
+            ],
+            "low": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              0.844073,
+              0.831063,
+              0.818253,
+              0.805641,
+              0.793223,
+              0.780997,
+              0.768959,
+              0.757107,
+              0.745437,
+              0.733947,
+              0.722635,
+              0.711496,
+              0.70053,
+              0.689732,
+              0.679101,
+              0.668634,
+              0.658328,
+              0.648181,
+              0.63819,
+              0.628353,
+              0.618668,
+              0.609132,
+              0.599743,
+              0.590499,
+              0.581398,
+              0.572436,
+              0.563613,
+              0.554926,
+              0.546372,
+              0.537951,
+              0.529659,
+              0.521495,
+              0.513457,
+              0.505543,
+              0.497751,
+              0.490079
+            ],
+            "high": [
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              1.0,
+              0.99883,
+              0.997661,
+              0.996493,
+              0.995327,
+              0.994163,
+              0.992999,
+              0.991837,
+              0.990676,
+              0.989517,
+              0.988359,
+              0.987203,
+              0.986047,
+              0.984893,
+              0.983741,
+              0.98259,
+              0.98144,
+              0.980291,
+              0.979144,
+              0.977998,
+              0.976854,
+              0.975711,
+              0.974569,
+              0.973428,
+              0.972289,
+              0.971151,
+              0.970015,
+              0.96888,
+              0.967746,
+              0.966614,
+              0.965482,
+              0.964353,
+              0.963224,
+              0.962097,
+              0.960971,
+              0.959846
+            ]
+          }
+        },
+        "mrr_path": {
+          "recent_flat": {
+            "role": "central",
+            "directly_observed_through_month": 21,
+            "month_12": 33847.55,
+            "month_36": 33692.8,
+            "month_59": 33692.8
+          },
+          "recent_chain": {
+            "role": "alternative: older vintages' growth for the tail",
+            "directly_observed_through_month": 21,
+            "month_12": 33847.55,
+            "month_36": 38046.55,
+            "month_59": 41404.34
+          },
+          "older_flat": {
+            "role": "alternative: the older vintages' own path",
+            "directly_observed_through_month": 40,
+            "month_12": 33302.56,
+            "month_36": 43622.51,
+            "month_59": 47384.35
+          }
+        },
+        "ltv": {
+          "central_usd": 1148348.87,
+          "low_usd": 1007782.35,
+          "high_usd": 1477500.32,
+          "observed_through_month": 21,
+          "observed_usd": 489960.1,
+          "observed_share": 0.426665,
+          "projected_share": 0.573335,
+          "sensitivity_usd": {
+            "retention_band_low": 1007782.35,
+            "retention_band_high": 1222617.46,
+            "mrr_path_recent_chain": 1259582.32,
+            "mrr_path_older_flat": 1375771.13,
+            "entry_segment_revenue_only": 1148348.87,
+            "undiscounted": 1437260.41,
+            "tail_window_24_months": 1175400.82,
+            "observed_window_only": 489960.1
+          }
+        },
+        "cac": {
+          "status": "present",
+          "new_accounts": 67,
+          "marketing_spend_allocated_usd": 63779.43,
+          "marketing_only_cac_usd": 951.93,
+          "rep_acquisition_roles": [
+            "AE",
+            "SE"
+          ],
+          "rep_cost_usd": 24723374.98,
+          "won_new_business_logos": 67,
+          "rep_cost_per_logo_usd": 369005.6,
+          "rep_loaded_cac_usd": 369957.53,
+          "thin": false
+        },
+        "cac_status": "present",
+        "ltv_to_cac": {
+          "marketing_only": {
+            "cac_usd": 951.9317,
+            "central": 1206.3353,
+            "low": 1058.6708,
+            "high": 1552.1075
+          },
+          "rep_loaded": {
+            "cac_usd": 369957.5285,
+            "central": 3.104,
+            "low": 2.724,
+            "high": 3.9937,
+            "if_am_cost_netted": 2.8444
+          },
+          "marketing_only_decision_grade": false,
+          "rep_loaded_decision_grade": false,
+          "decision_grade_unmet_conditions": [
+            "evidence is 'directional', not 'point'"
+          ],
+          "decision_grade_rule": "A rep-loaded LTV:CAC is decision-grade only if (1) the segment's evidence grade is 'point', (2) rep cost is loaded wherever the segment has acquisition reps, and (3) no more than half of the LTV is revenue earned after the account moves up a segment. The marketing-only ratio is decision-grade only where the segment has no acquisition reps and the same three conditions hold. PROPOSED, not yet confirmed.",
+          "how_to_read": "directional only: 5 churn events, thin tail; the marketing-only ratio omits the reps, who are the acquisition cost"
+        },
+        "graduation": null,
+        "display": {
+          "evidence": "directional only",
+          "ltv": "$1.15M of margin-adjusted revenue per new account over five years, discounted (range $1.01M to $1.48M); directional only",
+          "retention_month_60": "80.4% of accounts remain at month 60 (worst-to-best-case range 49.0% to 96.0%, not a 95% interval; projected beyond month 25)",
+          "projection_share": "57% of the five-year value is projection beyond what the data directly shows (observed through month 21)",
+          "cac": "$952 marketing-only, $370.0K with sales-rep cost",
+          "ltv_to_cac": "3.1x (range 2.7x to 4.0x) against the rep-loaded cost; the marketing-only ratio is not decision-grade here because the reps are the acquisition cost; not decision-grade itself: evidence is 'directional', not 'point'",
+          "summary": "A new Enterprise account is worth about $1.15M of margin-adjusted revenue over five years, discounted (directional only; range $1.01M to $1.48M). LTV:CAC 3.1x (range 2.7x to 4.0x) against the rep-loaded cost; the marketing-only ratio is not decision-grade here because the reps are the acquisition cost; not decision-grade itself: evidence is 'directional', not 'point'."
+        },
+        "caveats": [
+          "4 churn events in this entry segment in total; 0 accounts are old enough to have reached month 60. Survival is observed through month 25; beyond it a constant monthly hazard of 0.43% from 2 events in the last 12 observed months.",
+          "Directional only: too few churn events for a point estimate or a trustworthy range."
+        ]
+      }
+    ],
+    "cac_window": {
+      "window_first_month": "2023-01-01",
+      "window_last_month": "2025-06-01",
+      "window_months": 30
+    },
+    "cac_status": "present",
+    "cac_reason": null,
+    "smb_channel_cut": [
+      {
+        "entry_segment": "SMB",
+        "channel": "inbound_marketing",
+        "n_accounts": 1501,
+        "churn_events": 364,
+        "own_survival_ltv_usd": 15092.13428698,
+        "own_survival_month60": 0.39838299,
+        "ltv_central_usd": 15563.58586158,
+        "ltv_basis": "segment-wide survival and MRR path (no channel retention difference at 5%)",
+        "marketing_only_cac_usd": 1611.45832345,
+        "new_accounts_in_cac_window": 1134,
+        "ltv_to_cac_marketing_only": 9.65807532,
+        "ltv_to_cac_own_survival": 9.36551325
+      },
+      {
+        "entry_segment": "SMB",
+        "channel": "self_serve",
+        "n_accounts": 4361,
+        "churn_events": 983,
+        "own_survival_ltv_usd": 15729.11274552,
+        "own_survival_month60": 0.43720681,
+        "ltv_central_usd": 15563.58586158,
+        "ltv_basis": "segment-wide survival and MRR path (no channel retention difference at 5%)",
+        "marketing_only_cac_usd": 61.12939086,
+        "new_accounts_in_cac_window": 3279,
+        "ltv_to_cac_marketing_only": 254.60070257,
+        "ltv_to_cac_own_survival": 257.30851433
+      }
+    ],
+    "channel_cells_not_shown": [
+      {
+        "entry_segment": "Commercial",
+        "status": "suppressed",
+        "reason": "suppressed: 44 churn events in the whole segment, so a channel cut would rest on a handful of events"
+      },
+      {
+        "entry_segment": "Enterprise",
+        "status": "suppressed",
+        "reason": "suppressed: 5 churn events in the whole segment"
+      },
+      {
+        "entry_segment": "SMB",
+        "channel": "outbound_sdr",
+        "status": "suppressed",
+        "reason": "no SMB account was acquired through outbound_sdr; its 18 accounts are all Enterprise (tooling spend only, no SDR headcount in the data)"
+      }
+    ],
+    "channel_retention_tests": {
+      "SMB": {
+        "segment": "SMB",
+        "available": true,
+        "channels": [
+          "self_serve",
+          "inbound_marketing"
+        ],
+        "n_accounts": [
+          4361,
+          1501
+        ],
+        "churn_events": [
+          983,
+          364
+        ],
+        "chi2": 2.36907371,
+        "p_value": 0.12376047,
+        "significant_at_5pct": false
+      },
+      "Commercial": {
+        "segment": "Commercial",
+        "available": true,
+        "channels": [
+          "self_serve",
+          "inbound_marketing"
+        ],
+        "n_accounts": [
+          164,
+          130
+        ],
+        "churn_events": [
+          22,
+          8
+        ],
+        "chi2": 1.91326301,
+        "p_value": 0.16660125,
+        "significant_at_5pct": false
+      }
+    },
+    "channel_mrr_tests": {
+      "SMB": {
+        "test": "Mann-Whitney U (normal approximation, tie-corrected) on MRR of accounts present at the age",
+        "rows": [
+          {
+            "age": 6,
+            "channels": [
+              "self_serve",
+              "inbound_marketing"
+            ],
+            "n": [
+              3244,
+              1106
+            ],
+            "mean_mrr_usd": [
+              297.70396116,
+              286.68273056
+            ],
+            "median_mrr_usd": [
+              217.975,
+              213.175
+            ],
+            "p_value": 0.33192828
+          },
+          {
+            "age": 12,
+            "channels": [
+              "self_serve",
+              "inbound_marketing"
+            ],
+            "n": [
+              2280,
+              779
+            ],
+            "mean_mrr_usd": [
+              366.57368421,
+              354.34589217
+            ],
+            "median_mrr_usd": [
+              236.45,
+              232.4
+            ],
+            "p_value": 0.21876723
+          },
+          {
+            "age": 24,
+            "channels": [
+              "self_serve",
+              "inbound_marketing"
+            ],
+            "n": [
+              1055,
+              361
+            ],
+            "mean_mrr_usd": [
+              527.50796209,
+              463.85706371
+            ],
+            "median_mrr_usd": [
+              278.15,
+              266.2
+            ],
+            "p_value": 0.31404985
+          },
+          {
+            "age": 36,
+            "channels": [
+              "self_serve",
+              "inbound_marketing"
+            ],
+            "n": [
+              530,
+              174
+            ],
+            "mean_mrr_usd": [
+              730.91084906,
+              566.91005747
+            ],
+            "median_mrr_usd": [
+              323.4,
+              298.65
+            ],
+            "p_value": 0.35621203
+          }
+        ],
+        "any_significant_at_5pct": false
+      },
+      "Commercial": {
+        "status": "untested",
+        "reason": "channel cut suppressed (44 churn events in the whole segment)"
+      },
+      "Enterprise": {
+        "status": "untested",
+        "reason": "channel cut suppressed (5 churn events); a test on that few accounts is not interpretable"
+      }
+    },
+    "channel_finding": "Acquisition channel shows no detectable difference in retention (log-rank p = 0.12 for SMB self_serve vs inbound_marketing, a 3.9-point gap in month-60 survival; p = 0.17 for Commercial) or in revenue per surviving SMB account (Mann-Whitney p = 0.22 to 0.36 at months 6, 12, 24, 36), and the generators do not use channel in churn or usage. This is an absence of evidence on synthetic data, not proof of no effect. Enterprise is untested (channel cut suppressed on 5 churn events; a test on that few accounts is not interpretable). The channel difference in LTV:CAC is a CAC difference.",
+    "am_cost_context": {
+      "status": "present",
+      "window_first_month": "2023-01-01",
+      "window_last_month": "2025-06-01",
+      "segments": {
+        "Commercial": {
+          "am_cost_usd": 1304680.22,
+          "segment_revenue_usd": 19812139.8,
+          "share_of_segment_revenue": 0.06585256
+        },
+        "Enterprise": {
+          "am_cost_usd": 4626804.48,
+          "segment_revenue_usd": 69142935.85,
+          "share_of_segment_revenue": 0.06691652
+        }
+      }
+    },
+    "status_rule": {
+      "status": "proposed, not yet confirmed",
+      "evidence_grades": {
+        "point": "at least 200 churn events in the entry segment: a point estimate with a band",
+        "range": "20 to 199 churn events: report the range, not the point",
+        "directional": "fewer than 20 churn events: directional only"
+      }
+    },
+    "definitions": {
+      "entry_segment": "The segment an account had at signup. Accounts that later migrate stay in their entry-segment cohort.",
+      "survival": "Kaplan-Meier monthly survival, pooled across vintages, observed while at least 30 accounts are at risk; beyond that a constant hazard from the last 12 observed months.",
+      "mrr_path": "Mean MRR per surviving account by age. Central: recent vintages to the last well-supported age, then flat. High: older vintages' growth for the tail. Low: older vintages' own path.",
+      "ltv": "Sum over the first 60 months of survival x MRR per survivor x 80% margin, discounted at 10% a year, per account acquired.",
+      "cac_marketing_only": "Marketing spend allocated to the entry segment by its share of each channel-month's new accounts, per new account (2023 onward).",
+      "cac_rep_loaded": "Marketing-only CAC plus acquisition-role rep cost (ISR for Commercial, AE and SE for Enterprise; no AM cost) per won new-business logo."
+    },
+    "caveats": [
+      "A modeled lifetime view, not an observed value: the oldest accounts are 71 months old, and a large part of every segment's five-year value is projection (see observed_share).",
+      "Per-account MRR rises with account age and with calendar time, and the two cannot be separated in this history, so the MRR path is the largest single uncertainty; the central path assumes no growth beyond what recent vintages have shown.",
+      "Acquisition channel shows no detectable retention or revenue difference in this synthetic data (an absence of evidence, not proof); the channel split is a CAC split.",
+      "The CAC spread by channel is a data-generation parameter, not an observed market price; SMB marketing-only LTV:CAC is very large by construction and is a floor on cost (no marketing headcount in the data), so read it as a direction, not a multiple.",
+      "Marketing-only LTV:CAC is not decision-grade for Commercial or Enterprise: their reps are the acquisition cost.",
+      "Pre-2023 vintages have no CAC (marketing spend starts 2023-01); they supply the retention tail and the MRR path, never an LTV:CAC.",
+      "Commercial and Enterprise tails are thin (22 and 6 accounts at month 60): their LTVs are ranges, and Enterprise is directional only.",
+      "Entry-segment LTV includes the MRR of accounts that migrated up; the account-management cost of serving and expanding them is not netted."
+    ]
+  },
+  "checks": [
+    {
+      "name": "account_revenue_rows_start_at_signup_and_are_contiguous",
+      "passed": true,
+      "detail": "6246 accounts: 0 without revenue, 0 not starting at age 0, 0 with gaps",
+      "kind": "structural"
+    },
+    {
+      "name": "at_risk_and_active_counts_tie_to_retention_cohorts",
+      "passed": true,
+      "detail": "max abs count difference 0 over 192 segment-ages",
+      "kind": "structural"
+    },
+    {
+      "name": "oldest_cohort_margin_adjusted_revenue_ties_to_fact_revenue_monthly",
+      "passed": true,
+      "detail": "max relative difference 1.58e-15; Kaplan-Meier vs alive fraction max 3.33e-16; SMB: 280 accounts, $12,659.99 vs $12,659.99; Commercial: 10 accounts, $61,399.13 vs $61,399.13; Enterprise: 1 accounts, $1,608,097.35 vs $1,608,097.35",
+      "kind": "structural"
+    },
+    {
+      "name": "marketing_allocation_sums_back_to_spend",
+      "passed": true,
+      "detail": "allocated $2,273,689.17 vs spend $2,273,689.17",
+      "kind": "structural"
+    },
+    {
+      "name": "new_accounts_by_channel_month_tie_to_fact_marketing_spend",
+      "passed": true,
+      "detail": "0 of 90 channel-months differ",
+      "kind": "structural"
+    },
+    {
+      "name": "won_new_business_logos_equal_entry_accounts_commercial_enterprise",
+      "passed": true,
+      "detail": "max abs difference 0 (Commercial, Enterprise)",
+      "kind": "structural"
+    },
+    {
+      "name": "acquisition_rep_cost_ties_to_fact_rep_monthly_cost",
+      "passed": true,
+      "detail": "module $32,323,839.98 vs SQL $32,323,839.98; AM roles excluded",
+      "kind": "structural"
+    },
+    {
+      "name": "am_cost_share_inputs_tie_to_the_facts",
+      "passed": true,
+      "detail": "AM cost $5,931,484.70 vs SQL $5,931,484.70; Commercial and Enterprise revenue $88,955,075.65 vs SQL $88,955,075.65",
+      "kind": "structural"
+    },
+    {
+      "name": "ltv_node_stays_a_non_additive_overlay_with_no_children",
+      "passed": true,
+      "detail": "registry additive=False, children=[], parent=consumption_payback, source_mart=None; tree marks it non-additive",
+      "kind": "structural"
+    },
+    {
+      "name": "gross_margin_constant_ties_to_the_dbt_var",
+      "passed": true,
+      "detail": "dbt var 0.80, module 0.8, mart_efficiency reads the var: True, no 0.80 literal: True",
+      "kind": "structural"
+    },
+    {
+      "name": "horizon_discount_rate_and_margin_equal_the_metric_tree",
+      "passed": true,
+      "detail": "tree states a 5-year horizon, 10% annual discount rate and ~80% margin; module 60 months, 0.1, 0.8",
+      "kind": "structural"
+    },
+    {
+      "name": "channel_retention_signal_not_overclaimed",
+      "passed": true,
+      "detail": "log-rank p 0.124 (SMB self_serve vs inbound_marketing): no difference; LTV basis stated per channel row",
+      "kind": "structural"
+    },
+    {
+      "name": "backtest_fit_on_truncated_frames_equals_a_direct_reading_at_the_origin",
+      "passed": true,
+      "detail": "origin 2022-06-30: max abs LTV difference $0.00 across the three segments",
+      "kind": "structural"
+    },
+    {
+      "name": "no_lookahead_reading_unchanged_by_post_2025-06-30_data",
+      "passed": true,
+      "detail": "reading on marts with every post-cut fact corrupted is identical to the untouched reading",
+      "kind": "structural"
+    },
+    {
+      "name": "no_lookahead_reading_unchanged_by_post_2023-06-30_data",
+      "passed": true,
+      "detail": "reading on marts with every post-cut fact corrupted is identical to the untouched reading",
+      "kind": "structural"
+    },
+    {
+      "name": "synthetic_known_answer_scenarios",
+      "passed": true,
+      "detail": "11 of 11 scenarios match their known answers",
+      "kind": "structural"
+    },
+    {
+      "name": "backtest_realized_ltv_equals_survival_times_mrr_identity",
+      "passed": true,
+      "detail": "on accounts with the horizon fully observed, realized discounted margin per account equals the alive-fraction x mean-MRR sum (no censoring), for every backtest horizon",
+      "kind": "structural"
+    },
+    {
+      "name": "backtest_smb_retention_within_the_proposed_drift_rule",
+      "passed": true,
+      "detail": "SMB realized retention at months 48 and 60 within 5pp of the projection and inside its band: max abs gap 1.20 pp",
+      "kind": "target"
+    },
+    {
+      "name": "backtest_smb_36_month_ltv_error_within_limit",
+      "passed": true,
+      "detail": "projected 36-month discounted margin per account $6.5K vs realized $7.0K (-6.5%; limit +/-25%); retention-only error +0.9%, MRR-only error -7.2%",
+      "kind": "target"
+    },
+    {
+      "name": "backtest_smb_60_month_ltv_error_reported_without_a_limit",
+      "passed": false,
+      "detail": "projected 60-month discounted margin per account $9.6K vs realized $12.7K (-24.4%, n = 280); the horizon the headline uses; the error is the MRR path (MRR-only -24.1%, retention-only -0.5%); no limit is set",
+      "kind": "info"
+    },
+    {
+      "name": "backtest_commercial_realized_inside_band_directional",
+      "passed": true,
+      "detail": "Commercial, fit through month 13 at the origin, 2 marks; max abs gap 9.49 pp; reported, gates nothing",
+      "kind": "info"
+    },
+    {
+      "name": "backtest_enterprise_not_backtestable",
+      "passed": false,
+      "detail": "Enterprise: 19 accounts have reached month 36 (needs 30); fewer than 30 accounts are at risk at the first transition",
+      "kind": "info"
+    }
+  ],
+  "checks_total": 17,
+  "checks_passed": 17,
+  "target_met": true,
+  "synthetic": {
+    "n_scenarios": 11,
+    "n_passed": 11,
+    "scenarios": [
+      {
+        "name": "constant_hazard_fully_observed",
+        "passed": true,
+        "detail": "max survival gap 1.20pp (<= 1.5pp), LTV $2,610 vs closed form $2,630 (0.75%)"
+      },
+      {
+        "name": "constant_hazard_tail_extrapolated",
+        "passed": true,
+        "detail": "observed through month 29; month-60 survival 0.288 vs 0.298 (gap 1.00pp); LTV $2,336 vs $2,350 (0.61%)"
+      },
+      {
+        "name": "hazard_rise_beyond_window_is_missed_as_the_rule_predicts",
+        "passed": true,
+        "detail": "module month-60 survival 0.546 (the 1%-a-month rule predicts 0.547), truth 0.335; LTV overstated by 5.6%; the band (0.528 to 0.564) covers sampling error, not a regime change"
+      },
+      {
+        "name": "hazard_change_inside_observed_window_is_tracked",
+        "passed": true,
+        "detail": "max survival gap 0.39pp (<= 2pp), LTV $2,439 vs $2,443 (0.16%)"
+      },
+      {
+        "name": "annual_renewal_cliffs_survive_a_constant_monthly_tail",
+        "passed": true,
+        "detail": "observed through month 47; month-60 survival 0.691 vs 0.716 (gap 2.52pp); LTV $3,343 vs $3,337 (0.17%)"
+      },
+      {
+        "name": "mrr_path_uses_recent_vintages_and_holds_flat_past_the_last_observed_age",
+        "passed": true,
+        "detail": "month-12 recent $222.00 (planted $222.00), older $148.00 (planted $148.00); flat after month 33"
+      },
+      {
+        "name": "zero_churn_constant_mrr_equals_the_closed_form_discounted_sum",
+        "passed": true,
+        "detail": "module $3,833.4063 vs closed form $3,833.4063"
+      },
+      {
+        "name": "under_sampled_segment_is_unavailable_with_a_reason",
+        "passed": true,
+        "detail": "status unavailable (insufficient_at_risk)"
+      },
+      {
+        "name": "zero_event_tail_keeps_a_wide_low_band",
+        "passed": true,
+        "detail": "central month-60 survival 1.000, low band 0.803"
+      },
+      {
+        "name": "non_default_margin_and_discount_rate_are_applied",
+        "passed": true,
+        "detail": "margin 0.55, rate 17%: LTV $1,624 vs independent closed form $1,614 (0.60%)"
+      },
+      {
+        "name": "exact_survival_times_growing_mrr_with_non_default_margin_and_rate",
+        "passed": true,
+        "detail": "module $2,996.627665 vs independent loop $2,996.627665"
+      }
+    ]
+  },
+  "backtest": {
+    "SMB": {
+      "origin": "2022-06-30",
+      "status": "present",
+      "fit_observed_through_month": 28,
+      "fit_tail": {
+        "monthly_hazard": 0.01348397,
+        "monthly_hazard_low": 0.00979846,
+        "monthly_hazard_high": 0.01852976,
+        "window_events": 37.0,
+        "window_exposure_months": 2744.0,
+        "window_start_age": 16,
+        "window_end_age": 28
+      },
+      "fit_n_accounts": 1198,
+      "fit_churn_events": 203,
+      "retention_rows": [
+        {
+          "age": 36,
+          "projected": 0.60090001,
+          "band_low": 0.53364787,
+          "band_high": 0.66536048,
+          "realized_km": 0.58764608,
+          "realized_pooled_ratio": 0.58764608,
+          "n_at_risk_realized": 714,
+          "gap_pp": -1.32539333,
+          "in_band": true
+        },
+        {
+          "age": 42,
+          "projected": 0.55389456,
+          "band_low": 0.47699914,
+          "band_high": 0.62718921,
+          "realized_km": 0.54470845,
+          "realized_pooled_ratio": 0.55473684,
+          "n_at_risk_realized": 534,
+          "gap_pp": -0.91861146,
+          "in_band": true
+        },
+        {
+          "age": 48,
+          "projected": 0.51056612,
+          "band_low": 0.42636389,
+          "band_high": 0.59120781,
+          "realized_km": 0.49852281,
+          "realized_pooled_ratio": 0.5028169,
+          "n_at_risk_realized": 362,
+          "gap_pp": -1.20433134,
+          "in_band": true
+        },
+        {
+          "age": 54,
+          "projected": 0.47062705,
+          "band_low": 0.38110376,
+          "band_high": 0.55729063,
+          "realized_km": 0.45417317,
+          "realized_pooled_ratio": 0.47302905,
+          "n_at_risk_realized": 231,
+          "gap_pp": -1.64538791,
+          "in_band": true
+        },
+        {
+          "age": 60,
+          "projected": 0.43381222,
+          "band_low": 0.34064816,
+          "band_high": 0.52531926,
+          "realized_km": 0.42775619,
+          "realized_pooled_ratio": 0.44758065,
+          "n_at_risk_realized": 111,
+          "gap_pp": -0.60560286,
+          "in_band": true
+        }
+      ],
+      "ltv_rows": [
+        {
+          "horizon_months": 36,
+          "n_accounts": 1198,
+          "projected_usd": 6504.59267005,
+          "realized_usd": 6958.3120211,
+          "error_pct": -6.52053759,
+          "realized_identity_max_abs_diff_usd": 0.0,
+          "retention_only_error_pct": 0.86411225,
+          "mrr_only_error_pct": -7.20731421,
+          "by_mrr_path": {
+            "recent_flat": {
+              "projected_usd": 6504.59267005,
+              "error_pct": -6.52053759
+            },
+            "recent_chain": {
+              "projected_usd": 6542.76167901,
+              "error_pct": -5.97199926
+            }
+          }
+        },
+        {
+          "horizon_months": 60,
+          "n_accounts": 280,
+          "projected_usd": 9574.23871226,
+          "realized_usd": 12659.98994028,
+          "error_pct": -24.37404171,
+          "realized_identity_max_abs_diff_usd": 0.0,
+          "retention_only_error_pct": -0.50862719,
+          "mrr_only_error_pct": -24.0716299,
+          "by_mrr_path": {
+            "recent_flat": {
+              "projected_usd": 9574.23871226,
+              "error_pct": -24.37404171
+            },
+            "recent_chain": {
+              "projected_usd": 9701.57492596,
+              "error_pct": -23.36822563
+            }
+          }
+        }
+      ],
+      "max_abs_gap_pp": 1.64538791,
+      "all_realized_in_band": true
+    },
+    "Commercial": {
+      "origin": "2022-06-30",
+      "status": "present",
+      "fit_observed_through_month": 13,
+      "fit_tail": {
+        "monthly_hazard": 0.00952381,
+        "monthly_hazard_low": 0.00407467,
+        "monthly_hazard_high": 0.0220985,
+        "window_events": 5.0,
+        "window_exposure_months": 525.0,
+        "window_start_age": 1,
+        "window_end_age": 13
+      },
+      "fit_n_accounts": 57,
+      "fit_churn_events": 7,
+      "retention_rows": [
+        {
+          "age": 36,
+          "projected": 0.67705931,
+          "band_low": 0.42941786,
+          "band_high": 0.88264758,
+          "realized_km": 0.77192982,
+          "realized_pooled_ratio": 0.77192982,
+          "n_at_risk_realized": 44,
+          "gap_pp": 9.48705195,
+          "in_band": true
+        },
+        {
+          "age": 42,
+          "projected": 0.63927976,
+          "band_low": 0.3755353,
+          "band_high": 0.86128723,
+          "realized_km": 0.71544715,
+          "realized_pooled_ratio": 0.70833333,
+          "n_at_risk_realized": 34,
+          "gap_pp": 7.61673976,
+          "in_band": true
+        }
+      ],
+      "ltv_rows": [
+        {
+          "horizon_months": 36,
+          "n_accounts": 57,
+          "projected_usd": 70648.15073709,
+          "realized_usd": 63849.79055312,
+          "error_pct": 10.64742754,
+          "realized_identity_max_abs_diff_usd": 0.0,
+          "retention_only_error_pct": -5.29632316,
+          "mrr_only_error_pct": 17.08602996,
+          "by_mrr_path": {
+            "recent_flat": {
+              "projected_usd": 70648.15073709,
+              "error_pct": 10.64742754
+            },
+            "recent_chain": {
+              "projected_usd": 70648.15073709,
+              "error_pct": 10.64742754
+            }
+          }
+        }
+      ],
+      "max_abs_gap_pp": 9.48705195,
+      "all_realized_in_band": true
+    },
+    "Enterprise": {
+      "origin": "2022-06-30",
+      "status": "unavailable",
+      "reason_code": "insufficient_at_risk",
+      "reason": "fewer than 30 accounts are at risk at the first transition",
+      "n_accounts_at_origin": 19
+    }
+  },
+  "drift_assessment": {
+    "SMB": {
+      "flag": false,
+      "max_abs_gap_pp_months_48_60": 1.20433134,
+      "limit_pp": 5.0,
+      "marks_outside_band": []
+    },
+    "Commercial": {
+      "flag": null,
+      "reason": "no Commercial mark at month 48 or later is observable with 30 accounts at risk"
+    },
+    "Enterprise": {
+      "flag": null,
+      "backtestable": false,
+      "accounts_at_risk_month_36": 19,
+      "reason": "not backtestable until 30 accounts have reached month 36"
+    }
+  },
+  "drift_rule": {
+    "status": "proposed, not yet confirmed",
+    "smb_gap_pp_limit": 5.0,
+    "smb_ltv_36m_error_limit": 0.25,
+    "enterprise_backtestable_at_risk_month_36": 30
+  },
+  "min_at_risk_sensitivity": {
+    "20": {
+      "SMB": {
+        "observed_through_month": 60,
+        "ltv_central_usd": 15563.58586158
+      },
+      "Commercial": {
+        "observed_through_month": 51,
+        "ltv_central_usd": 202965.1003862
+      },
+      "Enterprise": {
+        "observed_through_month": 33,
+        "ltv_central_usd": 1153337.15395888
+      }
+    },
+    "30": {
+      "SMB": {
+        "observed_through_month": 60,
+        "ltv_central_usd": 15563.58586158
+      },
+      "Commercial": {
+        "observed_through_month": 45,
+        "ltv_central_usd": 202643.67433797
+      },
+      "Enterprise": {
+        "observed_through_month": 25,
+        "ltv_central_usd": 1148348.87470753
+      }
+    },
+    "50": {
+      "SMB": {
+        "observed_through_month": 60,
+        "ltv_central_usd": 15563.58586158
+      },
+      "Commercial": {
+        "observed_through_month": 34,
+        "ltv_central_usd": 201158.40040019
+      },
+      "Enterprise": {
+        "observed_through_month": 14,
+        "ltv_central_usd": 1235303.34216366
+      }
+    }
+  },
+  "km_vs_pooled_ratio": [
+    {
+      "entry_segment": "SMB",
+      "age": 12,
+      "km": 0.85283135,
+      "pooled_ratio": 0.8525641,
+      "n_at_risk_pooled": 3588
+    },
+    {
+      "entry_segment": "SMB",
+      "age": 24,
+      "km": 0.70517584,
+      "pooled_ratio": 0.70835418,
+      "n_at_risk_pooled": 1999
+    },
+    {
+      "entry_segment": "SMB",
+      "age": 36,
+      "km": 0.58611523,
+      "pooled_ratio": 0.58764608,
+      "n_at_risk_pooled": 1198
+    },
+    {
+      "entry_segment": "SMB",
+      "age": 48,
+      "km": 0.49722413,
+      "pooled_ratio": 0.5028169,
+      "n_at_risk_pooled": 710
+    },
+    {
+      "entry_segment": "SMB",
+      "age": 60,
+      "km": 0.42664186,
+      "pooled_ratio": 0.44758065,
+      "n_at_risk_pooled": 248
+    },
+    {
+      "entry_segment": "Commercial",
+      "age": 12,
+      "km": 1.0,
+      "pooled_ratio": 1.0,
+      "n_at_risk_pooled": 173
+    },
+    {
+      "entry_segment": "Commercial",
+      "age": 24,
+      "km": 0.88343558,
+      "pooled_ratio": 0.88659794,
+      "n_at_risk_pooled": 97
+    },
+    {
+      "entry_segment": "Commercial",
+      "age": 36,
+      "km": 0.80802035,
+      "pooled_ratio": 0.77192982,
+      "n_at_risk_pooled": 57
+    },
+    {
+      "entry_segment": "Commercial",
+      "age": 48,
+      "km": 0.74889691,
+      "pooled_ratio": 0.72727273,
+      "n_at_risk_pooled": 33
+    },
+    {
+      "entry_segment": "Commercial",
+      "age": 60,
+      "km": 0.71633617,
+      "pooled_ratio": 0.5,
+      "n_at_risk_pooled": 6
+    },
+    {
+      "entry_segment": "Enterprise",
+      "age": 12,
+      "km": 1.0,
+      "pooled_ratio": 1.0,
+      "n_at_risk_pooled": 64
+    },
+    {
+      "entry_segment": "Enterprise",
+      "age": 24,
+      "km": 1.0,
+      "pooled_ratio": 1.0,
+      "n_at_risk_pooled": 30
+    },
+    {
+      "entry_segment": "Enterprise",
+      "age": 36,
+      "km": 0.93333333,
+      "pooled_ratio": 0.94736842,
+      "n_at_risk_pooled": 19
+    },
+    {
+      "entry_segment": "Enterprise",
+      "age": 48,
+      "km": 0.875,
+      "pooled_ratio": 0.91666667,
+      "n_at_risk_pooled": 12
+    }
+  ]
+}

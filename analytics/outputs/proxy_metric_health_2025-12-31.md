@@ -1,13 +1,13 @@
 # Proxy-metric health / analytics investment prioritization -- as of 2025-12-31
 
-**Headline finding**: no genuine drift/decay claim is possible yet for anything in this project. Every model with any logged checkpoint has between 1 and 3 real checkpoints (22 models total) -- see 'Checkpoint depth by model' below. This artifact is a governance catalog and framework, not a time-series drift tool; it becomes more useful as `drift-monitor` actually runs on a recurring cadence.
+**Headline finding**: no genuine drift/decay claim is possible yet for anything in this project. Every model with any logged checkpoint has between 1 and 3 real checkpoints (23 models total) -- see 'Checkpoint depth by model' below. This artifact is a governance catalog and framework, not a time-series drift tool; it becomes more useful as `drift-monitor` actually runs on a recurring cadence.
 
 This module's own correctness checks: 3 of 3 pass (ALL PASS).
 
 ## Correctness checks
-- Hooks trace to real doc text: 31 of 31
+- Hooks trace to real doc text: 32 of 32
 - Cited data-gap node keys are live in variance_diagnostic.py's `_TREE`: 14 of 14
-- Checkpoint counts reconcile against an independent CSV parse: PASS (22 models checked)
+- Checkpoint counts reconcile against an independent CSV parse: PASS (23 models checked)
 - Variance-engine computability markings agree with `marketing_attribution.py`'s validated coverage: PASS
 
 ## Checkpoint depth by model (as of 2025-12-31)
@@ -22,6 +22,7 @@ This module's own correctness checks: 3 of 3 pass (ALL PASS).
 | experimentation_platform | 2 | 2025-06-30, 2025-12-31 |
 | forecast | 2 | 2025-08-15, 2025-11-14 |
 | lead_scoring_model | 1 | 2025-12-31 |
+| ltv_by_segment | 2 | 2025-06-30, 2025-12-31 |
 | marketing_attribution | 2 | 2025-06-30, 2025-12-31 |
 | mmm_incrementality | 2 | 2025-06-30, 2025-12-31 |
 | pipeline_coverage | 2 | 2025-08-15, 2025-11-14 |
@@ -37,7 +38,7 @@ This module's own correctness checks: 3 of 3 pass (ALL PASS).
 | weekly_executive_readout | 3 | 2025-06-30, 2025-11-30, 2025-12-31 |
 
 ## Drift-monitor hook catalog -- reading counts
-27 hooks catalogued across 16 artifacts; 3 have zero persisted readings today.
+28 hooks catalogued across 17 artifacts; 3 have zero persisted readings today.
 
 | Hook | Artifact | Rule family | Persisted metric(s) | Reading count |
 |---|---|---|---|---|
@@ -63,6 +64,7 @@ This module's own correctness checks: 3 of 3 pass (ALL PASS).
 | tam_icp_non_vacuousness_floors | tam_icp_opportunity_sizing | grounding_or_apparatus_integrity | `tier_acv_separation_ratio_tier1_tier2`, `tier_acv_separation_ratio_tier2_tier3`, `entry_tier_explained_share`, `entry_tier_downgrade_anomaly_share` | 2 |
 | territory_coverage_index_whitespace | territory_coverage_routing | grounding_or_apparatus_integrity | `coverage_index_whitespace_apac`, `coverage_index_whitespace_emea`, `coverage_index_whitespace_latam`, `coverage_index_whitespace_na_east`, `coverage_index_whitespace_na_west` | 2 |
 | pipeline_coverage_mape_ratio_vs_naive_baseline | pipeline_coverage | model_calibration_accuracy_drift | `backtest_mape_ratio_vs_naive_baseline` | 2 |
+| ltv_backtest_retention_gap_smb | ltv_by_segment | model_calibration_accuracy_drift | `backtest_retention_max_abs_gap_pp_smb`, `backtest_retention_realized_in_band_smb` | 2 |
 | mmm_checks_passed | mmm_incrementality | grounding_or_apparatus_integrity | `checks_passed` | 2 |
 | mmm_vif_log_spend_with_trend | mmm_incrementality | grounding_or_apparatus_integrity | `vif_log_spend_with_trend` | 2 |
 | mmm_gap_vs_holdout | mmm_incrementality | grounding_or_apparatus_integrity | `gap_vs_holdout_paid`, `gap_vs_holdout_community` | 2 |
@@ -90,7 +92,7 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 | Account-specific baseline deviation (`account_specific_baseline_deviation`) | 3 | E_not_a_real_gap | False | 1 |
 
 ## Validation-maturity summary (self-proposed vs. independently confirmed thresholds)
-1 artifact section(s) carry a threshold CONFIRMED by `analytics-model-validator`; 18 carry at least one threshold still PROPOSED, not yet confirmed.
+1 artifact section(s) carry a threshold CONFIRMED by `analytics-model-validator`; 19 carry at least one threshold still PROPOSED, not yet confirmed.
 
 | Artifact section | PROPOSED mentions | CONFIRMED mentions |
 |---|---|---|
@@ -113,3 +115,4 @@ Ranked cheapest-to-close first, then by live count of downstream tree nodes bloc
 | MMM / incrementality-based measurement | 1 | 0 |
 | Retention / expansion cohort analytics | 1 | 0 |
 | Testing / experimentation methodology & platform | 1 | 0 |
+| LTV by segment × acquisition channel | 4 | 0 |

@@ -366,6 +366,14 @@ DRIFT_HOOK_CATALOG = [
         doc_anchor="`backtest_mape_ratio_vs_naive_baseline` is above **1.0**",
     ),
     dict(
+        hook_id="ltv_backtest_retention_gap_smb",
+        artifact="ltv_by_segment",
+        rule_family=RULE_MODEL_CALIBRATION,
+        persisted_metric_names=("backtest_retention_max_abs_gap_pp_smb", "backtest_retention_realized_in_band_smb"),
+        condition="SMB realized-minus-projected retention above 5 percentage points at months 48 or 60, or realized outside the projection's band, for 2 consecutive checkpoints",
+        doc_anchor="`backtest_retention_max_abs_gap_pp_smb` above **5.0**",
+    ),
+    dict(
         hook_id="mmm_checks_passed",
         artifact="mmm_incrementality",
         rule_family=RULE_GROUNDING_INTEGRITY,
