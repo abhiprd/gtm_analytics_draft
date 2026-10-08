@@ -200,6 +200,12 @@ ANALYTICS_NODES: Tuple[Node, ...] = (
                description="Pricing and packaging analytics"),
     _analytics("retention_cohorts", ("2025-12-31",),
                description="Retention and expansion cohorts"),
+    # Imports retention_cohorts' account loader (entry segment, channel,
+    # signup) and ties its survival counts back to retention_cohorts' pooled
+    # curve; reads neither artifact's logged output, but runs after it so a
+    # break there surfaces there first.
+    _analytics("ltv_by_segment", ("2025-06-30", "2025-12-31"), ("retention_cohorts",),
+               description="LTV by entry segment (non-additive overlay on Consumption payback)"),
     _analytics("lead_scoring_validation", ("2025-12-31",),
                description="Lead-scoring model validation and drift detection"),
     _analytics("experimentation_platform", ("2025-06-30", "2025-12-31"),

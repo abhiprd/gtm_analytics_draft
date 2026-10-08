@@ -3,24 +3,24 @@
   "summary": {
     "checks_total": 3,
     "checks_passed": 3,
-    "hooks_cataloged": 27,
-    "hooks_traced_to_doc": 31,
+    "hooks_cataloged": 28,
+    "hooks_traced_to_doc": 32,
     "hooks_with_zero_persisted_readings": 3,
     "not_drift_monitored_artifacts": 3,
     "not_yet_built_artifacts": 1,
-    "models_with_any_checkpoint": 22,
+    "models_with_any_checkpoint": 23,
     "min_checkpoints_across_models": 1,
     "max_checkpoints_across_models": 3,
     "data_gap_roots_cataloged": 14,
     "data_gap_roots_live_confirmed": 14,
     "pipeline_generated_stale_marking_confirmed": false,
     "artifacts_with_confirmed_threshold": 1,
-    "artifacts_with_proposed_not_confirmed_threshold": 18
+    "artifacts_with_proposed_not_confirmed_threshold": 19
   },
   "doc_trace_check": {
     "passed": true,
-    "n_total": 31,
-    "n_passed": 31,
+    "n_total": 32,
+    "n_passed": 32,
     "results": [
       {
         "id": "health_score_auc",
@@ -177,6 +177,13 @@
         "traces_to_doc": true
       },
       {
+        "id": "ltv_backtest_retention_gap_smb",
+        "kind": "hook",
+        "artifact": "ltv_by_segment",
+        "doc_anchor": "`backtest_retention_max_abs_gap_pp_smb` above **5.0**",
+        "traces_to_doc": true
+      },
+      {
         "id": "mmm_checks_passed",
         "kind": "hook",
         "artifact": "mmm_incrementality",
@@ -320,7 +327,7 @@
   },
   "checkpoint_reconciliation_check": {
     "passed": true,
-    "n_models_checked": 22,
+    "n_models_checked": 23,
     "mismatches": []
   },
   "pipeline_generated_staleness": {
@@ -390,6 +397,13 @@
     "lead_scoring_model": {
       "n_checkpoints": 1,
       "as_of_dates": [
+        "2025-12-31"
+      ]
+    },
+    "ltv_by_segment": {
+      "n_checkpoints": 2,
+      "as_of_dates": [
+        "2025-06-30",
         "2025-12-31"
       ]
     },
@@ -885,6 +899,26 @@
       "max_reading_count": 2
     },
     {
+      "hook_id": "ltv_backtest_retention_gap_smb",
+      "artifact": "ltv_by_segment",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "backtest_retention_max_abs_gap_pp_smb",
+        "backtest_retention_realized_in_band_smb"
+      ],
+      "reading_dates_by_metric": {
+        "backtest_retention_max_abs_gap_pp_smb": [
+          "2025-06-30",
+          "2025-12-31"
+        ],
+        "backtest_retention_realized_in_band_smb": [
+          "2025-06-30",
+          "2025-12-31"
+        ]
+      },
+      "max_reading_count": 2
+    },
+    {
       "hook_id": "mmm_checks_passed",
       "artifact": "mmm_incrementality",
       "rule_family": "grounding_or_apparatus_integrity",
@@ -1252,7 +1286,7 @@
     },
     {
       "artifact_section": "LTV by segment \u00d7 acquisition channel",
-      "n_proposed_not_confirmed_mentions": 0,
+      "n_proposed_not_confirmed_mentions": 4,
       "n_confirmed_by_validator_mentions": 0
     }
   ]

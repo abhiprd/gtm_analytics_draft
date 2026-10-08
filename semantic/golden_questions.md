@@ -4,8 +4,8 @@ Regression check for natural-language routing over the MCP semantic layer
 (`semantic/server.py`). Each question was run for real against the live
 server (`semantic/.venv/bin/python`, tools invoked through
 `mcp.server.mcpserver`'s actual `call_tool` path, not the raw Python
-functions) on 2026-10-06 against `data/acme_gtm.duckdb` +
-`semantic/metric_registry.json` v8 (`source_tree_sha256` `299f75581423...`, 70 nodes, 37 directly queryable).
+functions) on 2026-10-06; the documented outcomes (error codes and resolved calls) were re-checked on 2026-10-08 against `data/acme_gtm.duckdb` +
+`semantic/metric_registry.json` v10 (`source_tree_sha256` `f24a0818dc7e...`, 70 nodes, 37 directly queryable).
 
 For each question: the expected tool call (what a Claude router should
 produce from `list_metrics()` + `get_metric_definition()` alone, without

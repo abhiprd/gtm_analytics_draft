@@ -9,7 +9,7 @@ chat demo called for in the build spec's Section 6 scope guardrail. Nothing here
 ## Why Streamlit, not Next.js
 
 Section 7 left the framework open. Streamlit was chosen because every other layer of this
-project is already Python end-to-end -- the marts, the semantic layer, and all twenty-one Phase
+project is already Python end-to-end -- the marts, the semantic layer, and all twenty-two Phase
 4 artifacts. A Next.js frontend would need a REST API layer in front of that Python to
 expose it to a browser, which is exactly the kind of extra surface Section 6 says to avoid
 ("resist building a full BI platform"). Streamlit reads the DuckDB marts and imports

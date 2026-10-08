@@ -53,7 +53,8 @@
 -- signup_date). The margin denominator uses fact_committed_vs_utilized_monthly
 -- to isolate revenue attributable to Actions actually consumed: MRR is
 -- haircut by min(1, utilized/committed) before applying the build spec's
--- flat ~80% gross margin assumption -- this is what "excludes committed-
+-- flat ~80% gross margin assumption (the dbt var consumption_gross_margin,
+-- shared with analytics/ltv_by_segment.py) -- this is what "excludes committed-
 -- but-unused capacity" (the tree's own qualifier) means operationalized
 -- against this raw data; SMB has no commitment (committed_actions_monthly
 -- is null, fully metered) so its ratio defaults to 1.0 (nothing to
@@ -258,7 +259,7 @@ utilized_margin_by_segment_month as (
     select
         segment,
         month,
-        avg(mrr * utilization_ratio * 0.80) as avg_utilized_action_margin_per_account
+        avg(mrr * utilization_ratio * {{ var("consumption_gross_margin") }}) as avg_utilized_action_margin_per_account
     from utilized_margin
     group by 1, 2
 

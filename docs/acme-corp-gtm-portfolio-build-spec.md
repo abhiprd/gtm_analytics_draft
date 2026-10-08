@@ -205,7 +205,7 @@ The full set of analytics artifacts this portfolio is designed to eventually inc
 
 Both #21's whitespace piece and #22 run off a single new data source (see Phase 1) rather than being hand-mocked — generating a fake non-customer market universe costs little more than generating another account table, and it's the only way either artifact is genuinely computed rather than illustrated.
 
-**Explicitly absorbed, not standalone:** quota setting (→ Capacity Planning, #3); LTV:CAC and marginal-CAC economics (→ enhancement to the Efficiency pillar's existing Magic Number / Consumption Payback nodes, not a new artifact); customer journey / time-to-value (→ already covered by the Growth pillar's Activation branch and the Growth→Durability arc — a new artifact only if the ask becomes feature-level adoption sequencing specifically).
+**Explicitly absorbed, not standalone:** quota setting (→ Capacity Planning, #3); LTV:CAC and marginal-CAC economics (→ enhancement to the Efficiency pillar's existing Magic Number / Consumption Payback nodes, not a new artifact; the model behind the tree's LTV overlay was later added as item 24 below); customer journey / time-to-value (→ already covered by the Growth pillar's Activation branch and the Growth→Durability arc — a new artifact only if the ask becomes feature-level adoption sequencing specifically).
 
 **Build priority order.** Not an arbitrary ranking — grouped into waves by genuine dependency, since several artifacts within a wave can be built in parallel and pretending otherwise would be dishonest. Wave 0 is Phase 1 + Phase 2 themselves — nothing below exists as a *built* thing until then.
 
@@ -220,6 +220,8 @@ Both #21's whitespace piece and #22 run off a single new data source (see Phase 
 **Added after the 22-artifact order closed (not one of the 22):**
 
 23. Pipeline coverage (`analytics/pipeline_coverage.py`, Wave 10 of the post-Wave-8 improvement plan) — by segment, open new-business pipeline against realized conversion, with the gap to the quota still to book in dollars. A deliberate scope addition: the 22-artifact priority order above is complete without it, and it needs no new raw data. It is a coverage reading, not a forecast: the Forecast artifact (#2) remains the only owner of what will close, and the two are reconciled rather than merged. It is the twenty-first `analytics/*.py` module (the metric tree and the semantic layer are among the 22 but are not `analytics/*.py` modules).
+
+24. LTV by entry segment (`analytics/ltv_by_segment.py`, Wave 10 of the post-Wave-8 improvement plan) — the model behind the metric tree's non-additive "LTV by segment × acquisition channel" overlay on Consumption payback: five-year discounted margin-adjusted revenue per new account by entry segment (ranges for Commercial and Enterprise), the SMB acquisition-channel cut, and LTV:CAC against marketing-only and rep-loaded CAC. A deliberate scope addition: the order above had absorbed LTV:CAC into the Efficiency nodes rather than building it standalone, and the post-Wave-8 improvement plan describes this item as that absorption finally done; because the result is a standalone `analytics/*.py` module outside the 22-artifact list, it is counted here as an addition. The tree node itself is unchanged (still non-additive, no children, 70 nodes). It needs no new raw data and no new mart. It is the twenty-second `analytics/*.py` module.
 
 ---
 

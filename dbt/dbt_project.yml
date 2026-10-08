@@ -58,6 +58,12 @@ vars:
   # proposed, not yet confirmed); drift is test-enforced by
   # tests/test_phase2_wave10_marts.py. Consumed by mart_workflow_chain_health.
   workflow_chain_completion_threshold: 0.70
+  # Flat gross margin on consumption revenue (metric tree: Consumption payback,
+  # "flat ~80% gross margin assumed"; build spec). Read by mart_efficiency's
+  # utilized-Action margin and, as GROSS_MARGIN, by analytics/ltv_by_segment.py
+  # (the LTV node reuses the same margin); tests/test_phase4_ltv_by_segment.py
+  # fails if the two differ or the SQL carries a margin literal again.
+  consumption_gross_margin: 0.80
 
 models:
   acme_gtm:
