@@ -167,7 +167,11 @@ note changes how the number is read (win rate for SMB is always 1.0,
 ingestion without completion is actions-weighted, renewal win rate starts in
 2021-02 for Commercial and 2022-07 for Enterprise). `onboarding_completion_rate`
 is `partial`, matching the variance-diagnostic engine: it is identically 1.0,
-so it carries no variance signal.
+so it carries no variance signal. `activation` is `partial` for the same
+reason (registry v11): blended time to first Action is identically 0 in every
+month and segment of the current data, so the engine reports it as Not
+computable. Both stay queryable and return their real series with the
+"Partially computable" warning.
 
 ## What's actually queryable right now
 
