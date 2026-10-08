@@ -266,6 +266,38 @@
       "sla_rationale": "The CRO reads coverage every week, so the operating cadence is weekly, but the artifact is evaluated at a fixed mid-quarter point so quarters are comparable. The canonical checkpoint is mid-quarter (2025-11-14, the same point and the same reason as the forecast: the last point with a large enough open Commercial/Enterprise population to read before the data window ends); it sits 16 days behind the last complete month. 21 days = three weekly cycles. Owner review item: a tighter SLA needs a later canonical checkpoint."
     },
     {
+      "name": "ltv_by_segment",
+      "kind": "analytics",
+      "node": "ltv_by_segment",
+      "module": "analytics.ltv_by_segment",
+      "owner": "AM / Finance",
+      "cadence": "quarterly",
+      "basis": "horizon",
+      "max_staleness_days": 99,
+      "depends_on": [
+        "dbt_marts",
+        "retention_cohorts"
+      ],
+      "entrypoint_as_of": [
+        "2025-06-30",
+        "2025-12-31"
+      ],
+      "evidence": [
+        {
+          "type": "output_files",
+          "glob": "analytics/outputs/ltv_by_segment_*.json",
+          "label": "outputs/ltv_by_segment"
+        },
+        {
+          "type": "perf_log",
+          "model_name": "ltv_by_segment",
+          "label": "performance_log/ltv_by_segment"
+        }
+      ],
+      "fresh_means": "Reports and logged checkpoints exist for the reference date and the prior checkpoint, with the survival counts tying to the retention cohorts, the oldest cohorts' revenue tying to the revenue fact, and the out-of-time retention backtest inside the proposed drift rule.",
+      "sla_rationale": "A lifetime projection: its inputs (retention curves by entry segment, MRR per surviving account, CAC over the spend window) move on the cadence of the retention cohorts it builds on, and its backtest needs a three-year origin, so two checkpoints six months apart are the unit of evidence for drift. A 92-day quarter plus a 7-day close window."
+    },
+    {
       "name": "tam_icp_sizing",
       "kind": "analytics",
       "node": "tam_icp_sizing",
@@ -590,6 +622,7 @@
         "tam_icp_sizing",
         "pricing_packaging",
         "retention_cohorts",
+        "ltv_by_segment",
         "lead_scoring_validation",
         "experimentation_platform",
         "mmm_incrementality",

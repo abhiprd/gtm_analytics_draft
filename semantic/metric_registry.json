@@ -1,6 +1,6 @@
 {
-  "content_sha256": "d7e9b089efb80451917fa299fad789baaf48f251283647959f3178ed1e5cf0dc",
-  "generated_at": "2026-10-06T23:06:08.189349+00:00",
+  "content_sha256": "712e1e2f946d60b99af650262e343fd687ca73d30b50f81b44ed8e8aa50ad8e0",
+  "generated_at": "2026-10-08T18:05:00.097601+00:00",
   "metric_order": [
     "new_logo_consumption_revenue",
     "pipeline_generated",
@@ -1264,8 +1264,8 @@
       "cross_reference": false,
       "detail": [],
       "formula": "Cumulative margin-adjusted revenue over a modeled retention-weighted horizon, by segment \u00d7 acquisition channel",
-      "formula_note": "\u2014 5-year horizon, flat 10% annual discount rate, same ~80% gross margin assumption as Consumption payback (reused, not re-derived). Built from a retention-curve input (GRR/logo retention by segment, extended forward past the observed window \u2014 `retention_cohorts.py` already tested acquisition channel as a retention driver and found no comparable differentiation, so this node's channel split is expected to carry signal mainly through CAC and segment-mix differences by channel, not through differential retention; state that plainly rather than imply an open channel-retention question this project has already checked), an expansion-trajectory input (wallet share progression and overage realization \u2014 same Growth-lineage drivers Expansion already uses, referenced not duplicated), and the LTV : CAC ratio by channel as the decision-grade output, which inherits Consumption payback's existing `level_comparability: caveated` status \u2014 CAC here is marketing-spend-only (no sales headcount cost), the same fully-loaded-cost gap that already caveats payback (Magic Number and AM efficiency, which read the rep fully-loaded cost directly, are computed). Don't present this ratio as more trustworthy than the payback figure it extends; it closes when Consumption payback's CAC carries rep fully-loaded cost.",
-      "gap_note": "A non-additive diagnostic overlay on Consumption payback with no mart-backed series: it is a modeled lifetime view (retention curves, CAC and expansion drivers) that, when built, is computed outside the mart engine rather than served from a mart_* table. Query consumption_payback for the single-window recovery read it extends.",
+      "formula_note": "\u2014 5-year horizon, flat 10% annual discount rate, same ~80% gross margin assumption as Consumption payback (reused, not re-derived). Built from a retention-curve input (Kaplan-Meier logo survival by entry segment, observed while enough accounts are at risk and extended forward past that point by a constant monthly hazard; compounding GRR is rejected, because monthly GRR counts month-to-month usage contraction, not whether the account is still a customer \u2014 `retention_cohorts.py` already tested acquisition channel as a retention driver and found no comparable differentiation, and this node's channel cut is shown for SMB only, where it carries signal through CAC, not through differential retention), an expansion-trajectory input (observed MRR per surviving account by age, which embeds expansion, overage and segment graduation; wallet share progression is not computable, so nothing is modeled from it), and the LTV : CAC ratio against both CAC bases: marketing-only, and rep-loaded (ISR cost for Commercial, AE and SE cost for Enterprise per won logo; AM cost excluded). LTV is by entry segment; Commercial and Enterprise are ranges, Enterprise directional only, and the marketing-only ratio is not decision-grade where reps are the acquisition cost. `mart_efficiency.blended_cac`, and so Consumption payback, stays marketing-only (the same fully-loaded-cost gap that already caveats payback and its `level_comparability: caveated` status); don't present this ratio as more trustworthy than the payback figure it extends.",
+      "gap_note": "A non-additive diagnostic overlay on Consumption payback with no children and no mart-backed series, so query_metric serves no data for it. The modeled lifetime view (survival by entry segment, MRR per surviving account, margin and CAC) is computed outside the mart engine by analytics/ltv_by_segment.py: Commercial and Enterprise as ranges, SMB split by acquisition channel, the channel difference being a CAC difference. Query consumption_payback for the single-window recovery read it extends.",
       "key": "ltv_by_segment_acquisition_channel",
       "layer": 2,
       "name": "LTV by segment \u00d7 acquisition channel",
@@ -2566,7 +2566,7 @@
       "tagline": "consumption revenue growth"
     }
   },
-  "registry_version": 8,
+  "registry_version": 10,
   "source_tree_file": "docs/acme-corp-gtm-metric-tree.md",
-  "source_tree_sha256": "299f75581423dc7633f632cb8a5e4168648b8cbb961596ae230b644ee4a036ee"
+  "source_tree_sha256": "f24a0818dc7e4189e3616e254713d02228e704e0dac5f921c64c71dc8c928531"
 }

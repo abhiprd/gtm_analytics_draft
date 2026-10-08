@@ -18,7 +18,7 @@ python3 -m pipeline check-freshness --as-of 2025-12-31
 
 ```
 gen_* (opt-in) -> qa_pipeline -> qa_raw -> dbt_build -> qa_marts
-                                              |-> governance_gate -> 22 analytics artifacts (21 + executive_summary)
+                                              |-> governance_gate -> 23 analytics artifacts (22 + executive_summary)
 registry_check                                                    -> proxy_metric_health (last)
    -> dbt_refresh_logs -> semantic_smoke, dashboard_smoke -> freshness_check
 ```
@@ -32,14 +32,14 @@ registry_check                                                    -> proxy_metri
 | `qa_marts` | pytest | `dbt_build` | Every other test file: mart-, log- and gate-level checks. |
 | `governance_gate` | gate | `dbt_build` | `pipeline gate --check identity` (below). Read-only. |
 | `registry_check` | gate | nothing | `pipeline gate --check registry` (below). |
-| 21 other analytics nodes | analytics | `governance_gate`, plus real data dependencies | Each runs `python3 -m analytics.<module>` (`deal_diagnostics`, a library module, runs through `pipeline/entrypoints.py`). |
+| 22 other analytics nodes | analytics | `governance_gate`, plus real data dependencies | Each runs `python3 -m analytics.<module>` (`deal_diagnostics`, a library module, runs through `pipeline/entrypoints.py`). |
 | Optional analytics node `executive_summary` | analytics | `weekly_readout` | Fills the readout's executive-summary slot through the Claude API and re-renders the Markdown (below). Ends `SKIPPED` without `ANTHROPIC_API_KEY`. |
 | `dbt_refresh_logs` | dbt | `proxy_metric_health` | Re-materializes `fact_model_performance_history` and `fact_playbook_triggers` from the logs the analytics nodes just wrote. |
 | `semantic_smoke` | smoke, `semantic/.venv` | `registry_check`, `dbt_refresh_logs` | The MCP server module imports and answers `list_metrics`, `get_metric_definition` and a real `query_metric`; an unknown metric is rejected. |
 | `dashboard_smoke` | smoke, `dashboard/.venv` | `weekly_readout`, `dbt_refresh_logs` | Every Streamlit page renders headless (AppTest) without raising. |
 | `freshness_check` | freshness | everything above | `pipeline check-freshness`. |
 
-Analytics dependencies that are real data or log dependencies, not style: `marketing_attribution` before `variance_diagnostic` (it imports the pipeline-generated node) and before `mmm_incrementality` (it benchmarks against the holdout estimates); `variance_diagnostic` before `scenario_planning`; `capacity_planning` and `forecast` before `pipeline_coverage` (it imports capacity planning's quota loader and the forecast's open-pipeline scoping and reconciles to the forecast's manager lens); `playbook_triggers`, `variance_diagnostic`, `health_score` and `forecast` before `weekly_readout` (the readout reads `data/playbook_triggers.csv`, runs the variance engine and watchlist, and calls `run_forecast()` for its forecast section); `weekly_readout` before `executive_summary` (it summarizes the readout JSON that node just wrote); every other artifact, `executive_summary` included, before `proxy_metric_health`, which counts their logged checkpoints. `governance_gate` precedes all of them so a run never rewrites tracked outputs on top of marts whose metric-tree identities do not hold.
+Analytics dependencies that are real data or log dependencies, not style: `marketing_attribution` before `variance_diagnostic` (it imports the pipeline-generated node) and before `mmm_incrementality` (it benchmarks against the holdout estimates); `variance_diagnostic` before `scenario_planning`; `capacity_planning` and `forecast` before `pipeline_coverage` (it imports capacity planning's quota loader and the forecast's open-pipeline scoping and reconciles to the forecast's manager lens); `retention_cohorts` before `ltv_by_segment` (it imports retention cohorts' account loader and ties its survival counts to retention cohorts' pooled curve); `playbook_triggers`, `variance_diagnostic`, `health_score` and `forecast` before `weekly_readout` (the readout reads `data/playbook_triggers.csv`, runs the variance engine and watchlist, and calls `run_forecast()` for its forecast section); `weekly_readout` before `executive_summary` (it summarizes the readout JSON that node just wrote); every other artifact, `executive_summary` included, before `proxy_metric_health`, which counts their logged checkpoints. `governance_gate` precedes all of them so a run never rewrites tracked outputs on top of marts whose metric-tree identities do not hold.
 
 ### Profiles and selection
 
@@ -121,6 +121,7 @@ Measured behavior of a repeated run:
 | `tam_icp_sizing` | Strategy / Sales Ops | quarterly | horizon | 99 |
 | `pricing_packaging` | Finance / Pricing | quarterly | last complete month | 99 |
 | `retention_cohorts` | CS / Finance | quarterly | horizon | 99 |
+| `ltv_by_segment` | AM / Finance | quarterly | horizon | 99 |
 | `lead_scoring_validation` | Marketing Ops | quarterly | horizon | 99 |
 | `experimentation_platform` | Marketing Ops / Analytics Engineering | quarterly | horizon | 99 |
 | `mmm_incrementality` | Marketing Ops / Finance | quarterly | horizon | 99 |

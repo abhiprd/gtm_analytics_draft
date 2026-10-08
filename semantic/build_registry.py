@@ -720,10 +720,12 @@ _GAP_NOTE_OVERRIDES = {
         "mart_segment_migration, which query_metric does not serve."
     ),
     "ltv_by_segment_acquisition_channel": (
-        "A non-additive diagnostic overlay on Consumption payback with no mart-backed series: it is "
-        "a modeled lifetime view (retention curves, CAC and expansion drivers) that, when built, is "
-        "computed outside the mart engine rather than served from a mart_* table. Query "
-        "consumption_payback for the single-window recovery read it extends."
+        "A non-additive diagnostic overlay on Consumption payback with no children and no mart-backed "
+        "series, so query_metric serves no data for it. The modeled lifetime view (survival by entry "
+        "segment, MRR per surviving account, margin and CAC) is computed outside the mart engine by "
+        "analytics/ltv_by_segment.py: Commercial and Enterprise as ranges, SMB split by acquisition "
+        "channel, the channel difference being a CAC difference. Query consumption_payback for the "
+        "single-window recovery read it extends."
     ),
     "marketing_sales_handoff_quality": _NO_MQL_SAL_LIFECYCLE,
     "mql_response_sla": _NO_MQL_RESPONSE_SLA,
