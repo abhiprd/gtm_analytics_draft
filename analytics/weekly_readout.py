@@ -37,9 +37,10 @@ a fresh run, never re-derived here.
 Three consequences follow, all deliberate:
   * The engine's caveats travel with the numbers rather than being
     quietly smoothed over -- Activation reports "Not computable" (blended
-    TTFA is identically 0 at this data's monthly grain), and the five
-    plan-comparability caveats (magic number, consumption payback, AM
-    efficiency, NRR, GRR) are reproduced next to the metrics they qualify.
+    TTFA is identically 0 at this data's monthly grain), and the seven
+    plan-comparability caveats (expansion, contraction + churn, magic
+    number, consumption payback, AM efficiency, NRR, GRR) are reproduced
+    next to the metrics they qualify.
   * The Layer-1 scorecard carries all eleven nodes every period,
     unconditionally, including those six -- the build spec asks for the
     scorecard "every week... value, vs. plan, status", and a gap reported

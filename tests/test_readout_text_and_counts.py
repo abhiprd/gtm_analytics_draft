@@ -161,7 +161,10 @@ class TestVoice:
             if row["plan_comparability_note"]:
                 assert len(row["plan_comparability_note"]) <= 260, row["metric_key"]
         caveated = [r for r in sc if r["plan_comparability"] == "caveated"]
-        assert len(caveated) == 5
+        assert len(caveated) == 7
+        assert {r["metric_key"] for r in caveated} == {
+            "expansion_consumption_revenue", "contraction_churned_revenue", "magic_number",
+            "consumption_payback", "am_efficiency", "nrr", "grr"}
         for row in caveated:
             assert row["plan_comparability_detail"], row["metric_key"]
             assert row["plan_comparability_note"].startswith("Caveated:")
@@ -192,12 +195,23 @@ class TestVoice:
         for fact in ("annual-equivalent", "5.4%", "10.8%", "0.51", "1.82", "within 2%"):
             assert fact in nrr, fact
         assert rows["grr"]["plan_comparability_detail"].startswith("Same two adjustments as NRR")
+        exp = rows["expansion_consumption_revenue"]["plan_comparability_detail"]
+        for fact in ("benchmark-blended NRR and GRR anchors", "about 1.95% of base a month",
+                     "any month-on-month usage increase as expansion", "about 11% of starting revenue",
+                     "5.6 times", "within about 10%", "1.82", "1.17"):
+            assert fact in exp, fact
+        con = rows["contraction_churned_revenue"]["plan_comparability_detail"]
+        for fact in ("1 - GRR^(1/12)", "any month-on-month usage decline as contraction",
+                     "5.1% to 5.4% of starting revenue", "seven to nine times", "0.1% to 0.3%",
+                     "within about 10%", "0.51", "0.93", "Logo retention", "within about 2%"):
+            assert fact in con, fact
 
     def test_every_short_note_is_in_the_drilldown_it_belongs_to(self, readouts):
         d = "2025-11-30"
         entries = {e["layer1"]["metric_key"]: e for e in readouts[d]["drilldowns"]["entries"]}
         rows = {r["metric_key"]: r for r in readouts[d]["layer1_scorecard"]["rows"]}
-        for k in ("magic_number", "consumption_payback", "am_efficiency", "nrr", "grr"):
+        for k in ("expansion_consumption_revenue", "contraction_churned_revenue", "magic_number",
+                  "consumption_payback", "am_efficiency", "nrr", "grr"):
             assert rows[k]["plan_comparability_note"] in entries[k]["notes"], k
         assert vd.PIPELINE_GENERATED_SCOPE_NOTE in entries["new_logo_consumption_revenue"]["notes"]
         assert any(i["detail"] == vd.PIPELINE_GENERATED_SCOPE_DETAIL
