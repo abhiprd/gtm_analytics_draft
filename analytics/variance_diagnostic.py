@@ -537,6 +537,12 @@ _child("share_of_voice", "Share of voice vs. named competitors", "brand_awarenes
        NOT_COMPUTABLE, "No competitive-intelligence source exists in the project.")
 
 _l1("activation", "Activation (TTFA, blended)", "growth", "lower", NO_PLAN_BY_DESIGN,
+    computability=PARTIAL,
+    gap_note=(
+        "Blended time to first Action is identically 0 in every month, so the series "
+        "carries no variance signal and no deviation from its trailing baseline can be "
+        "computed. Usage is recorded monthly and every account records its first Action "
+        "in its signup month."),
     plan_comparability_note=(
         "No plan row exists for Activation, so it is compared with its trailing 3-month "
         "baseline. Blended time to first Action is 0 in every month, so the baseline is 0 "
@@ -568,7 +574,29 @@ _child("quickstart_docs_engagement_rate", "Quickstart/docs content engagement ra
        "build spec was not generated.")
 
 _l1("expansion_consumption_revenue", "Expansion consumption revenue", "growth",
-    "higher", COMPARABLE)
+    "higher", CAVEATED,
+    plan_comparability_note=(
+        "Caveated: the actual counts any month-on-month usage increase as expansion, while "
+        "the plan's expansion is derived from the benchmark NRR. The level gap against plan "
+        "is definitional."),
+    plan_comparability_detail=(
+        "The variance is computed, but plan and actual are not on the same footing, so the "
+        "level gap is not a performance finding on its own. The plan's monthly expansion is "
+        "not a separate forecast of expansion bookings: it is a share of the revenue base "
+        "solved out of the benchmark-blended NRR and GRR anchors (NRR^(1/12) - 1 plus the "
+        "contraction-plus-churn share, about 1.95% of base a month in each plan year), so "
+        "the plan's flow rows and its NRR and GRR rows are two readings of one identity. "
+        "The actual is the gross month-on-month bucket: the revenue-movement model counts "
+        "any month-on-month usage increase as expansion. In a consumption business whose "
+        "base grows about 88% a year that bucket is about 11% of starting revenue a month "
+        "in each of 2023, 2024 and 2025, about 5.6 times the plan's share. The plan's "
+        "dollar base tracks the actual base to within about 10% in those years, so the "
+        "dollar gap is a gap in the share of base, not in the size of the base. It is the "
+        "same definitional difference that caveats NRR (trailing-12-month NRR about 1.82 "
+        "against a 1.17 plan) and moves with Contraction + churned revenue, because large "
+        "gross increases and decreases largely offset in the actuals. Read the sign and "
+        "the Layer-2 drill-down, not the level. The drill-down ranks each leg against its "
+        "own trailing baseline and is not affected by a level offset."))
 _child("wallet_share_progression", "Wallet share progression",
        "expansion_consumption_revenue", NOT_COMPUTABLE,
        "Needs an account's total addressable workflow footprint as the denominator of "
@@ -587,7 +615,32 @@ _child("overage_realization", "Overage realization", "expansion_consumption_reve
        PARTIAL, _OVERAGE_NOTE)
 
 _l1("contraction_churned_revenue", "Contraction + churned revenue", "growth",
-    "lower", COMPARABLE)
+    "lower", CAVEATED,
+    plan_comparability_note=(
+        "Caveated: the actual counts any month-on-month usage decline as contraction, while "
+        "the plan's contraction and churn are derived from the benchmark GRR. The level gap "
+        "against plan is definitional."),
+    plan_comparability_detail=(
+        "The variance is computed, but plan and actual are not on the same footing, so the "
+        "level gap is not a performance finding on its own. The plan's monthly contraction "
+        "plus churn is a share of the revenue base solved out of the benchmark-blended GRR "
+        "anchor (1 - GRR^(1/12), about 0.6% to 0.8% of base a month across the plan years), "
+        "so it describes durable downsell and outright churn in a mature base, and the "
+        "plan's flow rows and its NRR and GRR rows are two readings of one identity. The "
+        "actual is the gross month-on-month bucket: the revenue-movement model counts any "
+        "month-on-month usage decline as contraction. In a consumption business whose base "
+        "grows about 88% a year, that bucket is about 5.1% to 5.4% of starting revenue a "
+        "month in each of 2023, 2024 and 2025, seven to nine times the plan's share, of "
+        "which outright churn is about 0.1% to 0.3%. The plan's dollar base tracks the "
+        "actual base to within about 10% in those years, so the dollar gap is a gap in the "
+        "share of base, not in the size of the base. It is the same definitional difference "
+        "that caveats GRR (trailing-12-month GRR about 0.51 against a 0.93 plan) and NRR, "
+        "and it moves with Expansion consumption revenue, because large gross increases and "
+        "decreases largely offset in the actuals. Logo retention, which has no gross-flow "
+        "bucket, reconciles to plan within about 2%, which indicates the churn leg is sound "
+        "and the scope of the contraction bucket is what differs. Read the sign and the "
+        "Layer-2 drill-down, not the level. The drill-down ranks each leg against its own "
+        "trailing baseline and is not affected by a level offset."))
 _child("workflow_chain_underutilization", "Workflow chain under-utilization",
        "contraction_churned_revenue", PARTIAL, _WORKFLOW_CHAIN_NOTE)
 _child("ingestion_without_completion_rate", "Ingestion-without-completion rate",

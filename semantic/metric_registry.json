@@ -1,6 +1,6 @@
 {
-  "content_sha256": "712e1e2f946d60b99af650262e343fd687ca73d30b50f81b44ed8e8aa50ad8e0",
-  "generated_at": "2026-10-08T18:05:00.097601+00:00",
+  "content_sha256": "452c63a07507928ceeb1db954e793ffd3e3876306f11c5ef40b42ff3842851a9",
+  "generated_at": "2026-10-08T22:12:07.504128+00:00",
   "metric_order": [
     "new_logo_consumption_revenue",
     "pipeline_generated",
@@ -147,13 +147,13 @@
         "time_to_first_integration_first_successful_run",
         "quickstart_docs_content_engagement_rate"
       ],
-      "computability": "full",
+      "computability": "partial",
       "computable": true,
       "cross_reference": false,
       "detail": [],
       "formula": "Days from provisioning to first production Action",
       "formula_note": "(TTFA), by segment",
-      "gap_note": "Blended TTFA is identically 0 in the current generated data (fact_usage_monthly is monthly grain -- every account's first Action lands in its own signup month). Real, not fabricated, just degenerate on this data.",
+      "gap_note": "Blended time to first Action is identically 0 in every month and every segment of the current data: usage is recorded at monthly grain, so every account's first production Action lands in its own signup month and the series is measured in whole calendar months. The series is real but carries no variance signal, so no variance can be computed. Partial, matching the variance-diagnostic engine, which reports Activation as Not computable. A real signal needs a day-grain first-Action timestamp in the raw data and a corresponding mart change.",
       "key": "activation",
       "layer": 1,
       "name": "Activation",
@@ -2566,7 +2566,7 @@
       "tagline": "consumption revenue growth"
     }
   },
-  "registry_version": 10,
+  "registry_version": 11,
   "source_tree_file": "docs/acme-corp-gtm-metric-tree.md",
   "source_tree_sha256": "f24a0818dc7e4189e3616e254713d02228e704e0dac5f921c64c71dc8c928531"
 }
