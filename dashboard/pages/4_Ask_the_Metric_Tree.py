@@ -121,9 +121,7 @@ def _render_tree_panel() -> None:
         "▸ opens its children."
     )
     st.sidebar.caption(
-        " · ".join(f"{A.STATUS_GLYPH[s]} {A.STATUS_LABEL[s]}" for s in (
-            A.STATUS_QUERYABLE, A.STATUS_PARTIAL, A.STATUS_NOT_COMPUTABLE,
-            A.STATUS_OVERLAY, A.STATUS_CROSS_REFERENCE, A.STATUS_DEGENERATE))
+        " · ".join(f"{A.STATUS_GLYPH[s]} {A.STATUS_LABEL[s]}" for s in A.STATUS_LEGEND_ORDER)
     )
     for pillar, keys in by_pillar.items():
         dot = theme.PILLAR_COLOR.get(pillar.lower(), theme.NEUTRAL_GRAY)
@@ -245,7 +243,7 @@ def _children_table(own: dict, children: list, subset) -> None:
     layer = children[0]["layer"]
     rows = []
     for c in children:
-        status = c.get("status_label") or A.STATUS_LABEL[c["status"]]
+        status = A.STATUS_LABEL[c["status"]]
         glyph = A.STATUS_GLYPH[c["status"]]
         if c["state"] == "value":
             period_note = "" if c.get("aligned") else f' <span class="reason">({c["period_label"]})</span>'

@@ -184,7 +184,11 @@ class TestNodeStatusAndTree:
         ("win_rate", A.STATUS_QUERYABLE),
         ("marketing_sales_handoff_quality", A.STATUS_OVERLAY),
         ("ltv_by_segment_acquisition_channel", A.STATUS_OVERLAY),
-        ("pipeline_generated", A.STATUS_NOT_COMPUTABLE),
+        ("pipeline_generated", A.STATUS_IN_READOUT),
+        ("organic_content", A.STATUS_IN_READOUT),
+        ("paid", A.STATUS_IN_READOUT),
+        ("community_events", A.STATUS_IN_READOUT),
+        ("workflow_migration_rate", A.STATUS_NOT_COMPUTABLE),
         ("marketing_spend_allocation_by_channel", A.STATUS_PARTIAL),
         ("see_growth_contraction_churn_drivers", A.STATUS_CROSS_REFERENCE),
     ])
@@ -433,14 +437,70 @@ class TestQueryInterfaceGap:
         a = answer("pipeline generated")
         for c in a["children"]:
             if c["query_gap"]:
-                assert c["reason"] == "Not available through this query interface; shown in the weekly readout."
-                assert c["status_label"] == "Not queryable here"
+                assert c["reason"] == "Not queryable here"
+                assert c["status"] == A.STATUS_IN_READOUT
+                assert "status_label" not in c
 
     def test_a_genuinely_uncomputable_node_gives_its_reason_without_the_old_prefix(self):
         a = answer("workflow migration rate")
         assert a["own"]["query_gap"] is False
         assert "no data source mapped" not in a["own"]["message"].lower()
         assert "business-process-level onboarding events" in a["own"]["message"]
+
+    def test_the_four_attribution_nodes_get_their_own_status_not_not_computable(self):
+        for key in ("pipeline_generated", "organic_content", "paid", "community_events"):
+            assert METRICS[key]["computable"] is False
+            assert A.node_status(METRICS[key]) == A.STATUS_IN_READOUT
+        assert A.STATUS_LABEL[A.STATUS_IN_READOUT] == "Shown in the weekly readout"
+        assert A.STATUS_GLYPH[A.STATUS_IN_READOUT] == "\u25a4"
+
+    def test_the_answer_status_line_and_child_rows_carry_the_new_status(self):
+        a = answer("pipeline generated")
+        assert a["own"]["status"] == A.STATUS_IN_READOUT
+        legs = {c["key"]: c["status"] for c in a["children"]}
+        assert [legs[k] for k in ("organic_content", "paid", "community_events")] == [A.STATUS_IN_READOUT] * 3
+        assert [c["status"] for c in a["children"] if c["key"] not in legs or legs[c["key"]] != A.STATUS_IN_READOUT] \
+            == [A.STATUS_CROSS_REFERENCE]
+        b = answer("What is New logo consumption revenue?")
+        by_key = {c["key"]: c for c in b["children"]}
+        assert by_key["pipeline_generated"]["status"] == A.STATUS_IN_READOUT
+
+    def test_the_legend_lists_all_seven_states_including_the_new_one(self):
+        assert len(A.STATUS_LEGEND_ORDER) == 7 == len(set(A.STATUS_LEGEND_ORDER))
+        assert set(A.STATUS_LEGEND_ORDER) == set(A.STATUS_LABEL) == set(A.STATUS_GLYPH)
+        assert A.STATUS_IN_READOUT in A.STATUS_LEGEND_ORDER
+        glyphs = [A.STATUS_GLYPH[s] for s in A.STATUS_LEGEND_ORDER]
+        assert len(set(glyphs)) == 7
+
+    def test_every_other_not_computable_registry_node_keeps_not_computable(self):
+        marker_nodes = {"pipeline_generated", "organic_content", "paid", "community_events"}
+        for key, n in METRICS.items():
+            status = A.node_status(n)
+            if key in marker_nodes:
+                assert status == A.STATUS_IN_READOUT
+            elif (not n["computable"] and not n.get("cross_reference") and n.get("additive", True)):
+                assert status == A.STATUS_NOT_COMPUTABLE, key
+        # and the new state is applied only where the registry note opens with the marker
+        in_readout = {k for k, n in METRICS.items() if A.node_status(n) == A.STATUS_IN_READOUT}
+        assert in_readout == {k for k, n in METRICS.items()
+                              if not n["computable"] and n.get("additive", True)
+                              and not n.get("cross_reference")
+                              and str(n.get("gap_note") or "").lower().lstrip().startswith("computed and validated")}
+
+    def test_a_note_that_merely_mentions_the_attribution_step_is_not_the_new_status(self):
+        for note in (
+            "Needs a lead stage; analytics/marketing_attribution.py does not provide it.",
+            "Not a node that is computed and validated elsewhere.",
+            "The marketing attribution step computed and validated a related figure.",
+            "",
+            None,
+        ):
+            node = {"computable": False, "gap_note": note}
+            assert A.node_status(node) == A.STATUS_NOT_COMPUTABLE
+        assert A.node_status({"computable": False, "gap_note": "Computed and validated by x.py"}) == A.STATUS_IN_READOUT
+
+    def test_a_computable_node_is_never_in_readout_even_with_the_marker(self):
+        assert A.node_status({"computable": True, "gap_note": "Computed and validated by x.py"}) == A.STATUS_QUERYABLE
 
     def test_detection_keys_on_the_registry_wording(self):
         from dashboard.lib import labels
