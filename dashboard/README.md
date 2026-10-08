@@ -9,7 +9,7 @@ chat demo called for in the build spec's Section 6 scope guardrail. Nothing here
 ## Why Streamlit, not Next.js
 
 Section 7 left the framework open. Streamlit was chosen because every other layer of this
-project is already Python end-to-end -- the marts, the semantic layer, and all twenty Phase
+project is already Python end-to-end -- the marts, the semantic layer, and all twenty-one Phase
 4 artifacts. A Next.js frontend would need a REST API layer in front of that Python to
 expose it to a browser, which is exactly the kind of extra surface Section 6 says to avoid
 ("resist building a full BI platform"). Streamlit reads the DuckDB marts and imports
@@ -51,7 +51,7 @@ at least one `analytics/outputs/weekly_readout_*.json` (`python3 -c "from analyt
 |---|---|---|
 | `app.py` (router) + `home.py` | `analytics/outputs/` latest readout | Nothing -- `app.py` registers the pages with `st.navigation` (so the sidebar entry reads "Home", not "app"); `home.py` shows headline counts only |
 | `pages/1_Digest.py` | `analytics/outputs/weekly_readout_*.json` | Nothing -- renders the artifact's own output verbatim, including its forecast section, each drill-down's repeat marker, and the segment-mix section (or a section's `unavailable` state and reason) |
-| `pages/2_Forecast.py` | `analytics/forecast.py`'s `run_forecast()` | Trains the win-probability model live (`log=False` -- never writes to `fact_model_performance_history`), cached per forecast call date for the session. Opens on the newest readout's forecast call and reports whether its figures match that readout |
+| `pages/2_Forecast.py` | `analytics/forecast.py`'s `run_forecast()` | Trains the win-probability model live (`log=False` -- never writes to `fact_model_performance_history`), cached per forecast call date for the session. Opens on the newest readout's forecast call and reports whether its figures match that readout. Also calls `analytics/pipeline_coverage.py`'s `run_pipeline_coverage()` in-process at the same call date for the pipeline-coverage section (see below) |
 | `pages/3_Segment_Efficiency.py` | `mart_growth_bridge`, `mart_efficiency`, `mart_durability`, `mart_segment_migration` | Nothing -- these marts are already segment x month grain |
 | `pages/4_Ask_the_Metric_Tree.py` | `semantic/server.py`'s registry and `query_metric`, called in-process | Nothing new -- routes a question to the same guardrailed tool an MCP client calls; a standing sidebar tree built from the registry is the on-ramp |
 
@@ -155,6 +155,60 @@ detail and reason and no figures. `lib/forecast_view.py` is shared with the Fore
 show the same figures in the same form; the Forecast page opens on the newest readout's forecast
 call and states whether its figures match that readout.
 
+## The Forecast page's pipeline-coverage section
+
+Below the lenses, the Forecast page shows a **coverage reading, not a forecast**: whether the open new-business
+pipeline, at the recent realized win rate, covers the quota still to book this quarter. It calls
+`analytics.pipeline_coverage.run_pipeline_coverage(as_of_date)` in-process at the page's forecast call date (the
+artifact accepts any date, so there is no second date picker, and its open pipeline ties to the forecast's
+new-business pipeline for the same call) and renders the output's `display` strings verbatim. `lib/coverage_view.py`
+(Streamlit-free, `tests/test_dashboard_coverage_view.py`) holds the rules and `lib/coverage_render.py` draws them.
+A failure to produce the reading (the call raises, for example on a date the underlying forecast data cannot serve)
+shows a plain notice and leaves the lenses untouched; no exception text reaches the page.
+
+- **Header.** A neutral "Coverage reading, not a forecast" chip, an info row (evaluation date, quarter, grain, artifact
+  status) and one line saying open pipeline is new business only (ISR- and AE-owned, closing in the quarter) and so
+  differs from the lenses above, which also price renewal and expansion. The artifact status ("In progress, not yet
+  independently validated") reads from `project_status.json` and drops its suffix when the component is
+  `built_and_validated`. When the call date is not the quarter's mid-quarter checkpoint (the artifact's own
+  `mid_quarter_eval_date`, the only date its backtest covers) a bold line under the chip says "Outside the mid-quarter
+  backtest window: this date is not validated" and names the checkpoint date.
+- **Per segment.** A heading, a neutral gray chip "Proposed band: Thin, 0.75x to below 1.00x of required" (bands from the
+  artifact's `status_rule`; never green or red, because the bands are proposed and the evidence is a small set of
+  mid-quarter readings), a summary line in coverage language built from the artifact's display strings ("... the
+  pipeline is 0.50x of required. At the recent win rate the open pipeline would close about $184.9K, $181.7K less than
+  the quota still to book"; a segment with quota met keeps the artifact's own summary), a qualifier line from the backtest
+  summary (average error per segment and, for Commercial, that the reading runs about 15% below actual bookings because
+  deals created after mid-quarter are not visible: treat it as a floor), then four equal-height cards: remaining quota,
+  open new-business pipeline, coverage vs required ("0.50x of required"), conversion-implied gap ("$181.7K short" or
+  "$1.27M ahead"; a trailing "short"/"ahead" always splits into a large figure and a small unit, `formatting.split_unit_value`).
+  Each ends in a "Basis:" line that states the win-rate window actually used. A segment whose quota is met has a null
+  coverage ratio and reads "Quota met", never 0.00x, and its gap card says the figure is an expected surplus over
+  the quota still to book. A real zero pipeline reads "None open" with "No open new-business pipeline for this quarter".
+  Enterprise adds a small card for the POC outcome view, labelled "Indicative, not a forecast" and "Not backtested;
+  thin sample", with its closed-deal and won counts. Key sentences use the page's body-small style (`.note-line`), not
+  `st.caption`, which measures below 4.5:1.
+- **Unavailable segment.** A plain-language info box per reason code (no quota, before the conversion window, too
+  few closed deals, no wins in the window, after the data window) and no figures; the segment is also left out of the
+  next-quarter block and the comparison table, each with a one-line "not shown: coverage unavailable for <Segment>".
+- **Next quarter.** At the data-window end the block is an honest blank ("coverage is blank: the data ends ..., before ...
+  starts ... not zero coverage") with a "Why this is blank" expander. When present it is one line per segment with
+  "no verdict"; Commercial with no open deal reads "none yet".
+- **Compared with the forecast.** A table with the coverage reading's open pipeline and expected close beside the
+  forecast manager lens's, the difference and the forecast's all-opportunity-type pipeline. Open pipeline ties
+  exactly; the expected-close figures differ by design (one realized win rate per segment against per-deal category
+  weights) and are never merged. On a narrow viewport the table scrolls sideways inside its card and the explanation and
+  basis lines stay visible.
+- **Notes & assumptions.** The artifact's caveats (process wording removed by `labels.PHRASE_MAP`), the proposed-band
+  assumption, one Commercial late-created-deal line, a note that the lenses' "pipeline coverage" wording in a CRO override
+  reason is the CRO's logged reason and not this reading, and, when the newest committed `pipeline_coverage_*.json`
+  carries a `backtest_summary`, the backtest stated in full (`data.load_pipeline_coverage_backtest`): the reading's
+  average error pooled and by segment next to every comparator the report carries (won to date alone, prior four-quarter
+  mean, a fixed constant rate, pace), the plain conclusion from the report's own flags (open pipeline beats the first
+  two, a fixed constant-rate formula scores as well or better, so the value is the coverage and gap framing and not extra
+  accuracy), and the hindsight-free scoping result. A comparator the report lacks is omitted and the note says the
+  comparison is incomplete. The in-process call does not carry the backtest.
+
 ## The Digest's repeat marker
 
 Each drill-down entry in the readout carries a `persistence` record from the variance engine
@@ -243,7 +297,7 @@ plan-comparability notes, a registry `gap_note`) is shown as written.
 
 `tests/test_dashboard_routing.py`, `tests/test_dashboard_answers.py`, `tests/test_dashboard_registry_v5.py`,
 `tests/test_dashboard_persistence_view.py`, `tests/test_dashboard_segment_mix_view.py`,
-`tests/test_dashboard_censoring.py`, `tests/test_dashboard_drilldown_view.py` and
+`tests/test_dashboard_censoring.py`, `tests/test_dashboard_drilldown_view.py`, `tests/test_dashboard_coverage_view.py` and
 `tests/test_dashboard_exec_summary_view.py` cover the Streamlit-free modules under the repo's
 default interpreter. `python3 -m pipeline run --only dashboard_smoke` renders every page headless
 under `dashboard/.venv`.

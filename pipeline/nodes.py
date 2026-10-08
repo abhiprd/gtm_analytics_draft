@@ -188,6 +188,12 @@ ANALYTICS_NODES: Tuple[Node, ...] = (
                description="Rep productivity and coaching diagnostics"),
     _analytics("territory_coverage", ("2025-12-31",),
                description="Territory and account coverage"),
+    # Imports capacity_planning's quota loader and forecast's open-pipeline
+    # scoping, and reconciles to forecast's manager lens; reads neither
+    # artifact's logged output, but runs after both so a break in either
+    # surfaces there first.
+    _analytics("pipeline_coverage", ("2025-08-15", "2025-11-14"), ("capacity_planning", "forecast"),
+               description="Pipeline coverage by segment against realized conversion"),
     _analytics("tam_icp_sizing", ("2025-12-31",),
                description="TAM / ICP / opportunity sizing"),
     _analytics("pricing_packaging", ("2025-11-30",),

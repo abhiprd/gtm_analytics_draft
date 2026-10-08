@@ -233,6 +233,39 @@
       "sla_rationale": "Strategic and market-facing (build spec Wave 5, not part of the weekly cadence); territory assignments and market universe change at planning cycles. A 92-day quarter plus a 7-day close window."
     },
     {
+      "name": "pipeline_coverage",
+      "kind": "analytics",
+      "node": "pipeline_coverage",
+      "module": "analytics.pipeline_coverage",
+      "owner": "Sales Ops / RevOps",
+      "cadence": "weekly",
+      "basis": "last_complete_month",
+      "max_staleness_days": 21,
+      "depends_on": [
+        "dbt_marts",
+        "capacity_planning",
+        "forecast"
+      ],
+      "entrypoint_as_of": [
+        "2025-08-15",
+        "2025-11-14"
+      ],
+      "evidence": [
+        {
+          "type": "output_files",
+          "glob": "analytics/outputs/pipeline_coverage_*.json",
+          "label": "outputs/pipeline_coverage"
+        },
+        {
+          "type": "perf_log",
+          "model_name": "pipeline_coverage",
+          "label": "performance_log/pipeline_coverage"
+        }
+      ],
+      "fresh_means": "Reports and logged checkpoints exist for the mid-quarter reference date, with every reconciliation to the quota panel and the forecast artifact passing.",
+      "sla_rationale": "The CRO reads coverage every week, so the operating cadence is weekly, but the artifact is evaluated at a fixed mid-quarter point so quarters are comparable. The canonical checkpoint is mid-quarter (2025-11-14, the same point and the same reason as the forecast: the last point with a large enough open Commercial/Enterprise population to read before the data window ends); it sits 16 days behind the last complete month. 21 days = three weekly cycles. Owner review item: a tighter SLA needs a later canonical checkpoint."
+    },
+    {
       "name": "tam_icp_sizing",
       "kind": "analytics",
       "node": "tam_icp_sizing",
@@ -553,6 +586,7 @@
         "deal_diagnostics",
         "rep_productivity",
         "territory_coverage",
+        "pipeline_coverage",
         "tam_icp_sizing",
         "pricing_packaging",
         "retention_cohorts",

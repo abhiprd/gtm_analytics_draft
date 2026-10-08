@@ -358,6 +358,14 @@ DRIFT_HOOK_CATALOG = [
         doc_anchor="(`coverage_index_whitespace_apac`",
     ),
     dict(
+        hook_id="pipeline_coverage_mape_ratio_vs_naive_baseline",
+        artifact="pipeline_coverage",
+        rule_family=RULE_MODEL_CALIBRATION,
+        persisted_metric_names=("backtest_mape_ratio_vs_naive_baseline",),
+        condition="above 1.0 for 2 consecutive checkpoints -> the coverage-implied bookings no longer beat the better naive baseline",
+        doc_anchor="`backtest_mape_ratio_vs_naive_baseline` is above **1.0**",
+    ),
+    dict(
         hook_id="mmm_checks_passed",
         artifact="mmm_incrementality",
         rule_family=RULE_GROUNDING_INTEGRITY,

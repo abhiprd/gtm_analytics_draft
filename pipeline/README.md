@@ -18,7 +18,7 @@ python3 -m pipeline check-freshness --as-of 2025-12-31
 
 ```
 gen_* (opt-in) -> qa_pipeline -> qa_raw -> dbt_build -> qa_marts
-                                              |-> governance_gate -> 21 analytics artifacts (20 + executive_summary)
+                                              |-> governance_gate -> 22 analytics artifacts (21 + executive_summary)
 registry_check                                                    -> proxy_metric_health (last)
    -> dbt_refresh_logs -> semantic_smoke, dashboard_smoke -> freshness_check
 ```
@@ -32,14 +32,14 @@ registry_check                                                    -> proxy_metri
 | `qa_marts` | pytest | `dbt_build` | Every other test file: mart-, log- and gate-level checks. |
 | `governance_gate` | gate | `dbt_build` | `pipeline gate --check identity` (below). Read-only. |
 | `registry_check` | gate | nothing | `pipeline gate --check registry` (below). |
-| 20 other analytics nodes | analytics | `governance_gate`, plus real data dependencies | Each runs `python3 -m analytics.<module>` (`deal_diagnostics`, a library module, runs through `pipeline/entrypoints.py`). |
+| 21 other analytics nodes | analytics | `governance_gate`, plus real data dependencies | Each runs `python3 -m analytics.<module>` (`deal_diagnostics`, a library module, runs through `pipeline/entrypoints.py`). |
 | Optional analytics node `executive_summary` | analytics | `weekly_readout` | Fills the readout's executive-summary slot through the Claude API and re-renders the Markdown (below). Ends `SKIPPED` without `ANTHROPIC_API_KEY`. |
 | `dbt_refresh_logs` | dbt | `proxy_metric_health` | Re-materializes `fact_model_performance_history` and `fact_playbook_triggers` from the logs the analytics nodes just wrote. |
 | `semantic_smoke` | smoke, `semantic/.venv` | `registry_check`, `dbt_refresh_logs` | The MCP server module imports and answers `list_metrics`, `get_metric_definition` and a real `query_metric`; an unknown metric is rejected. |
 | `dashboard_smoke` | smoke, `dashboard/.venv` | `weekly_readout`, `dbt_refresh_logs` | Every Streamlit page renders headless (AppTest) without raising. |
 | `freshness_check` | freshness | everything above | `pipeline check-freshness`. |
 
-Analytics dependencies that are real data or log dependencies, not style: `marketing_attribution` before `variance_diagnostic` (it imports the pipeline-generated node) and before `mmm_incrementality` (it benchmarks against the holdout estimates); `variance_diagnostic` before `scenario_planning`; `playbook_triggers`, `variance_diagnostic`, `health_score` and `forecast` before `weekly_readout` (the readout reads `data/playbook_triggers.csv`, runs the variance engine and watchlist, and calls `run_forecast()` for its forecast section); `weekly_readout` before `executive_summary` (it summarizes the readout JSON that node just wrote); every other artifact, `executive_summary` included, before `proxy_metric_health`, which counts their logged checkpoints. `governance_gate` precedes all of them so a run never rewrites tracked outputs on top of marts whose metric-tree identities do not hold.
+Analytics dependencies that are real data or log dependencies, not style: `marketing_attribution` before `variance_diagnostic` (it imports the pipeline-generated node) and before `mmm_incrementality` (it benchmarks against the holdout estimates); `variance_diagnostic` before `scenario_planning`; `capacity_planning` and `forecast` before `pipeline_coverage` (it imports capacity planning's quota loader and the forecast's open-pipeline scoping and reconciles to the forecast's manager lens); `playbook_triggers`, `variance_diagnostic`, `health_score` and `forecast` before `weekly_readout` (the readout reads `data/playbook_triggers.csv`, runs the variance engine and watchlist, and calls `run_forecast()` for its forecast section); `weekly_readout` before `executive_summary` (it summarizes the readout JSON that node just wrote); every other artifact, `executive_summary` included, before `proxy_metric_health`, which counts their logged checkpoints. `governance_gate` precedes all of them so a run never rewrites tracked outputs on top of marts whose metric-tree identities do not hold.
 
 ### Profiles and selection
 
@@ -98,7 +98,7 @@ Measured behavior of a repeated run:
 
 **`executive_summary` is fresh without prose.** Its evidence is the `executive_summary_narrative` checkpoint in the performance log, written on every run whether or not a summary was generated (`narrative_generated` is 1 or 0). Freshness therefore attests that the narrative step evaluated the current readout; it does not attest that prose exists, so a deployment with no key stays green here. The distinct state lives in the readout JSON (`executive_summary.status`: `generated`, `not_generated` with a reason, or `validation_failed`) and in `narrative_generated`; the dashboard renders from the JSON.
 
-**SLA policy.** One cadence period plus a stated slip, using the native grains in the dashboard conventions' grain table and the wave structure in the build spec (Section 8): weekly = 7 + 3 days = 10; monthly = 31 + 4 = 35; quarterly = 92 + 7 = 99; per-build = 10; the registry = 0 (it must change in the same commit as the tree). The loader rejects an SLA tighter than its own cadence. Exceptions to the policy carry their reasoning in the entry's `sla_rationale`: `forecast` is 21 days because its validated checkpoint (2025-11-14, the last mid-quarter point with a large enough open Commercial/Enterprise population to score) sits 16 days behind the last complete month.
+**SLA policy.** One cadence period plus a stated slip, using the native grains in the dashboard conventions' grain table and the wave structure in the build spec (Section 8): weekly = 7 + 3 days = 10; monthly = 31 + 4 = 35; quarterly = 92 + 7 = 99; per-build = 10; the registry = 0 (it must change in the same commit as the tree). The loader rejects an SLA tighter than its own cadence. Exceptions to the policy carry their reasoning in the entry's `sla_rationale`: `forecast` and `pipeline_coverage` are 21 days because their validated checkpoint (2025-11-14, the last mid-quarter point with a large enough open Commercial/Enterprise population to score) sits 16 days behind the last complete month.
 
 | Artifact | Owner | Cadence | Basis | SLA (days) |
 |---|---|---|---|---|
@@ -107,6 +107,7 @@ Measured behavior of a repeated run:
 | `playbook_triggers` | RevOps | weekly | horizon | 10 |
 | `deal_diagnostics` | Sales Ops | weekly | last complete month | 10 |
 | `forecast` | Sales Ops / Finance | weekly | last complete month | 21 |
+| `pipeline_coverage` | Sales Ops / RevOps | weekly | last complete month | 21 |
 | `data_quality_governance` | Analytics Engineering | weekly | horizon | 10 |
 | `variance_diagnostic` | RevOps | monthly | last complete month | 35 |
 | `scenario_planning` | Finance / RevOps | monthly | last complete month | 35 |

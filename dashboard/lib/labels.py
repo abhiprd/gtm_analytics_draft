@@ -216,6 +216,15 @@ PHRASE_MAP: List[Tuple["re.Pattern", object]] = [(re.compile(p, re.S), r) for p,
     (r"\bblended_cac\b", "blended CAC"),
     (r"\bam_expansion_arr\b", "AM expansion ARR"),
     (r"\bSee (?:Growth|Efficiency|Durability): ", ""),
+    # Pipeline coverage caveats (analytics/pipeline_coverage.py)
+    (r"\s*A backtest scenario scoping by created date plus the trailing median cycle instead, which uses no hindsight, "
+     r"is reported in the methods document\.", ""),
+    (r"The two are reconciled in the reconciliation block and never merged\.",
+     "The two are compared side by side and never combined."),
+    (r"needs the forecast's point-in-time POC state, which is unavailable at this date",
+     "the POC outcomes of the open deals are not available at this date"),
+    (r"no open deal carries a point-in-time POC state at this date",
+     "no open deal has a POC outcome recorded at this date"),
     # Voice
     (r"Real, not fabricated, just degenerate on this data\.", "The value is a property of the data."),
     (r"A real data property, not a query bug\.", "The value is a property of the data."),
@@ -236,6 +245,9 @@ PHRASE_MAP_UPSTREAM = [
     "loss_reason_mix / support_ticket_volume_severity notes say 'the mart carries'.",
     "semantic/server.py guardrail messages: 'gap_note:' / 'queryable_dimensions' quoted inside the message, "
     "'(note: ...)' wrapper and '**non-additive**' markdown.",
+    "analytics/pipeline_coverage.py caveats and POC reasons: 'reconciled in the reconciliation block', 'is reported in the "
+    "methods document' and 'point-in-time POC state' are build-process wording; the backtest scenario sentence is dropped "
+    "at display time and quoted from the backtest summary instead.",
     "analytics/outputs readout: watchlist caveat citing docs/acme-corp-analytics-methods.md; rule catalog "
     "description with 'full_chain_completion_rate < 70%'; forecast divergence status with 'spread > 25%'; "
     "the forecast caveat about 'the marts' final selects'.",

@@ -44,3 +44,23 @@ def months(v: Optional[float]) -> str:
     if a < 0.005:
         return "<0.01" if v > 0 else ">-0.01"
     return f"{v:.2f}"
+
+
+VALUE_UNIT_WORDS = ("short", "ahead")
+
+
+def split_unit_value(text: str):
+    """(number, unit) when a card value is a figure followed by a unit, so the figure can
+    be set large and the unit small; None otherwise. A trailing 'short' or 'ahead' always
+    splits (a gap such as '$47.6K short' reads the same at any length); any other value
+    splits only past 12 characters (as the cards always did)."""
+    t = str(text)
+    if "<" in t or not t or t[0] not in "0123456789-+$":
+        return None
+    for word in VALUE_UNIT_WORDS:
+        if t.endswith(" " + word) and len(t) > len(word) + 1:
+            return t[: -len(word) - 1], word
+    if len(t) > 12 and " " in t:
+        number, unit = t.split(" ", 1)
+        return number, unit
+    return None

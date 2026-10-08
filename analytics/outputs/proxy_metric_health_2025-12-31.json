@@ -3,24 +3,24 @@
   "summary": {
     "checks_total": 3,
     "checks_passed": 3,
-    "hooks_cataloged": 26,
-    "hooks_traced_to_doc": 30,
+    "hooks_cataloged": 27,
+    "hooks_traced_to_doc": 31,
     "hooks_with_zero_persisted_readings": 3,
     "not_drift_monitored_artifacts": 3,
     "not_yet_built_artifacts": 1,
-    "models_with_any_checkpoint": 21,
+    "models_with_any_checkpoint": 22,
     "min_checkpoints_across_models": 1,
     "max_checkpoints_across_models": 3,
     "data_gap_roots_cataloged": 14,
     "data_gap_roots_live_confirmed": 14,
     "pipeline_generated_stale_marking_confirmed": false,
     "artifacts_with_confirmed_threshold": 1,
-    "artifacts_with_proposed_not_confirmed_threshold": 17
+    "artifacts_with_proposed_not_confirmed_threshold": 18
   },
   "doc_trace_check": {
     "passed": true,
-    "n_total": 30,
-    "n_passed": 30,
+    "n_total": 31,
+    "n_passed": 31,
     "results": [
       {
         "id": "health_score_auc",
@@ -170,6 +170,13 @@
         "traces_to_doc": true
       },
       {
+        "id": "pipeline_coverage_mape_ratio_vs_naive_baseline",
+        "kind": "hook",
+        "artifact": "pipeline_coverage",
+        "doc_anchor": "`backtest_mape_ratio_vs_naive_baseline` is above **1.0**",
+        "traces_to_doc": true
+      },
+      {
         "id": "mmm_checks_passed",
         "kind": "hook",
         "artifact": "mmm_incrementality",
@@ -313,7 +320,7 @@
   },
   "checkpoint_reconciliation_check": {
     "passed": true,
-    "n_models_checked": 21,
+    "n_models_checked": 22,
     "mismatches": []
   },
   "pipeline_generated_staleness": {
@@ -398,6 +405,13 @@
       "as_of_dates": [
         "2025-06-30",
         "2025-12-31"
+      ]
+    },
+    "pipeline_coverage": {
+      "n_checkpoints": 2,
+      "as_of_dates": [
+        "2025-08-15",
+        "2025-11-14"
       ]
     },
     "pricing_packaging_analytics": {
@@ -856,6 +870,21 @@
       "max_reading_count": 2
     },
     {
+      "hook_id": "pipeline_coverage_mape_ratio_vs_naive_baseline",
+      "artifact": "pipeline_coverage",
+      "rule_family": "model_calibration_accuracy_drift",
+      "persisted_metric_names": [
+        "backtest_mape_ratio_vs_naive_baseline"
+      ],
+      "reading_dates_by_metric": {
+        "backtest_mape_ratio_vs_naive_baseline": [
+          "2025-08-15",
+          "2025-11-14"
+        ]
+      },
+      "max_reading_count": 2
+    },
+    {
       "hook_id": "mmm_checks_passed",
       "artifact": "mmm_incrementality",
       "rule_family": "grounding_or_apparatus_integrity",
@@ -1159,6 +1188,11 @@
     {
       "artifact_section": "Capacity planning",
       "n_proposed_not_confirmed_mentions": 1,
+      "n_confirmed_by_validator_mentions": 0
+    },
+    {
+      "artifact_section": "Pipeline coverage",
+      "n_proposed_not_confirmed_mentions": 6,
       "n_confirmed_by_validator_mentions": 0
     },
     {

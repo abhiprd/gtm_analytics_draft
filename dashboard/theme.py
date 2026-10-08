@@ -348,10 +348,11 @@ def _card_inner(card: dict) -> str:
         parts = " · ".join(x for x in [lead, escape_html(comparison_display) if comparison_display else ""] if x)
         delta_html = f'<div class="card-delta" style="color:{color}">{parts}</div>'
     value_class = "card-value sm" if card.get("value_size") == "sm" else "card-value"
-    if (len(value_display) > 12 and " " in value_display and value_display[0] in "0123456789-+$"
-            and "<" not in value_display):
-        number, unit_text = value_display.split(" ", 1)
-        value_display = f'{number} <span class="card-unit">{escape_html(unit_text)}</span>'
+    from lib import formatting
+    split = formatting.split_unit_value(value_display)
+    if split:
+        number, unit_text = split
+        value_display = f'{escape_html(number)} <span class="card-unit">{escape_html(unit_text)}</span>'
     elif "<" not in value_display:
         value_display = escape_html(value_display)
     tag_html = f'<div class="card-tag">ⓘ {escape_html(card["tag"])}</div>' if card.get("tag") else ""

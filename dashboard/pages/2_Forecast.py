@@ -25,7 +25,7 @@ sys.path.insert(0, _REPO_ROOT)
 sys.path.insert(0, _DASHBOARD_DIR)
 from analytics import forecast as fc
 import theme
-from lib import data, forecast_logic, forecast_view
+from lib import coverage_render, coverage_view, data, forecast_logic, forecast_view
 
 theme.page_config("Forecast | Acme Corp GTM", "\U0001F4C8")
 theme.inject_global_css()
@@ -41,7 +41,8 @@ st.title("Forecast")
 theme.override_banner()
 st.caption(
     "Commercial and Enterprise. Four lenses per segment — bottoms-up (rep), bottoms-up (manager), "
-    "ML and CRO-adjusted — reconciled side by side with a divergence flag."
+    "ML and CRO-adjusted — reconciled side by side with a divergence flag. A pipeline coverage reading "
+    "against quota follows the lenses."
 )
 
 
@@ -65,6 +66,26 @@ as_of_date = st.date_input(
     help="Weekly forecast calls run through 2025-12-26. The lenses price the deals open at the "
          "call date whose close lands in the call date's quarter.",
 )
+
+
+@st.cache_data(ttl=600, show_spinner="Reading pipeline coverage...")
+def _run_coverage(as_of_date: date) -> dict:
+    """The pipeline-coverage reading for the call date, called in-process. Any failure
+    returns a flag, never the exception text: the page shows a plain notice."""
+    try:
+        from analytics import pipeline_coverage as pcov
+        reading = pcov.run_pipeline_coverage(as_of_date)
+    except Exception:
+        return {"reading": None, "failed": True, "mid_quarter_date": None}
+    try:
+        # The artifact's own evaluation point for the quarter (the only date its backtest
+        # covers); the page compares the call date with it and computes nothing else.
+        import pandas as pd
+        quarter = pd.Period(str(reading["period"]).replace("-", ""), freq="Q")
+        mid = pcov.mid_quarter_eval_date(quarter).date().isoformat()
+    except Exception:
+        mid = None
+    return {"reading": reading, "failed": False, "mid_quarter_date": mid}
 
 
 @st.cache_data(ttl=600, show_spinner="Training the win-probability model and reconciling lenses...")
@@ -98,8 +119,9 @@ theme.info_row([
     ("Days to quarter end", str(days_left) if days_left is not None else "n/a"),
     ("Grain", "Quarterly, Commercial and Enterprise"),
 ])
-st.caption("No plan comparison: no plan or quota is published at this grain and unit. "
-           "The divergence flag between lenses is the comparison shown.")
+st.caption("No plan comparison on the lenses: quota covers new business only, while the lenses price every "
+           "opportunity type. The divergence flag between lenses is the comparison shown; quota appears in "
+           "the pipeline coverage section against new-business pipeline.")
 
 # --- Consistency with the Digest: when this call date is the one a weekly
 # readout carries, the two must agree. A difference is reported, never hidden:
@@ -124,20 +146,39 @@ st.divider()
 
 if recon.empty:
     st.warning("No reconciliation rows returned for this call date.")
-    theme.notes_and_assumptions([("Scope", c) for c in fc.FORECAST_CAVEATS])
+else:
+    for seg_name in ("Commercial", "Enterprise"):
+        if seg_name not in set(recon["segment"]):
+            st.info(f"{theme.escape_md(seg_name)}: no open deals with a close in {theme.escape_md(result['period'])} at this "
+                    "forecast call, so no lens values are produced for the segment.")
+
+    for i, (_, row) in enumerate(recon.iterrows()):
+        forecast_view.render_segment(
+            row.to_dict(), LENS_LABELS, key=f"forecast_page_{i}",
+            divergence_threshold_text=f"Threshold: spread above {fc._DIVERGENCE_THRESHOLD:.0%} of the mean (proposed, not confirmed)",
+            days_left=days_left)
+        st.divider()
+
+# --- Pipeline coverage: a coverage reading, not a forecast. Evaluated at the call date
+# above (the artifact accepts any date), so its open pipeline ties to the forecast's
+# new-business pipeline for the same call. Rendered verbatim from the artifact's output;
+# the page never recomputes a ratio, gap or status. A failure to produce the reading shows
+# a plain notice and leaves the lenses untouched. ---
+coverage = _run_coverage(as_of_date)
+coverage_reading = coverage["reading"]
+coverage_render.render_header((coverage_reading or {}).get("label") or "coverage reading, not a forecast")
+if coverage_reading is None:
+    st.info(theme.escape_md(coverage_view.ERROR_NOTICE))
+    coverage_notes = coverage_view.notes_for(None)
+else:
+    backtest = data.load_pipeline_coverage_backtest()
+    coverage_render.render_reading(coverage_reading, backtest, coverage["mid_quarter_date"])
+    coverage_notes = coverage_view.notes_for(coverage_reading, backtest)
+st.divider()
+
+if recon.empty:
+    theme.notes_and_assumptions([("Scope", c) for c in fc.FORECAST_CAVEATS] + coverage_notes)
     st.stop()
-
-for seg_name in ("Commercial", "Enterprise"):
-    if seg_name not in set(recon["segment"]):
-        st.info(f"{theme.escape_md(seg_name)}: no open deals with a close in {theme.escape_md(result['period'])} at this "
-                "forecast call, so no lens values are produced for the segment.")
-
-for i, (_, row) in enumerate(recon.iterrows()):
-    forecast_view.render_segment(
-        row.to_dict(), LENS_LABELS, key=f"forecast_page_{i}",
-        divergence_threshold_text=f"Threshold: spread above {fc._DIVERGENCE_THRESHOLD:.0%} of the mean (proposed, not confirmed)",
-        days_left=days_left)
-    st.divider()
 
 # --- ML lens quality: model diagnostics, behind an expander so it does not
 # crowd the per-segment verdict above. ---
@@ -169,11 +210,12 @@ notes.append(("Assumption", f"Divergence flag: lens spread above {fc._DIVERGENCE
                             "the computable lenses. The threshold is proposed, not confirmed."))
 notes.append(("Scope", "The ML lens varies by up to about 0.5% across rebuilds of the same data; the "
                        "comparison with the weekly readout treats a difference within 1% as informational."))
-notes.append(("Data gap", "No plan or quota is published at this grain and unit (closed-won opportunity "
-                          "amount for Commercial and Enterprise, per quarter), so no forecast-versus-plan "
-                          "comparison is shown."))
+notes.append(("Data gap", "No plan is published at the lenses' grain and unit (closed-won amount across all "
+                          "opportunity types, per quarter), and quota covers new business only, so no "
+                          "forecast-versus-plan comparison is shown on the lenses."))
 notes.append(("Scope", "The ML classifier excludes the manager's forecast category from its features and "
                        "reads deal mechanics only, so a gap to the bottoms-up lenses is a difference "
                        "between deal mechanics and human judgment."))
 notes.append(("Scope", result["data_window_note"]))
+notes += coverage_notes
 theme.notes_and_assumptions(notes)

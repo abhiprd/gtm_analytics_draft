@@ -165,6 +165,14 @@
         "Segment Efficiency"
       ],
       "note": "Cards use the shared grid (one card per segment per metric, Layer and basis in the footer); rate moves are labeled pp; a move that rounds to zero is neutral; Consumption payback carries a caveat tag (CAC is marketing spend only); the SMB win-rate card carries the structural-gap tag. The underlying marts are built_and_validated; this rendering has not had an independent visual-QA pass since these changes."
+    },
+    "pipeline_coverage": {
+      "status": "in_progress",
+      "artifact": "analytics/pipeline_coverage.py",
+      "shown_on": [
+        "Forecast"
+      ],
+      "note": "Built, not yet independently validated; shown on the Forecast page as a labelled coverage reading, never as a forecast. The page calls run_pipeline_coverage(as_of_date) in-process at the forecast call date and renders its display strings verbatim: per segment (Commercial, Enterprise) four equal-height cards (remaining quota, open new-business pipeline, coverage versus required, conversion-implied gap) with coverage-language summaries and gap wording, a neutral gray 'Proposed band' chip for the coverage status (bands proposed, not confirmed; no green or red verdict), an Enterprise POC view labelled indicative with its deal counts, a next-quarter block that is a 'Why this is blank' state at the data-window end and a no-verdict line per segment when present, a 'Compared with the forecast' table (open pipeline ties; the two expected-close figures sit side by side, never merged), a plain-language box per unavailable segment, and a plain notice if the reading cannot be produced. Caveats and the full committed backtest (every comparator, including the constant-rate formula that scores as well or better) go to Notes & assumptions; a date other than the mid-quarter checkpoint is flagged as not validated. The section states its in-progress status on its face until the artifact is built_and_validated. This rendering has had a builder-side render pass only."
     }
   }
 }
