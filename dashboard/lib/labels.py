@@ -427,6 +427,7 @@ def overlay_sentence(name: str, note: Optional[str], computable: bool, gap_note:
 # "Computed and validated by ..." for the first case.
 
 QUERY_GAP_LEAD = "Not available through this query interface; shown in the weekly readout."
+QUERY_GAP_ROW = "Not queryable here"
 
 _QUERY_GAP_RE = re.compile(r"^\s*computed and validated\b", re.I)
 

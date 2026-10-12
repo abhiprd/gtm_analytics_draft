@@ -51,6 +51,8 @@ Dollar figures are monthly MRR movements. NRR, GRR and logo retention are traili
 ### Scorecard notes
 
 - **Activation (TTFA, blended)** (no_plan_by_design): No plan row exists for Activation, so it is compared with its trailing 3-month baseline. Blended time to first Action is 0 in every month, so the baseline is 0 and no variance is computable.
+- **Expansion consumption revenue** (caveated): Caveated: the actual counts any month-on-month usage increase as expansion, while the plan's expansion is derived from the benchmark NRR. The level gap against plan is definitional.
+- **Contraction + churned revenue** (caveated): Caveated: the actual counts any month-on-month usage decline as contraction, while the plan's contraction and churn are derived from the benchmark GRR. The level gap against plan is definitional.
 - **Magic number (blended)** (caveated): Caveated: the plan is a benchmark for a fully scoped S&M line, while the actual excludes marketing-team headcount and is a trailing-12-month ratio. The level gap against plan is definitional.
 - **Consumption payback (blended)** (caveated): Caveated: the plan band assumes a fully loaded CAC, while the actual CAC is marketing spend only. The actual sits far below the band by definition.
 - **AM efficiency (blended)** (caveated): Caveated: the actual covers Commercial and Enterprise over a trailing 12 months and counts any usage increase as expansion, while the plan includes SMB expansion.
@@ -94,6 +96,7 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 | 1 | Overage realization | 2 | 0.3647 | 0.3709 | -1.7% | partial |
 
 - **Layer 3:** none - this branch is 3 layers deep in the metric tree.
+- Note: Caveated: the actual counts any month-on-month usage increase as expansion, while the plan's expansion is derived from the benchmark NRR. The level gap against plan is definitional.
 - Note: Single-candidate read: only 1 of 2 Layer-2 children of Expansion consumption revenue has a computable actual, so no sibling comparison is possible.
 - Note: Overage realization has no Layer-3 children in the metric tree; this branch is two layers deep.
 
@@ -111,6 +114,7 @@ _One drill-down per Layer-1 node that breached the variance threshold this perio
 | 3 | Cyclical/planned usage dip vs. structural churn | 2 | 0.0299 | 0.02753 | +8.6% | partial |
 
 - **Layer 3:** the tree has Layer-3 children here (branch depth 3), but none is computable from the reporting tables this period.
+- Note: Caveated: the actual counts any month-on-month usage decline as contraction, while the plan's contraction and churn are derived from the benchmark GRR. The level gap against plan is definitional.
 - Note: Renewal win rate has Layer-3 children in the tree, but none is computable from the reporting tables; the missing leaves and reasons are listed with the drill-down.
 
 ### 4. Magic number (blended) - 1.54x vs. 0.78x plan (+95.9%, plan_diff)
@@ -1638,11 +1642,11 @@ _The readout reports a month; the forecast is quarter-grain. The section carries
 
 | Segment | Open deals | Open pipeline | Bottoms-up (rep) | Bottoms-up (manager) | ML | CRO-adjusted | Lens spread | Divergence |
 |---|---|---|---|---|---|---|---|---|
-| Commercial | 2 | $38.5K | $8.8K | $9.2K | $12.2K | $126.8K | 300.8% | diverges materially (widest: CRO-adjusted vs Bottoms-up (rep)) |
+| Commercial | 2 | $38.5K | $8.8K | $9.2K | $11.9K | $126.8K | 301.4% | diverges materially (widest: CRO-adjusted vs Bottoms-up (rep)) |
 
 - **Commercial:** CRO override +$117.6K filed (rep sandbagging pattern).
 - **No open deals scoped to 2025-Q2 after this call:** Enterprise.
-- **ML lens context:** out-of-time holdout AUC 0.860 against a 0.70-0.85 target (above the 0.70-0.85 target range), manager-category lookup baseline AUC 0.832, calibration gap -0.015 against +/-0.05 (within); fitted on 1,143 past forecast calls and held out on 381; model AUC is 1.034x the leak-proof manager-lookup AUC on the same held-out rows; not all pre-registered ML targets met.
+- **ML lens context:** out-of-time holdout AUC 0.857 against a 0.70-0.85 target (above the 0.70-0.85 target range), manager-category lookup baseline AUC 0.832, calibration gap -0.014 against +/-0.05 (within); fitted on 1,143 past forecast calls and held out on 381; model AUC is 1.031x the leak-proof manager-lookup AUC on the same held-out rows; not all pre-registered ML targets met.
 - **Divergence threshold:** spread > 25% of the mean of the computable lenses; proposed, not yet confirmed (non-vacuous and non-trivial on the backtest per the Forecast entry of the analytics methods document, not a derived number).
 - **Versus plan or quota:** not available - No plan or quota exists at the forecast's grain and unit (closed-won opportunity amount for Commercial and Enterprise, per quarter). The plan table states monthly MRR-movement plans at company grain, and quota history is per rep across all segments, so neither is comparable without a conversion that this readout and the forecast artifact do not own. The forecast artifact's own variance logic is the divergence flag between its lenses.
 - **Data window:** Forecast submissions end 2025-12-26 and the last opportunity closes 2025-12-28. This call's quarter (2025-Q2) ends before the window does, so the end-of-window effect on open-deal scoping does not apply.

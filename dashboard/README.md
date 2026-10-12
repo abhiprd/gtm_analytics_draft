@@ -261,8 +261,10 @@ moves accounts up, so rates and mix lead rather than counts, and the data-window
   The Actions-weighted ingestion rate shows no visible tail in the data but the engine blanks it, so it is listed.
 - **Not available here is not the same as not computable.** A node whose registry note says a validated artifact
   computes it (Pipeline generated) reads "Not available through this query interface; shown in the weekly readout",
-  with the registry paragraph shown once and a short statement per child row. An overlay reads "Not queryable
-  (non-additive overlay)".
+  with the registry paragraph shown once and a short statement ("Not queryable here") per child row. The tree
+  panel, the identity card and the child rows give such a node its own seventh status, "▤ Shown in the weekly
+  readout" (`answers.STATUS_IN_READOUT`, detected by the same `labels.is_query_interface_gap` rule as the answer
+  text); "○ Not computable" stays for nodes with no data. An overlay reads "Not queryable (non-additive overlay)".
 - **Scalar views** carry their slice on the headline card, children table and chart axis (`labels.NODE_QUALIFIERS`),
   replacing a parenthetical the name already has instead of stacking on it.
 - **Default view.** Win rate with no segment named opens on Commercial and Enterprise (`answers.DEFAULT_SEGMENT_VIEW`),
@@ -317,9 +319,9 @@ These are implemented in `theme.py`, `lib/verdict.py`, `lib/labels.py`, `lib/for
 
 - **Caveated comparison.** A readout row with `plan_comparability == "caveated"` renders the gap to plan in
   neutral gray with no arrow and a small "Caveated comparison" tag inside the card, so Ahead/Behind never reads
-  as a finding when the levels are not on the same footing. Rows the readout does not flag are not tagged; the
-  readout carries no note linking Expansion or Contraction + churn to the NRR/GRR gross-bucket caveat, so they
-  stay untagged. A period-over-period move on a metric whose level is caveated (Consumption payback on Segment
+  as a finding when the levels are not on the same footing. Rows the readout does not flag are not tagged. The
+  readout flags seven rows as caveated (Magic number, Consumption payback, AM efficiency, NRR, GRR, Expansion
+  and Contraction + churn); the tag follows the readout, so no row is tagged by the page itself. A period-over-period move on a metric whose level is caveated (Consumption payback on Segment
   Efficiency) keeps its status color and carries the tag.
 - **Constant series.** A Not-computable row whose actual, prior value and baseline are the same number, and an
   Ask answer whose registry note says the series is constant and whose data is constant, show "Not computable"

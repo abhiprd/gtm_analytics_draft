@@ -243,6 +243,14 @@ class TestWarnings:
         r = q("onboarding_completion_rate", grain="year")
         assert r["warnings"][0].startswith("Partially computable:")
 
+    def test_activation_is_partial_and_still_returns_its_series(self):
+        r = q("activation", grain="year", dimensions=["segment"])
+        assert "error" not in r and r["warnings"][0].startswith("Partially computable:")
+        assert "identically 0" in r["warnings"][0]
+        assert r["metric"]["computability"] == "partial"
+        assert {row["segment"] for row in r["data"]} == {"SMB", "Commercial", "Enterprise"}
+        assert {row["value"] for row in r["data"]} == {0.0}
+
     def test_a_node_with_no_note_has_no_note_warning(self):
         assert q("nrr", grain="year")["warnings"] == []
 
@@ -256,6 +264,16 @@ class TestRegistryNotes:
         node = METRICS["onboarding_completion_rate"]
         assert node["computability"] == "partial"
         assert "1.0" in node["gap_note"] and "variance" in node["gap_note"]
+
+    def test_activation_is_partial_like_the_engine(self):
+        node = METRICS["activation"]
+        assert node["computability"] == "partial" and node["computable"] is True
+        assert "identically 0" in node["gap_note"] and "variance" in node["gap_note"]
+
+    def test_partial_and_queryable_counts(self):
+        partial = sorted(k for k, n in METRICS.items() if n["computability"] == "partial" and n["computable"])
+        assert "activation" in partial and "onboarding_completion_rate" in partial
+        assert len(QUERYABLE) == 37
 
     def test_renewal_note_gives_both_segment_start_dates(self):
         note = METRICS["renewal_win_rate"]["gap_note"]

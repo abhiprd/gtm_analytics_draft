@@ -80,7 +80,7 @@ class TestCoverage:
     def test_computability_counts(self):
         from collections import Counter
         c = Counter(n.computability for n in vd._TREE.values())
-        assert (len(vd._TREE), c[vd.COMPUTABLE], c[vd.PARTIAL], c[vd.NOT_COMPUTABLE]) == (71, 31, 17, 23)
+        assert (len(vd._TREE), c[vd.COMPUTABLE], c[vd.PARTIAL], c[vd.NOT_COMPUTABLE]) == (71, 30, 18, 23)
 
     def test_every_blocked_node_is_the_expected_set(self):
         blocked = {k for k, n in vd._TREE.items() if n.computability == vd.NOT_COMPUTABLE}

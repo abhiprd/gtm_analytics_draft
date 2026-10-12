@@ -5,7 +5,7 @@ Regression check for natural-language routing over the MCP semantic layer
 server (`semantic/.venv/bin/python`, tools invoked through
 `mcp.server.mcpserver`'s actual `call_tool` path, not the raw Python
 functions) on 2026-10-06; the documented outcomes (error codes and resolved calls) were re-checked on 2026-10-08 against `data/acme_gtm.duckdb` +
-`semantic/metric_registry.json` v10 (`source_tree_sha256` `f24a0818dc7e...`, 70 nodes, 37 directly queryable).
+`semantic/metric_registry.json` v11 (`source_tree_sha256` `f24a0818dc7e...`, 70 nodes, 37 directly queryable).
 
 For each question: the expected tool call (what a Claude router should
 produce from `list_metrics()` + `get_metric_definition()` alone, without
@@ -210,10 +210,17 @@ args)` inside `asyncio.run(...)`.
 - **Result**: `error: invalid_request`, "date_range.start '2025-02-30' is not a real calendar date". The same error covers month 13, a start after the end, and keys other than `start`/`end`.
 - **Verdict**: PASS.
 
+## 28. "What's Activation time to first Action by segment?" (live series, partial node)
+
+- **Expected call**: `query_metric(metric="activation", grain="year", dimensions=["segment"])`.
+- **Actual call**: same.
+- **Result**: the real series, returned as data and not an error: 0.0 for Commercial, Enterprise and SMB in every year 2020 to 2025 (`mart_growth_bridge.activation_ttfa_months_avg` is exactly 0 in all 206 segment-months that have a signup cohort; usage is monthly grain, so every first Action lands in its signup month). `warnings[0]` reads "Partially computable: Blended time to first Action is identically 0 in every month and every segment of the current data ... no variance can be computed. Partial, matching the variance-diagnostic engine, which reports Activation as Not computable." `get_metric_definition("activation")` shows `computability: partial`, `computable: true`, children `onboarding_completion_rate` (partial), `time_to_first_integration_first_successful_run` and `quickstart_docs_content_engagement_rate` (both not computable). Before v11 the node was `full` and the series came back with no caveat.
+- **Verdict**: PASS. A router should read the zeros as "no variation in the data", not as "instant activation".
+
 ---
 
 ## Summary
 
-- 25 of 27 questions resolved correctly in the expected number of rounds with no ambiguity (every question except #3, which needs two chained calls, and #8, which is a flagged weakness).
+- 26 of 28 questions resolved correctly in the expected number of rounds with no ambiguity (every question except #3, which needs two chained calls, and #8, which is a flagged weakness).
 - 1 question (#3, GRR miss) legitimately needs two chained `query_metric()` calls — acceptable, and the chain is fully discoverable from registry cross-references, not hidden knowledge.
 - Question 8 ("NPS score") returns no `did_you_mean` suggestion: the fuzzy-match fallback finds nothing for a metric with no textual overlap. Not a correctness issue (the server rejects rather than guesses), and a router recovers by reading `list_metrics()`.

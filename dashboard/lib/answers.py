@@ -30,6 +30,10 @@ STATUS_CROSS_REFERENCE = "cross_reference"
 # A node that is queryable but whose data carries no variation (blended TTFA is 0 in
 # every month): a sixth state beside the five in conventions 4.9.
 STATUS_DEGENERATE = "degenerate"
+# A node a validated artifact computes (its registry gap note opens "Computed and validated
+# by ...") but the query interface cannot serve; the weekly readout shows it. A seventh state:
+# it is not "Not computable", which is reserved for nodes with no data.
+STATUS_IN_READOUT = "shown_in_readout"
 
 STATUS_LABEL = {
     STATUS_QUERYABLE: "Queryable",
@@ -38,6 +42,7 @@ STATUS_LABEL = {
     STATUS_OVERLAY: "Non-additive overlay",
     STATUS_CROSS_REFERENCE: "Cross-reference",
     STATUS_DEGENERATE: "No variation in data",
+    STATUS_IN_READOUT: "Shown in the weekly readout",
 }
 # Glyph plus text carries the status; the glyph is a second, non-color cue.
 STATUS_GLYPH = {
@@ -47,7 +52,11 @@ STATUS_GLYPH = {
     STATUS_OVERLAY: "◇",
     STATUS_CROSS_REFERENCE: "↗",
     STATUS_DEGENERATE: "◌",
+    STATUS_IN_READOUT: "▤",
 }
+# Tree-panel legend order: the seven states of conventions 4.9.
+STATUS_LEGEND_ORDER = (STATUS_QUERYABLE, STATUS_PARTIAL, STATUS_NOT_COMPUTABLE, STATUS_OVERLAY,
+                       STATUS_CROSS_REFERENCE, STATUS_DEGENERATE, STATUS_IN_READOUT)
 
 # Registry gap notes describe a degenerate series with one of these words ("identically
 # 0", "degenerate on this data"). The registry carries no structured flag for it, so the
@@ -87,6 +96,9 @@ def node_status(node: dict) -> str:
         return STATUS_DEGENERATE
     if node.get("computable"):
         return STATUS_PARTIAL if node.get("computability") == "partial" else STATUS_QUERYABLE
+    # Same detection the answer text uses (labels.is_query_interface_gap), not a second rule.
+    if labels.is_query_interface_gap(node.get("gap_note")):
+        return STATUS_IN_READOUT
     return STATUS_NOT_COMPUTABLE
 
 
@@ -678,7 +690,6 @@ def build_answer(parsed: dict, query_fn: Callable[..., dict], metrics: Dict[str,
                 "display_name": labels.qualified_node_label(ckey, cnode["name"]),
                 "layer": cnode["layer"],
                 "status": node_status(cnode),
-                "status_label": None,
                 "state": cstate,
                 "query_gap": c_query_gap,
                 "unit": unit_for(cnode),
@@ -695,9 +706,8 @@ def build_answer(parsed: dict, query_fn: Callable[..., dict], metrics: Dict[str,
             entry["reason"] = entry["message"] if cstate == "rejected" else _reason(cnode, metrics, entry["state"], cres.get("message"))
             if c_query_gap:
                 # The long registry paragraph is shown once, with the parent; a row carries
-                # the short statement.
-                entry["status_label"] = "Not queryable here"
-                entry["reason"] = labels.QUERY_GAP_LEAD
+                # the short statement beside the "Shown in the weekly readout" status.
+                entry["reason"] = labels.QUERY_GAP_ROW
             if cstate == "value":
                 cp_candidates = last_complete_period(cres, grain, c_excluded)
                 cp = period if period is not None and any(

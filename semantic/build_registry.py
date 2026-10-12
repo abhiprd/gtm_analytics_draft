@@ -389,9 +389,14 @@ _SOURCE_MART_MAP = {
     },
     "activation": {
         "source_mart": "mart_growth_bridge", "column": "activation_ttfa_months_avg", "aggregation": "avg",
-        "note": "Blended TTFA is identically 0 in the current generated data (fact_usage_monthly is "
-                "monthly grain -- every account's first Action lands in its own signup month). Real, "
-                "not fabricated, just degenerate on this data.",
+        "computability": "partial",
+        "note": "Blended time to first Action is identically 0 in every month and every segment of "
+                "the current data: usage is recorded at monthly grain, so every account's first "
+                "production Action lands in its own signup month and the series is measured in "
+                "whole calendar months. The series is real but carries no variance signal, so no "
+                "variance can be computed. Partial, matching the variance-diagnostic engine, which "
+                "reports Activation as Not computable. A real signal needs a day-grain first-Action "
+                "timestamp in the raw data and a corresponding mart change.",
     },
     "expansion_consumption_revenue": {
         "source_mart": "mart_growth_bridge", "column": "expansion_mrr", "aggregation": "sum",

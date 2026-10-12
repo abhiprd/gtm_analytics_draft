@@ -505,3 +505,7 @@ print(json.dumps(out))
         assert out["2023-01-03"][0] == ["unavailable", "insufficient_closed_deals"]
         assert out["2022-06-15"][0] == ["unavailable", "before_conversion_window"]
         assert out["2025-12-31"][0] == ["unavailable", "after_data_window"]
+        # the forecast side now builds its features before the first submission under pandas 3 too
+        assert out["2023-01-03"][-1] == "present"
+        assert out["2022-06-15"][-1] == "present"
+        assert out["2023-06-30"][-1] == "present"

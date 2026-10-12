@@ -266,6 +266,18 @@ def _ns(df: pd.DataFrame, columns) -> pd.DataFrame:
     return df
 
 
+def _align_key_dtype(right: pd.DataFrame, left: pd.DataFrame, key: str) -> pd.DataFrame:
+    """Return `right` with its `key` column cast to `left`'s dtype for that
+    column. An empty DuckDB result (no submissions before the first forecast
+    call) arrives as object dtype while the populated frames carry the
+    string dtype; pandas 3 refuses to merge across the two, pandas 2 does
+    not. The cast changes no value, only the dtype of an empty or
+    object-typed key."""
+    if right[key].dtype != left[key].dtype:
+        right = right.assign(**{key: right[key].astype(left[key].dtype)})
+    return right
+
+
 def _period_label(ts) -> str:
     period = pd.Timestamp(ts).to_period("Q")
     return f"{period.year}-Q{period.quarter}"
@@ -508,17 +520,21 @@ def build_point_in_time_features(evaluations: pd.DataFrame, data: dict) -> pd.Da
          "manager_forecast_category", "rep_forecast_rank", "manager_forecast_rank",
          "rep_minus_manager_rank_gap", "is_manager_downgrade"]
     ]
+    submissions = _align_key_dtype(submissions, frame, "opportunity_id")
     frame = pd.merge_asof(
         frame, submissions, left_on="eval_date", right_on="snapshot_date",
         by="opportunity_id", direction="backward",
     )
+    stage_history = _align_key_dtype(
+        data["stage_history"].sort_values("entered_date"), frame, "opportunity_id")
     frame = pd.merge_asof(
-        frame.sort_values("eval_date"), data["stage_history"].sort_values("entered_date"),
+        frame.sort_values("eval_date"), stage_history,
         left_on="eval_date", right_on="entered_date", by="opportunity_id", direction="backward",
     )
     frame = frame.merge(data["rep_hire_dates"], on="rep_id", how="left")
+    usage_trend = _align_key_dtype(data["usage_trend"], frame, "account_id")
     frame = pd.merge_asof(
-        frame.sort_values("eval_date"), data["usage_trend"],
+        frame.sort_values("eval_date"), usage_trend,
         left_on="eval_date", right_on="available_from", by="account_id", direction="backward",
     )
 

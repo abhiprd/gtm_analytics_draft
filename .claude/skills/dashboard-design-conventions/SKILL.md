@@ -142,7 +142,7 @@ The same underlying metric tree serves at least three different readers on this 
 | Dimension | Exec page (Digest) | Analyst page (Segment Efficiency, etc.) |
 |---|---|---|
 | Default depth shown | Layer 1 only, Layer 2 on click-through | Layer 2/3 visible by default |
-| Number of charts above the fold | 3–5 scorecards max outside the verdict row (the verdict row itself is the 11 Layer-1 scorecards, Section 4.3), one hero chart | As many as needed to diagnose — density is a feature here, not a flaw |
+| Number of charts and cards per section | The verdict row is the 11 Layer-1 scorecards (Section 4.3). Each later tier (what changed, what's coming, what needs a decision) shows at most one card row and one chart, plus the list tables Section 4.6 allows; the context block after the decision tier follows the same cap | As many as needed to diagnose — density is a feature here, not a flaw |
 | Table usage | Avoid; use scorecards/cards instead | Tables are appropriate and expected |
 | Language | Plain business language ("New logo revenue is $2.1M, 4% below plan") | Can use metric-tree terminology and formula references directly |
 | Filters/controls | Minimal — as-of-date and maybe segment | Full filter set: segment, channel, rep, date range, grain |
@@ -158,7 +158,7 @@ Write and lay out exec-facing pages the way a wire-service news story is written
 2. **What changed** — the one or two Layer-2/3 drivers that most explain this period's movement (this is what the "variance-threshold" selector controls — surface only what crossed the threshold, not everything).
 3. **What's coming** — forecast against plan.
 4. **What needs a decision** — watchlist / automated playbook triggers.
-5. **Everything else** — available via drill-down, never pre-rendered on the main page.
+5. **Context** — one or two compact blocks that frame the period without asking for a decision (for example segment mix; Section 4.10), rendered after the decision tier, each capped at one chart and one card row. Everything else (Layer-2/3 detail, methodology, caveat text beyond one line) is available through drill-downs and expanders and is never pre-rendered on the main page.
 
 Never invert this. A page that opens with a wall of Layer-3 detail and makes the reader scroll to find the verdict has failed at the one job an exec page has.
 
@@ -200,7 +200,7 @@ The Digest's executive summary is model-written prose, so it carries its own pre
 
 - **Equal-height card rows** are one CSS grid in a single markdown call (`theme.scorecard_row`), not `st.columns` plus per-card containers: forcing equal height on Streamlit's containers produced a border-without-fill artifact.
 - **Scorecard anatomy:** the label block always reserves two lines; optional gray footer lines (unit, baseline) sit inside the card; a long value keeps its number large and sets the unit small. A card with no comparison says "No comparison loaded for this metric" rather than showing a bare number.
-- **Tree panel (Ask the Metric Tree):** a sidebar with tertiary, left-aligned buttons and a pillar heading with its dot and tagline. Each node carries a gray "Layer N · status" line using a six-state vocabulary: ● Queryable, ◐ Queryable (partial), ○ Not computable, ◌ No variation in data, ◇ Non-additive overlay, ↗ Cross-reference. The panel uses no judgment color.
+- **Tree panel (Ask the Metric Tree):** a sidebar with tertiary, left-aligned buttons and a pillar heading with its dot and tagline. Each node carries a gray "Layer N · status" line using a seven-state vocabulary: ● Queryable, ◐ Queryable (partial), ○ Not computable, ◌ No variation in data, ◇ Non-additive overlay, ↗ Cross-reference, ▤ Shown in the weekly readout (a validated artifact computes the node but the query interface cannot serve it; same state on the identity card and child rows, and "Not computable" is kept strictly for nodes with no data). The panel uses no judgment color.
 - **Chat avatars** are neutral gray: Streamlit's default red and orange fills read as Palette B status colors.
 - **Answer layout:** resolved-metric identity card, formula (inline only up to 220 characters, otherwise under "Query details"), a grain/filter/split line, headline cards, chart, data table, then the immediate-children table. Guardrail rejections, overlays and not-computable results use a neutral `st.info`, never an error box. The newest exchange stays on screen and earlier ones collapse.
 - **Notes helper:** `theme.notes_and_assumptions` accepts only the labels Assumption, Scope and Data gap; `theme.escape_md` makes text render literally in markdown (dollar signs, underscores, asterisks).
@@ -217,7 +217,7 @@ The Digest's executive summary is model-written prose, so it carries its own pre
 - **Charts.** Bars sort largest on top on every page. A reference line is labelled when a natural baseline exists (for example 100% on retention). Axis ranges fit the data.
 - **AUC wording.** "Above the target range" is neutral gray; "below" is unfavorable; "within" is favorable.
 - **Censored tails.** A series whose final months are incomplete by construction (for example partial workflow chains, which exist only in the months before a churn) never headlines those months: the headline is the last complete month, the excluded months are drawn as open markers labelled "Excluded: incomplete window" and flagged in the data table, and the card carries a visible tag. The affected nodes and the number of months live in one tested table (`dashboard/lib/censoring.py`) tied to the engine's constant. This extends the partial-month rule.
-- **Not available vs not computable.** An artifact that is built but cannot be served by a surface reads "Not available through this query interface; shown in the weekly readout" (child rows: "Not queryable here"); "Not computable" is reserved for nodes with no data.
+- **Not available vs not computable.** An artifact that is built but cannot be served by a surface reads "Not available through this query interface; shown in the weekly readout", carries the tree status "▤ Shown in the weekly readout" on the tree panel, identity card and child rows (child rows add "Not queryable here" as the detail line); "Not computable" is reserved for nodes with no data.
 - **Ranking captions and dashes.** A ranked table states the basis the rank was computed on (relative deviation from the node's own baseline, or absolute change for additive components); a row with no data shows a dash instead of a rank.
 - **Default segment view.** For a metric that is constant by construction in one segment (SMB win rate), a question that names no segment opens on the meaningful segments with a visible line saying so.
 - **Unsupported splits.** A requested split that is not available gets a plain notice and, where a related node exists, a suggestion button; it is never silently dropped or rerouted.
