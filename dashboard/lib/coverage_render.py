@@ -26,6 +26,15 @@ def _body_small(text: str) -> None:
     st.markdown(f'<div class="note-line">{theme.escape_html(_keep(text))}</div>', unsafe_allow_html=True)
 
 
+def _disclosure(summary: str, text: str) -> None:
+    """A short, closed disclosure for supporting detail (scope, backtest accuracy): the
+    sentence is still on the page, one click away, so the section opens on its figures."""
+    st.markdown(
+        f'<details class="tile-about" style="margin:0 0 12px 0;padding:0;"><summary>{theme.escape_html(summary)}</summary>'
+        f'<div class="note-line" style="margin-top:6px;">{theme.escape_html(_keep(text))}</div></details>',
+        unsafe_allow_html=True)
+
+
 def _block(inner_html: str) -> None:
     """One white card around caller-built (already escaped) HTML. Unlike theme.card_block
     its single grid column is minmax(0, 1fr), so wide content scrolls inside the card
@@ -42,8 +51,7 @@ def _segment_heading(segment: str, chip: Optional[str]) -> None:
     chip_html = theme.neutral_chip(_keep(chip)) if chip else ""
     st.markdown(
         f'<span class="pillar-dot" style="background-color:{color}"></span>'
-        f'<span style="font-family:{theme.FONT_HEADER};font-size:1.3rem;font-weight:700;">'
-        f'{theme.escape_html(segment)}</span>{chip_html}',
+        f'<span class="block-heading">{theme.escape_html(segment)}</span>{chip_html}',
         unsafe_allow_html=True,
     )
 
@@ -57,7 +65,7 @@ def _render_poc(poc: Optional[Dict]) -> None:
     since = f" since {block['window_start']}" if block.get("window_start") else ""
     _block(
         f'<div class="card-label">{theme.escape_html(block["title"])}{chips}</div>'
-        f'<div style="font-size:0.9rem;line-height:1.5;margin-top:6px;">{lines}</div>'
+        f'<div class="note-line" style="margin-top:6px;">{lines}</div>'
         f'<div class="card-foot">{theme.escape_html(_keep("Basis: closed Enterprise new-business deals" + since))}</div>'
     )
 
@@ -74,7 +82,7 @@ def _render_segment(seg: Dict, reading: Dict, backtest_summary: Optional[Dict]) 
         _body_small(summary)
     qualifier = view.segment_qualifier(segment, backtest_summary)
     if qualifier:
-        _body_small(qualifier)
+        _disclosure("Backtest accuracy for this segment", qualifier)
     theme.scorecard_row(view.segment_cards(seg, reading.get("period", ""), reading.get("as_of_date", "")))
     if segment == "Enterprise":
         _render_poc(seg.get("poc_view"))
@@ -84,8 +92,8 @@ def _render_next_quarter(nq: Dict) -> None:
     if nq["kind"] == "absent":
         return
     st.markdown(
-        f'<span style="font-family:{theme.FONT_HEADER};font-size:1.15rem;font-weight:700;">'
-        f'Next quarter: {theme.escape_html(nq["period"])}</span>{theme.neutral_chip("Indicative, no verdict")}',
+        f'<span class="block-heading">Next quarter: {theme.escape_html(nq["period"])}</span>'
+        f'{theme.neutral_chip("Indicative, no verdict")}',
         unsafe_allow_html=True,
     )
     if nq["kind"] == "unavailable":
@@ -102,7 +110,7 @@ def _render_next_quarter(nq: Dict) -> None:
         for seg, text in nq["lines"]
     )
     _block(
-        f'<div style="font-size:0.95rem;line-height:1.5;">{rows}</div>'
+        f'<div class="prose">{rows}</div>'
         f'<div class="card-foot">{theme.escape_html(nq["note"])}</div>'
         f'<div class="card-foot">Basis: new-business deals dated to {theme.escape_html(nq["period"])}, '
         'open at the evaluation date</div>'
@@ -111,8 +119,7 @@ def _render_next_quarter(nq: Dict) -> None:
 
 def _render_reconciliation(rec: Dict) -> None:
     st.markdown(
-        f'<span style="font-family:{theme.FONT_HEADER};font-size:1.15rem;font-weight:700;">'
-        'Compared with the forecast</span>',
+        '<span class="block-heading">Compared with the forecast</span>',
         unsafe_allow_html=True,
     )
     if not rec["available"]:
@@ -143,7 +150,7 @@ def render_header(label: str) -> None:
     st.subheader("Pipeline coverage")
     st.markdown(
         f'{_flush_chip(label[:1].upper() + label[1:])}'
-        '<span style="margin-left:10px;color:#4B5563;font-size:0.9rem;">'
+        '<span class="inline-note">'
         'Whether open new-business pipeline, at the recent win rate, covers the quota still to book this quarter.'
         '</span>',
         unsafe_allow_html=True,
@@ -160,7 +167,7 @@ def render_reading(reading: Dict, backtest_summary: Optional[Dict] = None,
         st.markdown(f'<div class="note-line" style="margin-top:6px"><strong>{theme.escape_html(_keep(note))}'
                     '</strong></div>', unsafe_allow_html=True)
     theme.info_row(view.info_items(reading, status_text))
-    _body_small(view.scope_line(reading))
+    _disclosure("What this pipeline figure counts", view.scope_line(reading))
     for seg in reading.get("segments") or []:
         _render_segment(seg, reading, backtest_summary)
     hidden = view.hidden_segments(reading)

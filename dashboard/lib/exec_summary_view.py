@@ -166,7 +166,7 @@ def provenance_line(slot: Dict[str, Any]) -> str:
             when = f" on {datetime.fromisoformat(str(raw).replace('Z', '+00:00')).date().isoformat()}"
         except ValueError:
             when = ""
-    return f"Written by {model}{when} · figures validated against the readout"
+    return f"Written by {model}{when}, figures validated against the readout"
 
 
 def format_cite(cite: str, labels: Optional[Dict[str, str]] = None) -> str:
@@ -177,7 +177,7 @@ def format_cite(cite: str, labels: Optional[Dict[str, str]] = None) -> str:
     if not key:
         return head
     name = (labels or {}).get(key) or key.replace("_", " ").capitalize()
-    return f"{head} · {name}"
+    return f"{head}: {name}"
 
 
 def safe_html(text: str) -> str:

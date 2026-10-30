@@ -46,6 +46,43 @@ def fmt_usd(v: float) -> str:
     return f"${v:,.0f}"
 
 
+def lens_axis(values) -> Tuple[float, float]:
+    """The dot plot's fitted axis range: the data padded by a quarter of its span below and
+    30% above (room for the value label). A quantity that cannot be negative never gets an
+    axis that dips below zero."""
+    vals = [float(v) for v in values]
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or max(abs(hi) * 0.1, 1.0)
+    start = lo - 0.25 * span
+    if lo >= 0:
+        start = max(start, 0.0)
+    return start, hi + 0.30 * span
+
+
+def nice_ticks(lo: float, hi: float, target: int = 5) -> List[float]:
+    """Round tick positions inside [lo, hi]: a 1, 2, 2.5 or 5 step at the right magnitude."""
+    raw = (hi - lo) / max(target, 1)
+    if raw <= 0:
+        return [lo]
+    mag = 10 ** math.floor(math.log10(raw))
+    step = next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= raw)
+    first = math.ceil(lo / step - 1e-9) * step
+    ticks, t = [], first
+    while t <= hi + 1e-9:
+        ticks.append(round(t, 6))
+        t += step
+    return ticks
+
+
+def axis_caption(axis_start: float) -> str:
+    """The caption under a lens dot plot, chosen from the axis actually drawn."""
+    if axis_start == 0:
+        return "Dot position carries the value; the axis starts at zero."
+    if axis_start < 0:
+        return "Dot position carries the value; the axis includes zero."
+    return "Dot position carries the value; the axis does not start at zero."
+
+
 def days_to_quarter_end(period: str, call_date: date) -> Optional[int]:
     """Days from `call_date` to the last day of the quarter named by `period`
     ('2025-Q2'); None when the period string is not of that form."""

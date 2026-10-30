@@ -78,13 +78,51 @@ def spread_text(row: dict) -> str:
     return shown if shown else f"{float(row['lens_spread_pct']) * 100:.1f}%"
 
 
+def lens_figure(rows: List[Tuple[str, float, str]], reference_label: str, color: str) -> go.Figure:
+    """The lenses as a dot plot on one shared axis, each dot joined by a thin stem to the
+    CRO-adjusted headline (Section 3.1: the question is how far the lenses sit from one
+    another, which equal-length bars from zero hide). Position, not length, carries the
+    value, so the axis is fitted to the data and never dips below zero for a quantity that
+    cannot be negative (the caption under the chart says whether the axis starts at zero, so
+    the note is never clipped inside the plot); every dot has its value label. `rows` is
+    lens_rows() output, ascending by value."""
+    ref = next((v for label, v, _ in rows if label == reference_label), None)
+    values = [v for _, v, _ in rows]
+    axis_lo, axis_hi = forecast_logic.lens_axis(values)
+    ticks = forecast_logic.nice_ticks(axis_lo, axis_hi)
+    # Largest on top: rows ascend, and the category axis is reversed.
+    ordered = list(reversed(rows))
+    fig = go.Figure()
+    if ref is not None:
+        for label, v, _ in ordered:
+            if label != reference_label:
+                fig.add_trace(go.Scatter(x=[ref, v], y=[label, label], mode="lines", hoverinfo="skip",
+                                         showlegend=False, line=dict(color=theme.GRID_LINE, width=2)))
+    fig.add_trace(go.Scatter(
+        x=[v for _, v, _ in ordered], y=[label for label, _, _ in ordered], mode="markers+text",
+        text=[shown for _, _, shown in ordered], textposition="middle right",
+        textfont=dict(color=theme.INK, size=theme.FS_XS, family=theme.FONT_FAMILY),
+        marker=dict(size=12, color=color, line=dict(width=2, color=theme.SURFACE)),
+        showlegend=False, hovertemplate="%{y}: %{text}<extra></extra>", cliponaxis=False,
+    ))
+    fig.update_layout(**theme.plotly_layout(
+        height=200, showlegend=False, hovermode="closest", margin=dict(l=10, r=70, t=10, b=48),
+        xaxis_title="Forecasted closed-won amount (USD)",
+    ))
+    theme.style_axes(fig)
+    # Tick text uses the same dollar rule as the value labels (K and M uppercase).
+    fig.update_xaxes(range=[axis_lo, axis_hi], tickvals=ticks, ticktext=[fmt_usd(t) for t in ticks],
+                     showgrid=True, gridcolor=theme.GRID_LINE)
+    fig.update_yaxes(autorange="reversed", showgrid=False)
+    return fig
+
+
 def render_segment(row: dict, lens_labels: Dict[str, str], key: str,
                    divergence_threshold_text: Optional[str] = None,
                    days_left: Optional[int] = None) -> None:
     """One segment: heading, a card row (headline CRO-adjusted lens, open pipeline,
-    lens agreement), then the four lenses as a sorted horizontal bar chart in the
-    segment's palette color (Section 3.1: a small number of categories at one point
-    in time, largest at the top). No plan figure exists at this grain, so the
+    lens agreement), then the four lenses as a dot plot joined to the headline
+    (lens_figure), in the segment's palette color. No plan figure exists at this grain, so the
     headline carries the CRO override as its comparison and no favorable/unfavorable
     color. When the headline lens exceeds the open pipeline it prices (late in a
     quarter) the card says so."""
@@ -92,13 +130,10 @@ def render_segment(row: dict, lens_labels: Dict[str, str], key: str,
     seg_color = theme.SEGMENT_COLOR.get(segment, theme.NEUTRAL_GRAY)
     st.markdown(
         f'<span class="pillar-dot" style="background-color:{seg_color}"></span>'
-        f'<span style="font-family:{theme.FONT_HEADER};font-size:1.3rem;font-weight:700;">'
-        f'{segment}</span>',
+        f'<span class="block-heading">{theme.escape_html(segment)}</span>',
         unsafe_allow_html=True,
     )
     diverges = bool(row["diverges_materially"])
-    badge_color = theme.CAUTION_AMBER if diverges else theme.NEUTRAL_GRAY
-    badge_symbol = "⚠" if diverges else "●"
     badge_text = "Diverge materially" if diverges else "Lenses agree"
     note = forecast_logic.late_quarter_note(row, days_left)
     headline = dict(
@@ -111,8 +146,8 @@ def render_segment(row: dict, lens_labels: Dict[str, str], key: str,
         label="Open pipeline", value_display=display(row, "open_pipeline"), pillar="growth",
         footer=[f"{int(row['open_deals'])} open deals"],
     )
-    # Text stays navy; the badge color drives the glyph only (amber text on its own
-    # tint measured below the 4.5:1 floor, 2.5).
+    # The badge is an icon shape in its status fill paired with a word label in ink: amber
+    # is never text (2.53:1 on white, conventions Section 2.3).
     divergence_footer = [
         f"Spread {spread_text(row)} across {int(row['lenses_computable'])} computable lenses.",
         f"Widest pair: {widest_pair_text(row, lens_labels)}",
@@ -121,25 +156,16 @@ def render_segment(row: dict, lens_labels: Dict[str, str], key: str,
         divergence_footer.append(divergence_threshold_text)
     agreement = dict(
         label="Lens agreement",
-        value_display=f'<span style="color:{badge_color}">{badge_symbol}</span> {badge_text}',
+        value_display=theme.status_mark("caution" if diverges else "neutral", badge_text),
         value_size="sm", pillar="growth", footer=divergence_footer,
     )
     theme.scorecard_row([headline, pipeline, agreement])
 
     rows = lens_rows(row, lens_labels)
     if rows:
-        fig = go.Figure(go.Bar(
-            x=[r[1] for r in rows], y=[r[0] for r in rows], orientation="h",
-            marker_color=seg_color, text=[r[2] for r in rows],
-            textposition="outside", cliponaxis=False,
-        ))
-        fig.update_layout(**theme.plotly_layout(
-            height=210, showlegend=False, xaxis_title="Forecasted closed-won amount (USD)",
-            margin=dict(l=10, r=40, t=20, b=30),
-        ))
-        fig.update_xaxes(tickprefix="$", tickformat=".2s")
-        theme.style_axes(fig)
-        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=key)
+        st.plotly_chart(lens_figure(rows, lens_labels["cro_adjusted"], seg_color), width="stretch",
+                        config={"displayModeBar": False}, key=key)
+        st.caption(forecast_logic.axis_caption(forecast_logic.lens_axis([v for _, v, _ in rows])[0]))
 
     if not row.get("ml_computable", True):
         st.caption("ML lens: not computable for this call date (insufficient closed-deal history to "

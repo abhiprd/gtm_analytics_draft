@@ -50,7 +50,7 @@ at least one `analytics/outputs/weekly_readout_*.json` (`python3 -c "from analyt
 | Page | Reads from | Computes |
 |---|---|---|
 | `app.py` (router) + `home.py` | `analytics/outputs/` latest readout | Nothing -- `app.py` registers the pages with `st.navigation` (so the sidebar entry reads "Home", not "app"); `home.py` shows headline counts only |
-| `pages/1_Digest.py` | `analytics/outputs/weekly_readout_*.json` | Nothing -- renders the artifact's own output verbatim, including its forecast section, each drill-down's repeat marker, and the segment-mix section (or a section's `unavailable` state and reason) |
+| `pages/1_Digest.py` | `analytics/outputs/weekly_readout_*.json`; for the tiles' sparklines only, `variance_diagnostic.blend_layer1_actuals()` | Nothing of its own: renders the artifact's output verbatim, including its forecast section, each drill-down's repeat marker, and the segment-mix section (or a section's `unavailable` state and reason). The one read beyond the readout JSON is a guarded in-process call to `blend_layer1_actuals()` (the series the readout's actuals come from), which the page only slices to 12 months: a sparkline is drawn only when its last point equals the readout's own actual, and is omitted when it does not or when the call fails |
 | `pages/2_Forecast.py` | `analytics/forecast.py`'s `run_forecast()` | Trains the win-probability model live (`log=False` -- never writes to `fact_model_performance_history`), cached per forecast call date for the session. Opens on the newest readout's forecast call and reports whether its figures match that readout. Also calls `analytics/pipeline_coverage.py`'s `run_pipeline_coverage()` in-process at the same call date for the pipeline-coverage section (see below) |
 | `pages/3_Segment_Efficiency.py` | `mart_growth_bridge`, `mart_efficiency`, `mart_durability`, `mart_segment_migration` | Nothing -- these marts are already segment x month grain |
 | `pages/4_Ask_the_Metric_Tree.py` | `semantic/server.py`'s registry and `query_metric`, called in-process | Nothing new -- routes a question to the same guardrailed tool an MCP client calls; a standing sidebar tree built from the registry is the on-ramp |
@@ -64,11 +64,24 @@ Section 7 honesty patterns (never render a live-looking value for a component th
 `built_and_validated`). The mechanical enforcement of that skill lives in two files every page
 imports rather than repeating:
 
-- **`theme.py`** -- the shared palette/font/component module (`scorecard()`, `status_color()`,
-  `plotly_layout()`, the `render_pending()`/`component_status()` honesty helpers). See its own
-  `inject_global_css()` docstring for a real, verified Streamlit limitation worth reading before
-  adding a new bordered card: `st.container(border=True)`'s background fill only works reliably
-  as one single `st.markdown()` call, not split across multiple calls or native widgets.
+- **`tokens.py`** -- the design tokens as plain Python (no Streamlit import): the three palettes, the
+  text tokens (`INK`, `TEXT_SECONDARY`), the one font family, the six-step type scale (13, 14, 16, 20, 28
+  and 36 px) and the radius hierarchy (12 px containers, 8 px controls, 4 px marks, pills for chips).
+  `theme.py` re-exports them; `lib/cards.py` builds the stat-tile HTML from them without Streamlit, so
+  tile rules are unit-tested (`tests/test_dashboard_cards.py`).
+- **`theme.py`** -- the shared CSS/component module (`scorecard_row()`, `info_row()`, `status_mark()`,
+  `compact_notice()`, `plotly_layout()`, the `render_pending()`/`component_status()` honesty helpers).
+  Cards are one CSS grid in a single `st.markdown()` call: `st.container(border=True)`'s background fill
+  only works reliably that way, and a grid is what equalizes card heights across a row.
+- **Typography.** One family (Streamlit's bundled Source Sans, set in `.streamlit/config.toml`) is used by
+  native widgets, cards and charts, so nothing is fetched from outside. Tables are HTML (`theme.table`), because a
+  canvas dataframe draws its header below 4.5:1; "Query details" on the Ask page is a label-and-value list with no
+  raw JSON, code block or query text. Every font size on a page is one of
+  the six tokens; native widgets that default off-scale are snapped to the scale in `theme.py`. Labels are
+  sentence case, large numbers use proportional figures and table columns use tabular figures. Secondary
+  text (captions, footers, axis text) is the `TEXT_SECONDARY` color at full opacity: Streamlit's default
+  caption (0.6 opacity) measured 3.9:1 and is overridden. Amber is a non-text fill or icon only, always
+  beside a word label.
 - **`project_status.json`** -- the concrete "is this component built_and_validated" source of
   truth the skill's Section 7 refers to as `project-status`. Update it whenever a component's
   real build state changes; it's a projection of `CLAUDE.md`'s "Current phase" section, not a
@@ -149,7 +162,7 @@ The weekly readout JSON carries a `forecast` section written by `analytics/weekl
 from `analytics/forecast.py`: the forecast call current at the reporting month's end (a Friday
 snapshot), the quarter that call sits in, and four lenses per segment (Commercial and Enterprise).
 The Digest renders it verbatim -- the call date, quarter, days to quarter end, a reconciled
-CRO-adjusted headline with a divergence badge, and the four lenses as a sorted bar chart -- and
+CRO-adjusted headline with a divergence badge, and the four lenses as a dot plot joined to the headline -- and
 recomputes nothing. When `status` is `unavailable` it shows the section's own plain-language
 detail and reason and no figures. `lib/forecast_view.py` is shared with the Forecast page so both
 show the same figures in the same form; the Forecast page opens on the newest readout's forecast
@@ -186,8 +199,9 @@ shows a plain notice and leaves the lenses untouched; no exception text reaches 
   coverage ratio and reads "Quota met", never 0.00x, and its gap card says the figure is an expected surplus over
   the quota still to book. A real zero pipeline reads "None open" with "No open new-business pipeline for this quarter".
   Enterprise adds a small card for the POC outcome view, labelled "Indicative, not a forecast" and "Not backtested;
-  thin sample", with its closed-deal and won counts. Key sentences use the page's body-small style (`.note-line`), not
-  `st.caption`, which measures below 4.5:1.
+  thin sample", with its closed-deal and won counts. Key sentences use the page's body-small style (`.note-line`).
+  The scope sentence ("What this pipeline figure counts") and each segment's backtest-accuracy sentence sit in short
+  closed disclosures under their headings, so the section opens on its figures; both are still on the page.
 - **Unavailable segment.** A plain-language info box per reason code (no quota, before the conversion window, too
   few closed deals, no wins in the window, after the data window) and no figures; the segment is also left out of the
   next-quarter block and the comparison table, each with a one-line "not shown: coverage unavailable for <Segment>".
@@ -299,7 +313,8 @@ plan-comparability notes, a registry `gap_note`) is shown as written.
 
 `tests/test_dashboard_routing.py`, `tests/test_dashboard_answers.py`, `tests/test_dashboard_registry_v5.py`,
 `tests/test_dashboard_persistence_view.py`, `tests/test_dashboard_segment_mix_view.py`,
-`tests/test_dashboard_censoring.py`, `tests/test_dashboard_drilldown_view.py`, `tests/test_dashboard_coverage_view.py` and
+`tests/test_dashboard_censoring.py`, `tests/test_dashboard_drilldown_view.py`, `tests/test_dashboard_coverage_view.py`,
+`tests/test_dashboard_cards.py` (stat-tile HTML, delta glyphs, type and contrast tokens, a source scan for off-token fonts), `tests/test_dashboard_whatchanged_view.py` (rules and figure spec) and
 `tests/test_dashboard_exec_summary_view.py` cover the Streamlit-free modules under the repo's
 default interpreter. `python3 -m pipeline run --only dashboard_smoke` renders every page headless
 under `dashboard/.venv`.
@@ -318,11 +333,13 @@ These are implemented in `theme.py`, `lib/verdict.py`, `lib/labels.py`, `lib/for
 `..._answers.py`). They are proposed additions to the conventions skill, listed in the build report.
 
 - **Caveated comparison.** A readout row with `plan_comparability == "caveated"` renders the gap to plan in
-  neutral gray with no arrow and a small "Caveated comparison" tag inside the card, so Ahead/Behind never reads
-  as a finding when the levels are not on the same footing. Rows the readout does not flag are not tagged. The
-  readout flags seven rows as caveated (Magic number, Consumption payback, AM efficiency, NRR, GRR, Expansion
-  and Contraction + churn); the tag follows the readout, so no row is tagged by the page itself. A period-over-period move on a metric whose level is caveated (Consumption payback on Segment
-  Efficiency) keeps its status color and carries the tag.
+  neutral gray with its direction glyph, no status word and a small "ⓘ" marker on the tile, so Ahead/Behind never
+  reads as a finding when the levels are not on the same footing. The full "Caveated comparison" text appears
+  once, as a section note above the tiles that counts the marked ones, and again in each tile's "About this
+  number". Rows the readout does not flag are not marked. The readout flags seven rows as caveated (Magic number,
+  Consumption payback, AM efficiency, NRR, GRR, Expansion and Contraction + churn); the marker follows the readout,
+  so no row is marked by the page itself. A period-over-period move on a metric whose level is caveated
+  (Consumption payback on Segment Efficiency) keeps its status color and carries the tag.
 - **Constant series.** A Not-computable row whose actual, prior value and baseline are the same number, and an
   Ask answer whose registry note says the series is constant and whose data is constant, show "Not computable"
   and the reason in place of a number or a flat chart. The tree panel labels such a node "No variation in data".
@@ -335,9 +352,25 @@ These are implemented in `theme.py`, `lib/verdict.py`, `lib/labels.py`, `lib/for
   Changes in a rate are labeled pp.
 - **Registry notes in answers.** A `gap_note` on a live metric is shown above the chart, not only under Query
   details. Table and file identifiers and markdown are removed from registry and guardrail text before display.
-- **Cards.** One card anatomy (`theme.scorecard_row`, a CSS grid in one markdown call) is used on every page;
-  `st.container(border=True)` plus a bleed hack is no longer used. Narrow viewports collapse the grid to two
-  columns.
+- **Cards.** One card anatomy (`theme.scorecard_row`, a CSS grid in one markdown call, built by `lib/cards.py`)
+  is used on every page. A stat tile is a sentence-case label, the value, a delta line, a comparison line and,
+  on the Digest, a 12-point sparkline; unit, basis, trailing baseline, status, caveat text and Layer label sit in
+  the tile's "About this number" disclosure. The grid's column count follows its container's width (container queries; a tile is never narrower than 168px), so a four-tile row becomes two columns before any label, value or unit is squeezed, and words never break mid-word inside a card.
+- **Delta glyphs.** The arrow follows the sign of the displayed change (`verdict.delta_glyph`); color and a word
+  ("Ahead", "Behind", "Favorable", "Unfavorable") carry the judgment, so Onboarding/CS efficiency at -30.0% against
+  plan is a green down arrow with "Ahead". A neutral delta keeps its arrow in the secondary text color. A change
+  that rounds to zero has no glyph.
+- **What changed.** One ranked horizontal bar of the Layer-1 gaps outside the threshold (`lib/whatchanged_view.py`,
+  `lib/whatchanged_render.py`): largest gap on top, bars 22 px thick with a 4 px rounded end, a value label right of
+  each bar's end, comparable rows in the status colors and caveated rows in gray with no judgment, a color key, a
+  table-view twin and one drill-down selector that opens the Layer-2 outlier, repeat marker and Layer-3 evidence for
+  the chosen metric. The bar colors are the status pair plus a muted gray; the dataviz palette validator passes the
+  lightness, contrast and normal-vision checks for them, reports the green-red pair in its color-vision warning band
+  (legal with secondary encoding, which the status words and signed labels provide), and reports the gray under its
+  chroma floor by design, since gray is the no-judgment color.
+- **No executive summary.** When the readout carries no validated narrative the Digest shows a compact notice (one
+  bold line and the reason) with a "Why this is blank" disclosure, and opens on the verdict tiles instead of an empty
+  block.
 - **Notes & assumptions.** Each item is one short line; longer text keeps its first sentence(s) and puts the
   remainder behind a "Details" toggle.
 - **Upstream text at display time.** Registry and readout strings the dashboard cannot edit pass through an

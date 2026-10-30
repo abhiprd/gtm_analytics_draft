@@ -7,14 +7,18 @@ presented, without recomputing any figure:
 
   * caveated   -- `plan_comparability == "caveated"`: the plan and the actual exist
                   and the variance is computed, but their LEVELS are not on the same
-                  footing. The card carries a visible "Caveated comparison" tag and the
-                  delta is shown with no favorable/unfavorable color or arrow, so the
-                  Ahead/Behind status never reads as a business finding.
+                  footing. The tile carries a small "Caveated comparison" marker and the
+                  delta is shown in neutral gray, with its direction glyph and no
+                  favorable/unfavorable color or status word, so the Ahead/Behind status
+                  never reads as a business finding.
   * degenerate -- status "Not computable" with an actual, a prior value and a baseline
                   that are all the same number (blended TTFA is 0 in every month): the
                   card says "Not computable" in place of the number.
   * neutral    -- a delta that rounds to zero at its displayed precision carries no
-                  status color and no arrow.
+                  status color and no direction glyph.
+
+A delta's glyph follows the sign of the change (delta_glyph); status color and a status
+word carry the judgment.
 
 Conventions Sections 2.3, 7 and the Section 2.3 addendum recorded in the dashboard README.
 """
@@ -65,6 +69,25 @@ def display_rounds_to_zero(text: Optional[str]) -> bool:
     if not digits:
         return False
     return all(float(d) == 0.0 for d in digits)
+
+
+GLYPH_UP = "▲"
+GLYPH_DOWN = "▼"
+_SIGNED_NUMBER_RE = re.compile(r"([+\-−])\s*\$?\d")
+
+
+def delta_glyph(text: Optional[str]) -> str:
+    """The direction glyph for a displayed change: an up arrow for a positive change, a
+    down arrow for a negative one, nothing for a change that rounds to zero or carries
+    no sign. It follows the sign of the number shown and never the judgment: a metric
+    where lower is better and that fell shows a down arrow, and color and a status word
+    say whether that is good (conventions Section 2.3)."""
+    if not text or display_rounds_to_zero(text):
+        return ""
+    m = _SIGNED_NUMBER_RE.search(str(text))
+    if not m:
+        return ""
+    return GLYPH_UP if m.group(1) == "+" else GLYPH_DOWN
 
 
 def unsigned_if_zero(text: Optional[str]) -> Optional[str]:
@@ -172,60 +195,127 @@ def _display_row(row: Dict) -> Dict:
     return r
 
 
-def card_for_row(row: Dict, pillar: Optional[str] = None, baseline_months: Optional[int] = None) -> Dict:
-    """The theme.scorecard_row() dict for one readout scorecard row."""
+NOT_JUDGED = "Not judged: caveated comparison"
+SPARK_MONTHS = 12
+STATUS_PHRASE = {STATUS_AHEAD: "Ahead of plan", STATUS_BEHIND: "Behind plan",
+                 STATUS_ON_TRACK: "On track against plan", STATUS_NOT_COMPUTABLE: "Not computable"}
+
+
+def _month_key(month) -> str:
+    return str(month)[:7]
+
+
+def _previous_months(month_key: str, n: int) -> List[str]:
+    """The n consecutive month keys ending at month_key, oldest first."""
+    year, mon = int(month_key[:4]), int(month_key[5:7])
+    keys = []
+    for _ in range(n):
+        keys.append(f"{year:04d}-{mon:02d}")
+        mon -= 1
+        if mon == 0:
+            year, mon = year - 1, 12
+    return keys[::-1]
+
+
+def monthly_series(frame) -> Dict[str, Dict[str, Optional[float]]]:
+    """{metric_key: {"YYYY-MM": value}} from a DataFrame indexed by month (the variance
+    engine's blend_layer1_actuals output); a missing value is None."""
+    import pandas as pd
+    return {key: {pd.Timestamp(ts).strftime("%Y-%m"): (None if pd.isna(v) else float(v))
+                  for ts, v in frame[key].items()} for key in frame.columns}
+
+
+def trend_points(series_by_month: Optional[Dict[str, float]], row: Dict) -> Optional[List[float]]:
+    """The 12 monthly points for a tile's sparkline, or None. A trend is drawn only when
+    all 12 consecutive months ending at the row's own month exist, none is missing, the
+    series is not constant, and the last point equals the readout's own actual for the
+    row: a series on a different basis than the headline would draw a trend that
+    disagrees with the number beside it. Nothing is imputed or interpolated."""
+    if not series_by_month or missing(row.get("actual")) or not row.get("month"):
+        return None
+    keys = _previous_months(_month_key(row["month"]), SPARK_MONTHS)
+    vals = [series_by_month.get(k) for k in keys]
+    if any(missing(v) for v in vals):
+        return None
+    vals = [float(v) for v in vals]
+    if not math.isclose(vals[-1], float(row["actual"]), rel_tol=1e-6, abs_tol=1e-12):
+        return None
+    if len(set(vals)) == 1:
+        return None
+    return vals
+
+
+def card_for_row(row: Dict, pillar: Optional[str] = None, baseline_months: Optional[int] = None,
+                 series_by_month: Optional[Dict[str, float]] = None) -> Dict:
+    """The theme.scorecard_row() dict for one readout scorecard row (Section 4.9):
+    label, value, a delta and, when `series_by_month` yields a valid 12-month trend, a
+    sparkline. Unit, basis, baseline, status, caveat and Layer text go to `about`
+    (the tile's "About this number"); a caveated comparison carries a `marker`."""
     row = _display_row(row)
     status = row.get("status")
     pillar = pillar or row.get("pillar")
-    footer: List[str] = []
+    about: List = []
     card: Dict = dict(label=row["label"], pillar=pillar, value_display=row.get("value_display", "n/a"))
+
+    def layer_about():
+        if row.get("layer") is not None:
+            about.append(("Layer", f"Layer {row['layer']}"))
 
     if is_degenerate(row):
         card["value_display"] = "Not computable"
         card["value_size"] = "sm"
         card["tag"] = "No variation in data"
-        footer.append(f"{row['label']} does not vary in the data, so no variance can be computed.")
-        footer.append(f"Basis: {basis_label(row)}")
-        if row.get("layer") is not None:
-            footer.append(f"Layer {row['layer']}")
-        card["footer"] = [f for f in footer if f]
+        card["footer"] = [f"{row['label']} does not vary in the data, so no variance can be computed."]
+        about.append(("Basis", basis_label(row)))
+        layer_about()
+        card["about"] = about
         return card
 
     variance = row.get("variance_display")
     comparison = row.get("comparison_display")
     direction = row.get("favorable_direction")
     ahead = is_ahead_for(status)
+    vs = f"vs {comparison}" if comparison else None
 
     if status == STATUS_NOT_COMPUTABLE:
-        card.update(variance_display="n/a · Not computable", comparison_display=None,
+        card.update(variance_display="n/a", status_word="Not computable", comparison_display=None,
                     favorable_direction=None, is_ahead=None)
     elif status == STATUS_ON_TRACK:
-        card.update(variance_display=f"● On track · {variance}", comparison_display=comparison,
+        card.update(variance_display=variance, status_word="On track", comparison_display=vs,
                     favorable_direction=None, is_ahead=None)
     elif is_caveated(row):
         # Neutral treatment: the sign and size of the gap are shown, the judgment is not.
-        card.update(variance_display=variance, comparison_display=comparison,
-                    favorable_direction=None, is_ahead=None, tag=CAVEAT_TAG)
+        card.update(variance_display=variance, comparison_display=vs,
+                    favorable_direction=None, is_ahead=None, marker=CAVEAT_TAG)
     elif display_rounds_to_zero(variance):
-        card.update(variance_display=variance, comparison_display=comparison,
+        card.update(variance_display=variance, comparison_display=vs,
                     favorable_direction=None, is_ahead=None)
     else:
-        card.update(variance_display=variance, comparison_display=comparison,
-                    favorable_direction=direction, is_ahead=ahead)
+        card.update(variance_display=variance, comparison_display=vs,
+                    favorable_direction=direction, is_ahead=ahead,
+                    status_word=STATUS_AHEAD if ahead else (STATUS_BEHIND if ahead is False else None))
 
     if row.get("unit_label"):
-        footer.append(str(row["unit_label"]))
-    footer.append(f"Basis: {basis_label(row)}")
+        about.append(("Unit", str(row["unit_label"])))
+    about.append(("Basis", basis_label(row)))
     baseline = row.get("trailing_baseline")
     if not missing(baseline):
-        window = f"{baseline_months}-mo " if baseline_months else ""
+        window = f"{baseline_months}-month " if baseline_months else ""
         text = format_baseline(float(baseline), str(row.get("unit")))
         base_var = row.get("baseline_variance_pct")
-        footer.append(f"{window}trailing baseline: {text}"
-                      + (f" ({base_var * 100:+.1f}%)" if not missing(base_var) else ""))
+        about.append((f"{window}trailing baseline".capitalize(),
+                      text + (f" ({base_var * 100:+.1f}% against it)" if not missing(base_var) else "")))
     if is_caveated(row) and status != STATUS_NOT_COMPUTABLE:
-        footer.append(CAVEAT_FOOTER)
-    if row.get("layer") is not None:
-        footer.append(f"Layer {row['layer']}")
-    card["footer"] = footer
+        # A caveated gap is not judged anywhere on the tile, including here.
+        about.append(("Status", NOT_JUDGED))
+        about.append((CAVEAT_TAG, CAVEAT_FOOTER))
+    elif status in STATUS_PHRASE:
+        about.append(("Status", STATUS_PHRASE[status]))
+    layer_about()
+    card["about"] = about
+
+    points = trend_points(series_by_month, row)
+    if points:
+        card["sparkline"] = points
+        card["spark_label"] = f"Trend over the 12 months to {_month_key(row['month'])}"
     return card

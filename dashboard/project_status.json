@@ -8,7 +8,7 @@
       "deferred": "A deliberate, documented design decision to build this later or not at all right now -- distinct from planned, which implies it's simply not yet scheduled. See CLAUDE.md's 'Current phase' section for the remaining deferred Claude API seam (the chat page's live NL routing)."
     },
     "source_of_truth": "CLAUDE.md's 'Current phase' section and docs/acme-corp-analytics-methods.md are authoritative; this file is a dashboard-consumable projection of that state, not a second source of truth -- update it whenever either changes.",
-    "last_reviewed": "2026-10-06"
+    "last_reviewed": "2026-10-30"
   },
   "components": {
     "weekly_readout": {
@@ -140,7 +140,7 @@
       "shown_on": [
         "Digest"
       ],
-      "note": "Cards for rows whose plan_comparability is caveated carry a Caveated comparison tag and show the gap to plan without a status color or arrow; a Not-computable row whose actual, prior value and baseline are identical shows Not computable instead of a number; every card states its basis (single month or trailing 12 months) and its Layer from the readout. Built, unit-tested and rendered for both committed readout dates; no independent visual-QA pass since these changes. Drill-down ranking tables (Wave 10a QA): the caption states the basis the rank was computed on (deviation from own baseline, or absolute change for additive branches such as NRR/GRR and the Magic number legs, with a change column), a row with no data shows a dash instead of a rank, and the Pipeline generated row carries a unit (leads converted). Not independently validated."
+      "note": "Tiles show a label, value, delta and, where the variance engine's own 12-month series ends at the readout's actual, a sparkline; unit, basis, trailing baseline, status, caveat text and Layer label sit in each tile's About this number. The delta arrow follows the sign of the change and status color plus a word (Ahead, Behind) carry the judgment. Rows whose plan_comparability is caveated carry a small marker, show the gap in neutral gray with no status word and read Not judged in About this number; the caveat is stated once in a section note. A Not-computable row whose actual, prior value and baseline are identical shows Not computable instead of a number. What changed is one ranked bar of the Layer-1 gaps with a table view and a per-metric drill-down. Drill-down ranking tables: the caption states the basis the rank was computed on (deviation from own baseline, or absolute change for additive branches such as NRR/GRR and the Magic number legs, with a change column), a row with no data shows a dash instead of a rank, and the Pipeline generated row carries a unit (leads converted). Built, unit-tested and rendered for both committed readout dates; no independent visual-QA pass since these changes. Not independently validated."
     },
     "digest_persistence_marker": {
       "status": "in_progress",
@@ -164,7 +164,7 @@
       "shown_on": [
         "Segment Efficiency"
       ],
-      "note": "Cards use the shared grid (one card per segment per metric, Layer and basis in the footer); rate moves are labeled pp; a move that rounds to zero is neutral; Consumption payback carries a caveat tag (CAC is marketing spend only); the SMB win-rate card carries the structural-gap tag. The underlying marts are built_and_validated; this rendering has not had an independent visual-QA pass since these changes."
+      "note": "Tiles use the shared grid (one tile per segment per metric); each metric's row heading states its tree layer and basis once. The delta arrow follows the sign of the change and status color plus a word (Favorable, Unfavorable) carry the judgment for the five metrics with a favorable direction; the others show their move in neutral gray. Rate moves are labeled pp; a move that rounds to zero has no glyph or color; Consumption payback carries a caveat tag (CAC is marketing spend only); the SMB win-rate tile reads Not computable with a No variation in data tag and its reason in About this number, not a 100% headline. The underlying marts are built_and_validated; this rendering has not had an independent visual-QA pass since these changes."
     },
     "pipeline_coverage": {
       "status": "in_progress",

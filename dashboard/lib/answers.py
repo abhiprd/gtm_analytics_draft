@@ -266,6 +266,26 @@ def format_value(unit: str, v) -> str:
     return f"{v:.3f}"
 
 
+def win_rate_all_won_note(first_lost: dict, rows: list) -> str:
+    """The data note for win-rate months that read exactly 100% because no lost new-business
+    deal is logged yet. `first_lost` is {segment: first month with a lost deal, 'YYYY-MM'};
+    `rows` are the answer's data rows (period, value, segment). Only a segment that has such
+    months in this answer is named. Returns '' when none does."""
+    named = {}
+    for r in rows:
+        seg, period, value = r.get("segment"), str(r.get("period"))[:7], r.get("value")
+        cutoff = first_lost.get(seg)
+        if seg in ("SMB", None) or not cutoff or value is None or period >= cutoff:
+            continue
+        if abs(float(value) - 1.0) < 1e-9:
+            named.setdefault(seg, cutoff)
+    if not named:
+        return ""
+    parts = [f"{seg} before {cutoff}" for seg, cutoff in named.items()]
+    return ("Win rate is exactly 100% in the months before the first lost new-business deal is logged ("
+            + ", ".join(parts) + "), because those months hold won deals only. Read the series from that point on.")
+
+
 def join_formula(formula: str, note: Optional[str]) -> str:
     """Formula plus its note. A note that opens with punctuation attaches to the formula
     (', by segment'); one that opens with a bracket or a word needs a space."""

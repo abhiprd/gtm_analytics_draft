@@ -14,6 +14,10 @@ from . import segment_mix_view as view
 _LABEL_COLOR = {"SMB": theme.GROWTH_NAVY, "Commercial": "#FFFFFF", "Enterprise": "#FFFFFF"}
 
 
+ROW_PX = 56   # one bar slot
+BAR_PX = 22   # bar thickness: under the 24px cap
+
+
 def stacked_share_figure(rows: List[Dict]) -> go.Figure:
     """A 100%-stacked horizontal bar of MRR share by segment (Section 3.1: composition of a
     small number of parts, compared across two periods). Earlier period on top, segments
@@ -24,21 +28,24 @@ def stacked_share_figure(rows: List[Dict]) -> go.Figure:
         shares = [r["shares"][seg] for r in rows]
         mrr = [[r["mrr"][seg] or "", r["labels"][seg]] for r in rows]
         fig.add_trace(go.Bar(
-            y=labels, x=shares, name=seg, orientation="h",
-            marker=dict(color=theme.SEGMENT_COLOR[seg]),
+            y=labels, x=shares, name=seg, orientation="h", width=BAR_PX / ROW_PX,
+            marker=dict(color=theme.SEGMENT_COLOR[seg], cornerradius=theme.RADIUS_MARK,
+                        line=dict(width=2, color=theme.SURFACE)),
             text=[r["labels"][seg] for r in rows], textposition="inside", insidetextanchor="middle",
-            textfont=dict(color=_LABEL_COLOR[seg], size=13),
+            textfont=dict(color=_LABEL_COLOR[seg], size=theme.FS_XS),
             customdata=mrr,
             hovertemplate=f"{seg}: %{{customdata[1]}}<br>%{{customdata[0]}}<extra></extra>",
         ))
     fig.update_layout(**theme.plotly_layout(
-        barmode="stack", height=60 + 56 * len(rows), hovermode="closest",
+        barmode="stack", height=70 + ROW_PX * len(rows), hovermode="closest",
         margin=dict(l=10, r=24, t=36, b=40),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, traceorder="normal"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, traceorder="normal",
+                    font=theme.PLOTLY_FONT),
     ))
-    fig.update_xaxes(range=[0, 1], tickvals=[0, 0.2, 0.4, 0.6, 0.8, 1.0], tickformat=".0%", title_text="Share of company ending MRR (%)",
-                     showgrid=False, tickfont=theme.PLOTLY_FONT)
-    fig.update_yaxes(autorange="reversed", type="category", tickfont=theme.PLOTLY_FONT)
+    theme.style_axes(fig)
+    fig.update_xaxes(range=[0, 1], tickvals=[0, 0.2, 0.4, 0.6, 0.8, 1.0], tickformat=".0%",
+                     title_text="Share of company ending MRR (%)", showgrid=False)
+    fig.update_yaxes(autorange="reversed", type="category", showgrid=False)
     return fig
 
 
@@ -58,11 +65,11 @@ def render(mix: Dict, key: str) -> Dict:
         return s
     if s.get("headline"):
         theme.card_block(
-            f'<p style="margin:0 0 4px 0;font-size:1.1rem;font-weight:500;line-height:1.45;">'
+            f'<p class="prose lead" style="margin-bottom:4px;">'
             f'{theme.escape_html(s["headline"])}</p>'
-            f'<div class="breadcrumb">{theme.escape_html(s["basis_line"])}'
-            + (f' · Total ending MRR {theme.escape_html(s["total_ending_mrr"])}' if s.get("total_ending_mrr") else "")
-            + '</div>'
+            f'<div class="breadcrumb">{theme.escape_html(s["basis_line"])}</div>'
+            + (f'<div class="breadcrumb">Total ending MRR {theme.escape_html(s["total_ending_mrr"])}</div>'
+               if s.get("total_ending_mrr") else "")
         )
     if s["rows"]:
         st.plotly_chart(stacked_share_figure(s["rows"]), width="stretch", key=key,

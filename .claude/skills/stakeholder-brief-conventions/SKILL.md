@@ -79,7 +79,7 @@ Briefs use the same base palette as the rest of the portfolio (see `dashboard-de
 
 This is a different color role than Palette B's red/green/amber status semantics in `dashboard-design-conventions` — a brief's accent color identifies *which lens the whole document takes*, not the favorable/unfavorable status of any individual metric. Don't reuse status red/green as a brief's accent color; it will misread as a value judgment on the whole document before anyone reads a word.
 
-Typography and base styling (Source Serif 4 headers, Inter body, light/dark `:root` variable pairs) follow `dashboard-design-conventions` Section 5.4 exactly — these are the same fonts for the same licensing reason, and a reader who's seen a dashboard page and then a brief should recognize them as the same system.
+Typography and base styling (Source Serif 4 headers, Inter body, light/dark `:root` variable pairs) belong to the brief itself, a standalone HTML document, and are independent of the dashboard's single-family type system (`dashboard-design-conventions` Section 5.3-5.4). The palette and the semantic color rules are the shared part.
 
 ## 6. What a brief is not
 

@@ -1,16 +1,21 @@
-# Native Streamlit theme -- base colors/font for widgets Streamlit itself
-# renders (buttons, sliders, the app chrome) that theme.py's CSS injection
-# doesn't reach. Palette A/B hex values and the Source Serif 4 / Inter font
-# pairing are the single source of truth in dashboard/theme.py -- this file
-# mirrors the base color and font family so widget chrome doesn't clash with
-# the CSS-styled cards/charts. See dashboard-design-conventions.md Section 9.
+# Native Streamlit theme: base colors, the single font family and the radius for the
+# widgets Streamlit itself renders (buttons, inputs, app chrome) that theme.py's CSS
+# does not reach. The palette, text tokens and type scale are defined once in
+# dashboard/tokens.py (transcribed from the conventions skill, Sections 2 and 5.3-5.5);
+# this file mirrors the base color, family and radius so widget chrome matches the
+# CSS-styled cards and charts. "sans-serif" is Streamlit's bundled Source Sans, the one
+# family every element uses; nothing is fetched from outside.
 [theme]
 base = "light"
 primaryColor = "#1E2761"
 backgroundColor = "#F7F8FA"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#1E2761"
-font = "sans serif"
+font = "sans-serif"
+baseFontSize = 16
+baseRadius = "0.5rem"
+headingFontSizes = ["2.25rem", "1.75rem", "1.25rem", "1.25rem", "1.25rem", "1.25rem"]
+headingFontWeights = [700, 600, 600, 600, 600, 600]
 
 [server]
 headless = true

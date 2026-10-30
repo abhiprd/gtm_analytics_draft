@@ -129,14 +129,14 @@ def stacked_rows(mix: Dict) -> List[Dict]:
 
 
 def segment_change_line(mix: Dict) -> Optional[str]:
-    """'Change against 12 months earlier: SMB -5.2 pp · Commercial +1.0 pp · ...'; segments
+    """'Change in share against 12 months earlier: SMB -5.2 pp, Commercial +1.0 pp, ...'; segments
     without a comparison are omitted, and None when none has one."""
     parts = []
     for s in mix.get("segments") or []:
         shown = format_pp(s.get("share_change_vs_12m_ago"), s.get("share_change_vs_12m_ago_display"))
         if shown:
             parts.append(f"{s['segment']} {shown}")
-    return ("Change in share against 12 months earlier: " + " · ".join(parts)) if parts else None
+    return ("Change in share against 12 months earlier: " + ", ".join(parts)) if parts else None
 
 
 def upmarket_card(mix: Dict) -> Optional[Dict]:
