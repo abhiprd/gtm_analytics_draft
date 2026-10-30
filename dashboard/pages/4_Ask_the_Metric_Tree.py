@@ -43,6 +43,9 @@ REGISTRY = sb.registry()
 METRICS = REGISTRY["metrics"]
 _SEGMENT_ORDER = list(theme.SEGMENT_COLOR.keys())
 _FORMULA_INLINE_LIMIT = 220
+# A full-history data table inside its closed expander scrolls in a 420px card.
+LONG_TABLE_ROWS = 24
+LONG_TABLE_PX = 420
 # NRR and GRR charts show the trailing 24 months, the same window the
 # Segment Efficiency page applies: the earliest months carry a near-zero
 # starting-MRR denominator whose ratio spikes would flatten the recent trend.
@@ -80,7 +83,8 @@ def _clear_history() -> None:
 
 def _status_line(node: dict) -> str:
     status = A.node_status(node)
-    return f"Layer {node['layer']} · {A.STATUS_GLYPH[status]} {A.STATUS_LABEL[status]}"
+    return (f'<span>Layer {node["layer"]}</span>'
+            f'<span>{A.STATUS_GLYPH[status]} {html.escape(A.STATUS_LABEL[status])}</span>')
 
 
 def _render_node(key: str, depth: int) -> None:
@@ -120,9 +124,12 @@ def _render_tree_panel() -> None:
         f"{n_l1} Layer-1 metrics under {len(by_pillar)} pillars. Select a node to ask about it; "
         "▸ opens its children."
     )
-    st.sidebar.caption(
-        " · ".join(f"{A.STATUS_GLYPH[s]} {A.STATUS_LABEL[s]}" for s in A.STATUS_LEGEND_ORDER)
+    legend = "".join(
+        f'<div><span class="legend-glyph">{A.STATUS_GLYPH[s]}</span>{html.escape(A.STATUS_LABEL[s])}</div>'
+        for s in A.STATUS_LEGEND_ORDER
     )
+    st.sidebar.markdown(f'<div class="tree-legend"><div class="tree-legend-title">Status key</div>{legend}</div>',
+                        unsafe_allow_html=True)
     for pillar, keys in by_pillar.items():
         dot = theme.PILLAR_COLOR.get(pillar.lower(), theme.NEUTRAL_GRAY)
         tagline = A.pillar_tagline(pillar, REGISTRY["pillars"].get(pillar, {}).get("tagline", ""))
@@ -186,21 +193,36 @@ def _figure(df: pd.DataFrame, own: dict, pillar_color: str, grain: str = "month"
             if excluded else pd.Series(False, index=df.index))
     partial, df = df[mask], df[~mask]
     excluded_label = censoring.EXCLUDED_LABEL if own.get("censored_months") else censoring.PARTIAL_LABEL
+
+    def add_series(sdf: pd.DataFrame, name: str, color: str, show_legend: bool) -> None:
+        """A 2px line, filled 8px+ ringed end marker on the newest point, and a marker only on
+        a point with no neighbor on either side (which a line cannot draw)."""
+        sdf = sdf.sort_values("period")
+        y = list(_scaled(own, sdf["value"]))
+        x = list(sdf["period"])
+        fig.add_trace(go.Scatter(x=x, y=y, mode="lines", name=name, showlegend=show_legend,
+                                 line=dict(color=color, width=2)))
+        known = [v is not None and v == v for v in y]
+        lone = [i for i, ok in enumerate(known) if ok and not (i > 0 and known[i - 1])
+                and not (i < len(y) - 1 and known[i + 1])]
+        if lone:
+            fig.add_trace(go.Scatter(x=[x[i] for i in lone], y=[y[i] for i in lone], mode="markers",
+                                     showlegend=False, hoverinfo="skip",
+                                     marker=dict(size=8, color=color, line=dict(width=2, color=theme.SURFACE))))
+        last = [i for i, ok in enumerate(known) if ok]
+        if last:
+            i = last[-1]
+            fig.add_trace(go.Scatter(x=[x[i]], y=[y[i]], mode="markers", showlegend=False, hoverinfo="skip",
+                                     marker=dict(size=9, color=color, line=dict(width=2, color=theme.SURFACE))))
+
     if "segment" in df.columns:
         segs = [s for s in _SEGMENT_ORDER if s in df["segment"].unique()]
         segs += [s for s in df["segment"].unique() if s not in _SEGMENT_ORDER]
         for seg in segs:
-            sdf = df[df["segment"] == seg].sort_values("period")
-            color = theme.SEGMENT_COLOR.get(seg, theme.NEUTRAL_GRAY)
-            fig.add_trace(go.Scatter(
-                x=sdf["period"], y=_scaled(own, sdf["value"]), mode="lines+markers", name=seg,
-                line=dict(color=color, width=2.5), marker=dict(color=color, size=6)))
+            add_series(df[df["segment"] == seg], seg, theme.SEGMENT_COLOR.get(seg, theme.NEUTRAL_GRAY), True)
         show_legend = True
     else:
-        sdf = df.sort_values("period")
-        fig.add_trace(go.Scatter(
-            x=sdf["period"], y=_scaled(own, sdf["value"]), mode="lines+markers", name=own["name"],
-            line=dict(color=pillar_color, width=2.5), marker=dict(color=pillar_color, size=6)))
+        add_series(df, own["name"], pillar_color, False)
         show_legend = False
     # The truncated final period, or a node's censored tail, is drawn as open markers
     # (never part of the line).
@@ -286,7 +308,7 @@ def _note_box(text: str) -> None:
     if rest:
         body += (f' <details class="note-details"><summary>Details</summary>'
                  f'<div>{theme.escape_html(rest)}</div></details>')
-    theme.card_block(f'<div style="font-size:0.9rem;line-height:1.45">{body}</div>')
+    theme.card_block(f'<div class="note-line">{body}</div>')
 
 
 def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
@@ -305,7 +327,7 @@ def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
     elif censored_note and own.get("newest_partial_label"):
         # A series with a right-censored tail (lib/censoring.py): the headline is the last
         # uncensored period and the note is visible, not behind a Details toggle.
-        theme.card_block(f'<div style="font-size:0.9rem;line-height:1.45"><strong>Data note.</strong> '
+        theme.card_block(f'<div class="note-line"><strong>Data note.</strong> '
                          f'{theme.escape_html(censored_note)}</div>')
     elif own.get("newest_partial_label"):
         st.caption(f"{own['newest_partial_label']} is the truncated final period of the data window. It is "
@@ -321,7 +343,7 @@ def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
         return "No prior period in this result"
 
     if set(values) == {""}:
-        cards = [dict(label=f"{card_name} · {own['period_label']}", pillar=pillar_key,
+        cards = [dict(label=f"{card_name}, {own['period_label']}", pillar=pillar_key,
                       value_display=A.format_value(unit, values[""]),
                       comparison_display=comparison_for(""), footer=basis, tag=tag)]
     else:
@@ -332,15 +354,19 @@ def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
             if seg in constant:
                 # A segment whose whole series is one value (SMB win rate is 100% by
                 # construction) is a gap, not a headline over a flat line.
-                cards.append(dict(label=f"{seg} · {own['period_label']}", dot_color=theme.SEGMENT_COLOR[seg],
-                                  value_display="Not computable", value_size="sm", tag="Structural gap",
+                cards.append(dict(label=f"{seg}, {own['period_label']}", dot_color=theme.SEGMENT_COLOR[seg],
+                                  value_display="Not computable", value_size="sm", tag="No variation in data",
                                   footer=["The value is the same in every period; see the data note."] + basis))
             else:
-                cards.append(dict(label=f"{seg} · {own['period_label']}", dot_color=theme.SEGMENT_COLOR[seg],
+                cards.append(dict(label=f"{seg}, {own['period_label']}", dot_color=theme.SEGMENT_COLOR[seg],
                                   value_display=A.format_value(unit, values[seg]),
                                   comparison_display=comparison_for(seg), footer=basis, tag=tag))
     if own.get("gap_note"):
         _note_box(own["gap_note"])
+    if own["key"] == "win_rate":
+        all_won = A.win_rate_all_won_note(data.first_lost_new_business_month(), own["result"].get("data") or [])
+        if all_won:
+            _note_box(all_won)
     theme.scorecard_row(cards)
 
     df = pd.DataFrame(own["result"]["data"])
@@ -358,7 +384,7 @@ def _render_value_answer(own: dict, parsed: dict, idx: int) -> None:
     with st.expander("Data"):
         shown = A.table_rows({"data": df.to_dict("records")}, unit, grain, own.get("partial_month"),
                              censored=own.get("censored_months"))
-        st.dataframe(pd.DataFrame(shown), hide_index=True, width="stretch")
+        theme.table(pd.DataFrame(shown), max_height=LONG_TABLE_PX if len(shown) > LONG_TABLE_ROWS else None)
 
 
 def _render_split_notice(parsed: dict, own: dict, idx: int) -> None:
@@ -387,18 +413,20 @@ def _render_answer(ans: dict, idx: int) -> None:
                 st.markdown(f"- {theme.escape_md(s)}")
         st.caption("Select a node in the metric tree to start from a registered name.")
         with st.expander("Query details"):
-            st.json(parsed)
+            theme.kv_list([("Routing", "Keyword match against the registry's whitelisted names, keys and aliases"),
+                           ("Question", parsed.get("raw_question")),
+                           ("Grain", parsed.get("grain"))])
         return
 
     own = ans["own"]
     pillar_key = (own["pillar"] or "").lower()
     dot = theme.PILLAR_COLOR.get(pillar_key, theme.NEUTRAL_GRAY)
-    under = f" · under {html.escape(own['parent_name'])}" if own["parent_name"] else ""
+    under = f'<span>Under {html.escape(own["parent_name"])}</span>' if own["parent_name"] else ""
     theme.card_block(
         f'<span class="pillar-dot" style="background-color:{dot}"></span>'
         f'<strong>{html.escape(own["name"])}</strong>'
-        f'<div class="breadcrumb">{html.escape(own["pillar"])} · Layer {own["layer"]}{under} · '
-        f'{A.STATUS_GLYPH[own["status"]]} {A.STATUS_LABEL[own["status"]]}</div>'
+        f'<div class="breadcrumb meta-row"><span>{html.escape(own["pillar"])}</span><span>Layer {own["layer"]}</span>{under}'
+        f'<span>{A.STATUS_GLYPH[own["status"]]} {html.escape(A.STATUS_LABEL[own["status"]])}</span></div>'
     )
     if own.get("formula"):
         formula = A.join_formula(own["formula"], own.get("formula_note"))
@@ -412,8 +440,12 @@ def _render_answer(ans: dict, idx: int) -> None:
 
     filt = ", ".join(f"{k}={v}" for k, v in (parsed["filters"] or {}).items()) or "none"
     split = ", ".join(parsed["dimensions"]) if parsed["dimensions"] else "none"
-    st.caption(theme.escape_md(f"Grain: {parsed['grain']} · Filter: {filt} · Split by: {split}"
-                               + (" (default view)" if parsed.get("default_view_note") else "")))
+    st.markdown(
+        '<div class="breadcrumb meta-row">'
+        f'<span>Grain: {html.escape(str(parsed["grain"]))}</span><span>Filter: {html.escape(filt)}</span>'
+        f'<span>Split by: {html.escape(split)}</span>'
+        + ('<span>Default view</span>' if parsed.get("default_view_note") else "") + '</div>',
+        unsafe_allow_html=True)
     if parsed.get("default_view_note"):
         st.caption(theme.escape_md(parsed["default_view_note"]))
     _render_split_notice(parsed, own, idx)
@@ -448,14 +480,32 @@ def _render_answer(ans: dict, idx: int) -> None:
         _children_table(own, ans["children"], parsed.get("segment_subset") or None)
 
     with st.expander("Query details"):
-        st.caption("Routing: keyword match against the registry's whitelisted names, keys and aliases.")
-        st.json(parsed)
-        sql = own["result"].get("sql")
-        if sql:
-            st.code(sql, language="sql")
-        if own["result"].get("metric"):
-            st.caption("Registry definition")
-            st.json(own["result"]["metric"])
+        _query_details(own, parsed)
+
+
+def _query_details(own: dict, parsed: dict) -> None:
+    """How the question was read and what it was answered from, as a label-and-value list in
+    the page's own type. The registry definition is shown by name, formula and source; the
+    generated query text and table names are not shown (Section 4.10)."""
+    metric = own["result"].get("metric") or {}
+    filt = ", ".join(f"{k.replace('_', ' ').capitalize()}: {v}" for k, v in (parsed["filters"] or {}).items())
+    source = labels.source_label(metric["source_mart"]) if metric.get("source_mart") else None
+    theme.kv_list([
+        ("Routing", "Keyword match against the registry's whitelisted names, keys and aliases"),
+        ("Question", parsed.get("raw_question")),
+        ("Matched term", parsed.get("matched_term")),
+        ("Metric", metric.get("name") or own["name"]),
+        ("Metric key", metric.get("key") or own.get("key")),
+        ("Pillar and layer", f"{metric['pillar']}, Layer {metric['layer']}" if metric.get("pillar") else None),
+        ("Formula", labels.apply_phrase_map(A.join_formula(metric["formula"], metric.get("formula_note")))
+         if metric.get("formula") else None),
+        ("Data source", source),
+        ("Grain", parsed.get("grain")),
+        ("Filter", filt or "None"),
+        ("Split by", ", ".join(parsed["dimensions"]) if parsed["dimensions"] else "None"),
+        ("Additive", None if metric.get("additive") is None else ("Yes" if metric["additive"] else "No")),
+        ("Registry version", own["result"].get("registry_version")),
+    ])
 
 
 @st.cache_data(ttl=300, show_spinner=False)

@@ -92,3 +92,29 @@ class TestMonthsPrecision:
     def test_a_non_zero_value_never_prints_as_zero(self):
         for v in (0.0051, 0.01, 0.049, 0.06):
             assert fmt.months(v) not in ("0.0", "0.00")
+
+
+# ---------------------------------------------------------------------------
+# Lens dot plot axis
+# ---------------------------------------------------------------------------
+class TestLensAxis:
+    def test_a_non_negative_quantity_never_gets_an_axis_below_zero(self):
+        lo, hi = F.lens_axis([100_000.0, 3_000_000.0])
+        assert lo == 0.0 and hi > 3_000_000.0
+
+    def test_a_tight_cluster_gets_a_fitted_axis_that_does_not_start_at_zero(self):
+        lo, hi = F.lens_axis([1.13e6, 1.32e6, 1.33e6, 1.36e6])
+        assert 0 < lo < 1.13e6 and hi > 1.36e6
+
+    def test_caption_follows_the_axis_actually_drawn(self):
+        assert "starts at zero" in F.axis_caption(0.0)
+        assert "does not start at zero" in F.axis_caption(1_072_500.0)
+        assert "includes zero" in F.axis_caption(-112_500.0)
+
+    def test_ticks_are_round_inside_the_range_and_use_one_k_m_casing(self):
+        lo, hi = F.lens_axis([1.13e6, 1.32e6, 1.33e6, 1.36e6])
+        ticks = F.nice_ticks(lo, hi)
+        assert ticks and all(lo <= t <= hi for t in ticks)
+        assert [F.fmt_usd(t) for t in ticks] == ["$1.10M", "$1.20M", "$1.30M", "$1.40M"]
+        small = [F.fmt_usd(t) for t in F.nice_ticks(*F.lens_axis([120e3, 380e3]))]
+        assert all(t.endswith("K") and "k" not in t for t in small)

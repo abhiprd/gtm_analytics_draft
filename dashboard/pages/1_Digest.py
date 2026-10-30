@@ -8,8 +8,10 @@ health_score.py's scored output.
 Audience tier: CRO / exec (dashboard-design-conventions.md Section 4.1's
 own worked example for this tier). Layout follows Section 4.3's
 inverted-pyramid order top to bottom:
-  1. Verdict row      -- Layer-1 scorecards by pillar
-  2. What changed     -- drill-downs (breaching nodes only, never padded)
+  1. Verdict row      -- Layer-1 stat tiles by pillar (label, value, delta, a
+                          12-month sparkline where a monthly series exists)
+  2. What changed     -- one ranked bar of the Layer-1 gaps outside the
+                          threshold, with the drill-down detail one selection away
   3. What's coming    -- the readout's forecast section (Commercial and
                           Enterprise, quarter grain), or its honest
                           unavailable state
@@ -34,7 +36,7 @@ _DASHBOARD_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _DASHBOARD_DIR)
 import theme
 from lib import (answers, data, drilldown_view, exec_summary_view, forecast_logic, forecast_view, labels,
-                 persistence_view, segment_mix_render, verdict)
+                 persistence_view, segment_mix_render, verdict, whatchanged_render, whatchanged_view)
 
 theme.page_config("Digest | Acme Corp GTM", "\U0001F4CB")
 theme.inject_global_css()
@@ -62,6 +64,9 @@ LAYER1_FORMULA = {
     "grr": "(Starting − Contraction − Churn) ÷ Starting consumption revenue",
     "logo_retention": "Retained accounts ÷ Starting accounts",
 }
+
+TRIGGER_ROWS_SHOWN = 8
+WATCHLIST_ROWS_SHOWN = 10
 
 PILLAR_LABEL = {"growth": "Growth", "efficiency": "Efficiency", "durability": "Durability"}
 
@@ -94,50 +99,49 @@ threshold_pct = header["variance_threshold"] * 100
 baseline_months = header.get("trailing_baseline_months")
 
 with title_col:
-    st.subheader(header["reporting_period_label"])
+    st.header(header["reporting_period_label"])
 
 n_caveated = sum(1 for r in scorecard["rows"] if verdict.is_caveated(r))
 
 # --- Standing requirement (Section 7): as-of date, grain, and threshold
-# visible in a prominent info row, not buried in a settings panel. ---
+# visible in a prominent info row, not buried in a settings panel. Each fact is its
+# own cell: no middle-dot-joined meta string (Section 5.3). ---
 theme.info_row([
-    ("Audience", header["audience"]),
+    ("Audience", header["audience"], 2),
     ("As-of date", header["as_of_date"]),
     ("Grain", "Monthly"),
     ("Variance threshold", f"±{threshold_pct:.0f}%"),
-    ("Nodes tracked",
-     f'{scorecard["nodes_total"]} · {scorecard["nodes_breaching_threshold"]} breaching '
-     f'({n_caveated} caveated) · {scorecard["nodes_not_computable"]} not computable'),
+    ("Nodes tracked", str(scorecard["nodes_total"])),
+    ("Breaching threshold", f'{scorecard["nodes_breaching_threshold"]} ({n_caveated} caveated)'),
+    ("Not computable", str(scorecard["nodes_not_computable"])),
 ])
 
 # --- Executive summary (Section 4.2/4.8: a generated exec summary is expected on
 # this tier; Section 7: never render it unless it is real). The display
 # decision lives in lib/exec_summary_view.display_state() -- prose comes back
 # ONLY for status == generated AND validation.passed AND an input_hash that
-# matches this readout; every other state carries no statements at all. ---
-st.markdown("#### Executive summary")
+# matches this readout; every other state carries no statements at all. When there
+# is no summary the page does not open on an empty block: a compact notice states the
+# gap and the verdict tiles follow directly. ---
 summary_view = exec_summary_view.display_state(readout.get("executive_summary"), readout)
 if summary_view["kind"] == exec_summary_view.KIND_GENERATED:
+    st.markdown("#### Executive summary")
     cite_labels = {r["metric_key"]: r["label"] for r in scorecard["rows"]}
     lead, *rest = summary_view["statements"]
     # Completeness honesty (Section 7): while project_status.json still lists the
     # narrative artifact as anything short of built_and_validated, a generated-looking
     # block must say so on its face. Disappears by itself once the status flips.
     comp_status = theme.component_status("executive_summary_narrative")["status"]
-    status_suffix = (
+    status_line = (
         "" if comp_status == "built_and_validated"
-        else f" · narrative step status: {comp_status.replace('_', ' ')} (not yet independently validated)"
+        else f'<div class="breadcrumb">Narrative step status: {comp_status.replace("_", " ")} (not yet independently validated)</div>'
     )
-    body = "".join(
-        f'<p style="margin:0 0 10px 0;font-size:0.95rem;line-height:1.5;">{exec_summary_view.safe_html(s["text"])}</p>'
-        for s in rest
-    )
+    body = "".join(f'<p class="prose">{exec_summary_view.safe_html(s["text"])}</p>' for s in rest)
     theme.card_block(
-        f'<p style="margin:0 0 12px 0;font-size:1.1rem;font-weight:500;line-height:1.45;">'
-        f'{exec_summary_view.safe_html(lead["text"])}</p>'
+        f'<p class="prose lead">{exec_summary_view.safe_html(lead["text"])}</p>'
         f'{body}'
-        f'<div class="breadcrumb" style="margin-top:4px;">'
-        f'{exec_summary_view.safe_html(summary_view["provenance"] + status_suffix)}</div>'
+        f'<div class="breadcrumb">{exec_summary_view.safe_html(summary_view["provenance"])}</div>'
+        f'{status_line}'
     )
     with st.expander("Sources and checks"):
         for i, stmt in enumerate(summary_view["statements"], start=1):
@@ -154,23 +158,19 @@ if summary_view["kind"] == exec_summary_view.KIND_GENERATED:
             "figures: the drill-down ranks deviation from a trailing baseline, which locates a miss "
             "and does not establish its cause."
         )
-        st.caption(" · ".join(
-            f"{'✓' if c['passed'] else '✗'} {c['name'].replace('_', ' ')}" for c in summary_view["checks"]
-        ))
+        st.markdown("".join(
+            f'<div class="breadcrumb">{"✓" if c["passed"] else "✗"} {theme.escape_html(c["name"].replace("_", " "))}</div>'
+            for c in summary_view["checks"]
+        ), unsafe_allow_html=True)
 else:
-    # No prose, no placeholder text that could be mistaken for a summary:
-    # status line + plain-language reason up front. The expander is reader-facing:
-    # the reason, what is needed, and the component's status label. How to run the
-    # step lives in dashboard/README.md, not on the page.
-    st.info(f"**{theme.escape_md(summary_view['headline'])}.** {theme.escape_md(summary_view['reason_text'])}")
-    with st.expander("Why this is blank"):
-        st.write(f"**Reason:** {theme.escape_md(summary_view['reason_text'])}")
-        st.write(f"**Needed:** {theme.escape_md(summary_view['needed_text'])}")
-        st.write(f"**Status:** {theme.status_label('executive_summary_narrative')}")
-        if summary_view["failed_checks"]:
-            st.write("**Checks that failed:** " + ", ".join(c.replace("_", " ") for c in summary_view["failed_checks"]))
-
-st.divider()
+    # No prose, no placeholder text that could be mistaken for a summary: a plain-language
+    # reason up front and, one click away, the reason, what is needed and the component's
+    # status label. How to run the step lives in dashboard/README.md, not on the page.
+    details = [("Reason", summary_view["reason_text"]), ("Needed", summary_view["needed_text"]),
+               ("Status", theme.status_label("executive_summary_narrative"))]
+    if summary_view["failed_checks"]:
+        details.append(("Checks that failed", ", ".join(c.replace("_", " ") for c in summary_view["failed_checks"])))
+    theme.compact_notice("Executive summary not generated", summary_view["reason_text"], details)
 
 # Notes & assumptions accumulate here as sections render and are shown once,
 # at the bottom of the page (Section 11.3).
@@ -190,9 +190,12 @@ def add_note(kind: str, text: str, prefix: str = "") -> None:
 # =====================================================================
 # 1. VERDICT ROW -- Layer-1 scorecards by pillar (Section 4.3, item 1)
 # =====================================================================
-st.markdown("#### Verdict — Layer-1 scorecard")
-st.caption("Layer-1 metrics by pillar, latest complete month against plan. "
-           "Each card states its basis: a single month or a trailing 12 months.")
+st.markdown("#### Verdict: Layer-1 scorecard")
+st.caption("Layer-1 metrics by pillar, latest complete month against plan. Open a tile's \"About this number\" "
+           "for its unit, basis, baseline and Layer label.")
+caveat_text = whatchanged_view.caveat_note(n_caveated, len(scorecard["rows"]))
+if caveat_text:
+    theme.section_note(caveat_text)
 notes.append(("Scope", header["reporting_period_grain_note"]))
 dw = readout.get("data_window") or {}
 if dw.get("evaluation_month") and dw.get("last_month_in_marts") and dw["evaluation_month"] != dw["last_month_in_marts"]:
@@ -200,15 +203,20 @@ if dw.get("evaluation_month") and dw.get("last_month_in_marts") and dw["evaluati
                            f"{dw['last_month_in_marts'][:7]}, which is a truncated final month."))
 notes.append(("Scope", "Status color is set per metric from its favorable direction against plan, not "
                        "from the sign of the variance."))
-notes.append(("Scope", "A card tagged Caveated comparison shows its gap to plan without a status color or "
-                       "arrow: the plan and the actual are not on the same footing, so the gap is not a "
-                       "business finding on its own."))
+notes.append(("Scope", "A tile marked as a caveated comparison shows its gap to plan in gray without a status "
+                       "word: the plan and the actual are not on the same footing, so the gap is not a "
+                       "business finding on its own. A delta's arrow shows the direction of the change; "
+                       "color and the status word show whether that is favorable."))
+notes.append(("Scope", "A tile's sparkline is the metric's own monthly series for the 12 months to the "
+                       "scorecard month, on the same basis as the headline. A tile without a sparkline has "
+                       "no complete 12-month series."))
 notes.append(("Scope", "Dollar movements, Consumption payback, Onboarding/CS efficiency and Activation are "
                        "single-month figures. Magic number, AM efficiency, NRR, GRR and Logo retention are "
                        "trailing-12-month figures. Segment Efficiency shows single-month values, so the "
                        "same metric reads differently there."))
 
 cards_by_key = {}
+monthly_series = data.layer1_monthly_series(as_of)
 for pillar in ["growth", "efficiency", "durability"]:
     pillar_rows = [r for r in scorecard["rows"] if r["pillar"] == pillar]
     if not pillar_rows:
@@ -216,19 +224,19 @@ for pillar in ["growth", "efficiency", "durability"]:
     breaching_n = sum(1 for r in pillar_rows if r["breaches_threshold"])
     caveated_n = sum(1 for r in pillar_rows if verdict.is_caveated(r))
     dot = theme.PILLAR_COLOR[pillar]
-    caveat_text = f", {caveated_n} caveated" if caveated_n else ""
+    caveat_part = f", {caveated_n} caveated" if caveated_n else ""
     st.markdown(
-        f'<div style="margin-top:14px"><span class="pillar-dot" style="background-color:{dot}"></span>'
+        f'<div style="margin-top:16px"><span class="pillar-dot" style="background-color:{dot}"></span>'
         f'<strong>{PILLAR_LABEL[pillar]}</strong> '
-        f'<span class="breadcrumb">({breaching_n} of {len(pillar_rows)} breaching ±{threshold_pct:.0f}%{caveat_text})</span></div>',
+        f'<span class="breadcrumb">{breaching_n} of {len(pillar_rows)} outside ±{threshold_pct:.0f}%{caveat_part}</span></div>',
         unsafe_allow_html=True,
     )
     cards = []
     for row in pillar_rows:
-        card = verdict.card_for_row(row, pillar, baseline_months)
+        card = verdict.card_for_row(row, pillar, baseline_months, monthly_series.get(row["metric_key"]))
         cards_by_key[row["metric_key"]] = card
         cards.append(card)
-    theme.scorecard_row(cards)
+    theme.scorecard_row(cards, columns=4)
     # Per-metric notes go to the page's single Notes & assumptions section.
     for row in pillar_rows:
         for field, kind in (("gap_note", "Data gap"), ("plan_comparability_note", "Scope")):
@@ -245,117 +253,133 @@ st.divider()
 # =====================================================================
 st.markdown("#### What changed")
 drilldowns = readout["drilldowns"]
-st.caption(
-    f"{drilldowns['count']} drill-downs: one per Layer-1 metric outside the "
-    f"±{threshold_pct:.0f}% threshold."
-)
+caveated_keys = {r["metric_key"] for r in scorecard["rows"] if verdict.is_caveated(r)}
+wc_rows = whatchanged_view.rows(drilldowns["entries"], caveated_keys)
 
-for entry in drilldowns["entries"]:
+
+def _render_drilldown(entry: dict) -> None:
+    """One metric's drill-down: its Layer-1 tile beside the Layer-2 outlier, the repeat
+    marker, the Layer-3 evidence and the Layer-2 siblings, all verbatim from the readout."""
     l1 = entry["layer1"]
     l2 = entry["layer2_outlier"]
     pillar = l1["pillar"]
     dot = theme.PILLAR_COLOR.get(pillar, theme.NEUTRAL_GRAY)
-    l1_caveated = cards_by_key.get(l1["metric_key"], {}).get("tag") == verdict.CAVEAT_TAG
+    l1_caveated = cards_by_key.get(l1["metric_key"], {}).get("marker") == verdict.CAVEAT_TAG
     # A caveated gap is not a verdict, so its breadcrumb carries no Ahead/Behind word.
     l1_state = f'{l1["variance_display"]}, caveated comparison' if l1_caveated else f'{l1["status"]}, {l1["variance_display"]}'
     l2_label = labels.qualified_node_label(l2["metric_key"], l2["label"]) if l2 else None
     persist = persistence_view.state(entry.get("persistence"))
-    breadcrumb = (
-        f'{PILLAR_LABEL.get(pillar, pillar.title())} › Layer 1: {l1["label"]} '
-        f'({l1_state}) › Layer 2: '
-        + (f'{l2_label} is the outlier' if l2 else "no computable outlier")
+    # The repeat chip is neutral gray: it marks a repeated driver, not a status.
+    st.markdown(
+        f'<div class="breadcrumb"><span class="pillar-dot" style="background-color:{dot}"></span>'
+        f'{theme.escape_html(PILLAR_LABEL.get(pillar, pillar.title()))} › '
+        f'Layer 1: {theme.escape_html(l1["label"])} ({theme.escape_html(l1_state)}) › Layer 2: '
+        + (f'{theme.escape_html(l2_label)} is the outlier' if l2 else "no computable outlier")
+        + (theme.neutral_chip(persist["chip"]) if persist["chip"] else "") + '</div>',
+        unsafe_allow_html=True,
     )
-    with st.expander(breadcrumb):
-        # The repeat chip is neutral gray: it marks a repeated driver, not a status.
-        st.markdown(
-            f'<span class="pillar-dot" style="background-color:{dot}"></span>'
-            f'<span class="breadcrumb">{PILLAR_LABEL.get(pillar, pillar.title())} › '
-            f'{l1["label"]}</span>'
-            + (theme.neutral_chip(persist["chip"]) if persist["chip"] else ""),
-            unsafe_allow_html=True,
+    st.caption(f'Layer-1 formula: {LAYER1_FORMULA.get(l1["metric_key"], "not defined as a formula in the tree")}')
+
+    # The Layer-1 card here is the verdict row's own card (same status, same
+    # caveat treatment), never a re-derived neutral one.
+    l1_card = cards_by_key.get(l1["metric_key"])
+    if l1_card is None:
+        l1_card = dict(label=l1["label"], value_display=l1["value_display"], pillar=pillar,
+                       comparison_display=l1["comparison_display"], variance_display=l1["variance_display"],
+                       favorable_direction=None, is_ahead=verdict.is_ahead_for(l1["status"]),
+                       about=[("Layer", f"Layer {l1['layer']}")])
+    if l2:
+        l2_card = dict(
+            label=l2_label, pillar=pillar,
+            value_display=answers.format_for_key(l2["metric_key"], l2["value"]),
+            comparison_display=f"vs {answers.format_for_key(l2['metric_key'], l2['baseline'])} trailing baseline",
+            variance_display=f'{l2["deviation_pct"] * 100:+.1f}%',
+            about=[("Basis", "Deviation from its own trailing baseline; no plan at this layer"),
+                   ("Layer", f"Layer {l2['layer']}")],
         )
-        st.caption(f'Layer-1 formula: {LAYER1_FORMULA.get(l1["metric_key"], "not defined as a formula in the tree")}')
+        theme.scorecard_row([l1_card, l2_card])
+    else:
+        theme.scorecard_row([l1_card])
+        st.info("No Layer-2 child has a computable actual with a usable baseline.")
 
-        # The Layer-1 card here is the verdict row's own card (same status, same
-        # caveat treatment), never a re-derived neutral one.
-        l1_card = cards_by_key.get(l1["metric_key"])
-        if l1_card is None:
-            l1_card = dict(label=l1["label"], value_display=l1["value_display"], pillar=pillar,
-                           comparison_display=l1["comparison_display"], variance_display=l1["variance_display"],
-                           favorable_direction=None, is_ahead=verdict.is_ahead_for(l1["status"]),
-                           footer=[f"Layer {l1['layer']}"])
-        if l2:
-            l2_card = dict(
-                label=l2_label, pillar=pillar,
-                value_display=answers.format_for_key(l2["metric_key"], l2["value"]),
-                comparison_display=f"vs {answers.format_for_key(l2['metric_key'], l2['baseline'])} trailing baseline",
-                variance_display=f'{l2["deviation_pct"] * 100:+.1f}%',
-                footer=["Deviation from its own trailing baseline; no plan at this layer", f"Layer {l2['layer']}"],
-            )
-            theme.scorecard_row([l1_card, l2_card])
-        else:
-            theme.scorecard_row([l1_card])
-            st.info("No Layer-2 child has a computable actual with a usable baseline.")
+    # Repeat marker: the engine's record, shown verbatim (lib/persistence_view.py).
+    st.markdown("**Repeat marker**")
+    st.caption(theme.escape_md(persist["line"]))
+    if persist["caveat"]:
+        st.caption(theme.escape_md(persist["caveat"]))
+    if persist["note"]:
+        st.caption(theme.escape_md(persist["note"]))
+    if persist["break_text"]:
+        st.caption(theme.escape_md(persist["break_text"]))
+    if persist["rows"]:
+        theme.table(pd.DataFrame(persist["rows"]))
+    for line in (persist["adverse_direction"], persist["basis_line"]):
+        if line:
+            st.caption(theme.escape_md(line))
 
-        # Repeat marker: the engine's record, shown verbatim (lib/persistence_view.py).
-        st.markdown("**Repeat marker**")
-        st.caption(theme.escape_md(persist["line"]))
-        if persist["caveat"]:
-            st.caption(theme.escape_md(persist["caveat"]))
-        if persist["note"]:
-            st.caption(theme.escape_md(persist["note"]))
-        if persist["break_text"]:
-            st.caption(theme.escape_md(persist["break_text"]))
-        if persist["rows"]:
-            st.dataframe(pd.DataFrame(persist["rows"]), hide_index=True, width="stretch")
-        for line in (persist["adverse_direction"], persist["basis_line"]):
-            if line:
-                st.caption(theme.escape_md(line))
+    l3_status = entry.get("layer3_status")
+    l3_rank = entry.get("layer3_ranking") or []
+    if l3_status == "branch_depth_2":
+        st.caption("Layer 3: this branch has no Layer-3 children in the tree; depth stops at Layer 2.")
+    elif l3_rank:
+        st.markdown("**Layer 3 evidence**")
+        # The caption states the basis the rank was computed on (the rows' own
+        # comparison_basis), not a fixed phrase: additive branches rank on absolute change.
+        st.caption(drilldown_view.caption(l3_rank, 3))
+        parent_label = {l2["metric_key"]: l2_label} if l2 else {}
+        theme.table(pd.DataFrame(drilldown_view.table_dict(
+            l3_rank, lambda x: labels.qualified_node_label(x["metric_key"], x["label"]),
+            label_header="Metric (Layer 3)",
+            extra={"Under": [parent_label.get(x.get("parent_key")) or labels.humanize(x.get("parent_key") or "")
+                             for x in l3_rank]},
+        )))
+    elif entry.get("layer3_evidence"):
+        st.markdown("**Layer 3 evidence**")
+        ev_df = pd.DataFrame(entry["layer3_evidence"])
+        parent_label = {l2["metric_key"]: l2["label"]} if l2 else {}
+        if "parent_key" in ev_df.columns:
+            ev_df["parent_key"] = ev_df["parent_key"].map(lambda k: parent_label.get(k) or labels.humanize(k))
+        for col in ("value", "baseline"):
+            if col in ev_df.columns and "metric_key" in ev_df.columns:
+                ev_df[col] = [answers.format_for_key(k, v) for k, v in zip(ev_df["metric_key"], ev_df[col])]
+        ev_df = ev_df[[c for c in ev_df.columns if c not in labels.HIDDEN_FIELDS]]
+        ev_df = ev_df.rename(columns={c: labels.field_label(c) for c in ev_df.columns})
+        theme.table(ev_df)
+    else:
+        st.caption("Layer 3: no computable evidence for this branch this period.")
 
-        l3_status = entry.get("layer3_status")
-        l3_rank = entry.get("layer3_ranking") or []
-        if l3_status == "branch_depth_2":
-            st.caption("Layer 3: this branch has no Layer-3 children in the tree; depth stops at Layer 2.")
-        elif l3_rank:
-            st.markdown("**Layer 3 evidence**")
-            # The caption states the basis the rank was computed on (the rows' own
-            # comparison_basis), not a fixed phrase: additive branches rank on absolute change.
-            st.caption(drilldown_view.caption(l3_rank, 3))
-            parent_label = {l2["metric_key"]: l2_label} if l2 else {}
-            st.dataframe(pd.DataFrame(drilldown_view.table_dict(
-                l3_rank, lambda x: labels.qualified_node_label(x["metric_key"], x["label"]),
-                label_header="Metric (Layer 3)",
-                extra={"Under": [parent_label.get(x.get("parent_key")) or labels.humanize(x.get("parent_key") or "")
-                                 for x in l3_rank]},
-            )), hide_index=True, width="stretch")
-        elif entry.get("layer3_evidence"):
-            st.markdown("**Layer 3 evidence**")
-            ev_df = pd.DataFrame(entry["layer3_evidence"])
-            parent_label = {l2["metric_key"]: l2["label"]} if l2 else {}
-            if "parent_key" in ev_df.columns:
-                ev_df["parent_key"] = ev_df["parent_key"].map(lambda k: parent_label.get(k) or labels.humanize(k))
-            for col in ("value", "baseline"):
-                if col in ev_df.columns and "metric_key" in ev_df.columns:
-                    ev_df[col] = [answers.format_for_key(k, v) for k, v in zip(ev_df["metric_key"], ev_df[col])]
-            ev_df = ev_df[[c for c in ev_df.columns if c not in labels.HIDDEN_FIELDS]]
-            ev_df = ev_df.rename(columns={c: labels.field_label(c) for c in ev_df.columns})
-            st.dataframe(ev_df, hide_index=True, width="stretch")
-        else:
-            st.caption("Layer 3: no computable evidence for this branch this period.")
+    if entry.get("sibling_ranking"):
+        sib = entry["sibling_ranking"]
+        st.caption(drilldown_view.caption(sib, 2).replace("drivers", "siblings", 1))
+        sib_df = pd.DataFrame(drilldown_view.table_dict(
+            sib, lambda x: labels.qualified_node_label(x["metric_key"], x["label"]),
+            label_header="Metric (Layer 2)"))
+        theme.table(sib_df)
 
-        if entry.get("sibling_ranking"):
-            sib = entry["sibling_ranking"]
-            st.caption(drilldown_view.caption(sib, 2).replace("drivers", "siblings", 1))
-            sib_df = pd.DataFrame(drilldown_view.table_dict(
-                sib, lambda x: labels.qualified_node_label(x["metric_key"], x["label"]),
-                label_header="Metric (Layer 2)"))
-            st.dataframe(sib_df, hide_index=True, width="stretch")
+    missing = entry.get("sibling_coverage", {}).get("missing_siblings") or []
+    if missing:
+        st.caption("Not in the ranking (no data): " + ", ".join(labels.clean_node_label(m["label"]) for m in missing))
 
-        missing = entry.get("sibling_coverage", {}).get("missing_siblings") or []
-        if missing:
-            st.caption("Not in the ranking (no data): " + ", ".join(labels.clean_node_label(m["label"]) for m in missing))
-        for note in entry.get("notes") or []:
-            add_note("Scope", note, prefix=f"{l1['label']} drill-down: ")
+
+
+if not wc_rows:
+    st.info("No Layer-1 metric is outside the variance threshold.")
+else:
+    theme.section_note(whatchanged_view.intro_text(wc_rows, scorecard["nodes_total"], threshold_pct))
+    whatchanged_render.render(wc_rows, key="digest_whatchanged")
+    entries_by_key = {e["layer1"]["metric_key"]: e for e in drilldowns["entries"]}
+    label_by_key = {r["metric_key"]: r["label"] for r in wc_rows}
+    with st.expander("Drill-down detail: Layer-2 driver and Layer-3 evidence"):
+        chosen = st.selectbox(
+            "Metric", [r["metric_key"] for r in wc_rows], format_func=lambda k: label_by_key[k],
+            key="digest_drilldown_metric", help="Ordered as the bars above, largest gap first.",
+        )
+        _render_drilldown(entries_by_key[chosen])
+
+# Every drill-down's scope notes reach Notes & assumptions, whether or not it is selected.
+for _entry in drilldowns["entries"]:
+    for _note in _entry.get("notes") or []:
+        add_note("Scope", _note, prefix=f"{_entry['layer1']['label']} drill-down: ")
 
 for persistence_scope in persistence_view.scope_notes(drilldowns["entries"]):
     notes.append(("Scope", persistence_scope))
@@ -446,15 +470,20 @@ watchlist = readout["watchlist"]
 st.caption("High-risk accounts ranked by estimated ARR at risk, then by churn probability.")
 wl_df = pd.DataFrame(watchlist["rows"])
 if not wl_df.empty:
-    st.dataframe(
-        wl_df[["rank", "account_id", "segment", "risk_tier", "health_score", "est_arr_at_risk_display"]]
-        .rename(columns={
-            "rank": "Rank", "account_id": "Account", "segment": "Segment",
-            "risk_tier": "Risk tier", "health_score": "Health score",
-            "est_arr_at_risk_display": "Est. ARR at risk",
-        }),
-        hide_index=True, width="stretch", height=280,
-    )
+    # One decimal for every health score (a bare 9 beside 8.6 reads as a different precision).
+    wl_df["health_score"] = wl_df["health_score"].map(lambda v: f"{float(v):.1f}")
+    wl_view = wl_df[["rank", "account_id", "segment", "risk_tier", "health_score", "est_arr_at_risk_display"]].rename(columns={
+        "rank": "Rank", "account_id": "Account", "segment": "Segment",
+        "risk_tier": "Risk tier", "health_score": "Health score",
+        "est_arr_at_risk_display": "Est. ARR at risk",
+    })
+    wl_numeric = ["Rank", "Health score", "Est. ARR at risk"]
+    # The top of the ranking is on the page; the rest is one click away (no scroll box).
+    theme.table(wl_view.head(WATCHLIST_ROWS_SHOWN), numeric_columns=wl_numeric)
+    if len(wl_view) > WATCHLIST_ROWS_SHOWN:
+        with st.expander(f"Remaining watchlist accounts ({len(wl_view) - WATCHLIST_ROWS_SHOWN})"):
+            rest = wl_view.iloc[WATCHLIST_ROWS_SHOWN:]
+            theme.table(rest, numeric_columns=wl_numeric, max_height=420 if len(rest) > 24 else None)
 notes.append(("Scope", f"Watchlist selection: {watchlist['selection_rule']}"))
 for i, caveat in enumerate(watchlist["caveats"]):
     notes.append(("Assumption" if i == 0 else "Scope", f"Watchlist: {caveat}"))
@@ -475,11 +504,15 @@ if not recent.empty:
     ].copy()
     shown["timestamp"] = shown["timestamp"].dt.date.astype(str)
     shown["rule_id"] = shown["rule_id"].map(labels.rule_label)
-    st.dataframe(
-        shown.rename(columns={"timestamp": "Date", "rule_id": "Rule", "account_id": "Account",
-                              "resulting_action": "Action"}),
-        hide_index=True, width="stretch", height=280,
-    )
+    shown = shown.rename(columns={"timestamp": "Date", "rule_id": "Rule", "account_id": "Account",
+                                  "resulting_action": "Action"})
+    # The newest rows sit in a table that fits its content; the rest is one click away, so
+    # no table scrolls inside the page (conventions Section 4.6).
+    theme.table(shown.head(TRIGGER_ROWS_SHOWN))
+    if len(shown) > TRIGGER_ROWS_SHOWN:
+        with st.expander(f"Earlier triggers in this window ({len(shown) - TRIGGER_ROWS_SHOWN})"):
+            older = shown.iloc[TRIGGER_ROWS_SHOWN:]
+            theme.table(older, max_height=420 if len(older) > 24 else None)
 else:
     st.caption("No triggers fired in this window.")
 with st.expander(f"Rule catalog ({len(triggers['rules'])} rules)"):

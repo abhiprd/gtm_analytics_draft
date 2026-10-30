@@ -188,7 +188,7 @@ with st.expander("ML lens quality (model diagnostics)"):
         pos, phrase = forecast_logic.auc_statement(result["auc_holdout"], lo, hi)
         # Within the range: favorable. Below: unfavorable. Above: not low, so neutral
         # (the range has a ceiling because a very high AUC warrants a leakage check).
-        auc_color = {"within": theme.FAVORABLE_GREEN, "below": theme.UNFAVORABLE_RED}.get(pos, theme.NEUTRAL_GRAY)
+        auc_color = {"within": theme.FAVORABLE_GREEN, "below": theme.UNFAVORABLE_RED}.get(pos, theme.TEXT_SECONDARY)
         auc_glyph = {"within": "●", "below": "▼", "above": "▲"}[pos]
         st.markdown(
             f'Out-of-time holdout AUC '

@@ -67,7 +67,7 @@ if readout_dates:
     ])
 
     st.caption(
-        f"As of {header['as_of_date']} · {header['audience']}. "
+        f"As of {header['as_of_date']}, for {header['audience']}. "
         "Open Digest in the sidebar for the full scorecard, comparisons and drill-downs."
     )
 else:

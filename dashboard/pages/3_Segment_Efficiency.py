@@ -63,18 +63,19 @@ FAVORABLE_DIRECTION = {
 # churn + expansion +/- migration), not itself a single tree node, so it is
 # deliberately given no layer badge rather than a guessed one.
 LAYER_LABEL = {
-    "new_logo_mrr": "Layer 1 · New logo consumption revenue",
-    "win_rate": "Layer 2 · New logo consumption revenue → Win rate",
-    "avg_initial_commitment": "Layer 2 · New logo consumption revenue → Avg initial commitment",
-    "consumption_payback_months": "Layer 1 · Efficiency",
-    "onboarding_cs_efficiency_ratio": "Layer 1 · Efficiency",
-    "magic_number": "Layer 1 · Efficiency",
-    "am_efficiency": "Layer 1 · Efficiency",
-    "nrr": "Layer 1 · Durability",
-    "grr": "Layer 1 · Durability",
-    "logo_retention_rate": "Layer 1 · Durability",
+    "new_logo_mrr": "Layer 1, Growth pillar",
+    "win_rate": "Layer 2, under New logo consumption revenue",
+    "avg_initial_commitment": "Layer 2, under New logo consumption revenue",
+    "consumption_payback_months": "Layer 1, Efficiency pillar",
+    "onboarding_cs_efficiency_ratio": "Layer 1, Efficiency pillar",
+    "magic_number": "Layer 1, Efficiency pillar",
+    "am_efficiency": "Layer 1, Efficiency pillar",
+    "nrr": "Layer 1, Durability pillar",
+    "grr": "Layer 1, Durability pillar",
+    "logo_retention_rate": "Layer 1, Durability pillar",
 }
 
+BAR_PLOT_SHARE = 0.44
 SEGMENT_ORDER = list(data.SEGMENTS)  # SMB, Commercial, Enterprise -- natural order, never alphabetical-sorted
 
 efficiency = data.mart_efficiency()
@@ -108,10 +109,7 @@ with filter_col:
         help="Defaults to the last complete month. The newest month in the data is partial.",
     )
 with info_col:
-    st.caption(
-        f"**Grain:** Monthly (segment × month)\n\n"
-        f"**Snapshot:** {_month_label(snapshot_month)}"
-    )
+    theme.info_row([("Grain", "Monthly, by segment"), ("Snapshot", _month_label(snapshot_month))])
 
 if not segments:
     st.info("Select at least one segment to see the pillars below.")
@@ -161,10 +159,6 @@ except Exception:  # registry unavailable: the structural card still renders fro
 SMB_WIN_RATE_STRUCTURAL = "smb" in _WIN_RATE_GAP.lower() or not _WIN_RATE_GAP
 
 
-def _layer_short(layer_note: str | None) -> str | None:
-    return layer_note.split(" · ")[0] if layer_note else None
-
-
 def _delta_texts(col_key: str, value, prior_value, value_fmt):
     """(variance_display, comparison_display, direction, is_ahead) for a month-over-month
     move. Percentage-point metrics are labeled pp; a move that rounds to zero is neutral."""
@@ -191,18 +185,19 @@ def metric_cards(title: str, col_key: str, frame: pd.DataFrame, months: list, pi
     in FAVORABLE_DIRECTION, against the real prior month; every other metric shows its
     real move in neutral gray (Section 7). `gap_for(seg, row)` returns a reason string
     when the value is undefined for that segment."""
-    layer_short = _layer_short(layer_note)
+    # The basis and the tree layer are the same for every card in the row, so they are
+    # stated once under the heading instead of repeating in each card (Section 4.10).
     st.markdown(
-        f'<div style="margin-top:6px"><strong>{theme.escape_html(title)}</strong>'
-        + (f' <span class="breadcrumb">{theme.escape_html(layer_note)}</span>' if layer_note else "")
-        + '</div>',
+        f'<div style="margin-top:8px"><strong>{theme.escape_html(title)}</strong>'
+        f'<div class="breadcrumb">{theme.escape_html(layer_note or "No tree layer (bridge total)")}. '
+        f'Basis: {theme.escape_html(basis.lower())}.</div></div>',
         unsafe_allow_html=True,
     )
     cards = []
     for seg in ordered_segments:
         base = dict(label=seg, dot_color=theme.SEGMENT_COLOR[seg])
         row_df = frame[(frame["segment"] == seg) & (frame["month"] == snapshot_month)]
-        footer = [f"Basis: {basis}"] + ([layer_short] if layer_short else ["No tree layer (bridge total)"])
+        footer = []
         if row_df.empty:
             cards.append(dict(base, value_display="No data", footer=footer))
             continue
@@ -221,12 +216,15 @@ def metric_cards(title: str, col_key: str, frame: pd.DataFrame, months: list, pi
         prior_value = None if prior is None or pd.isna(prior[col_key]) else prior[col_key] * scale
         card = dict(base, value_display=value_fmt(value), footer=footer)
         if col_key == "win_rate" and seg == "SMB" and SMB_WIN_RATE_STRUCTURAL:
-            # Every SMB opportunity is created already Closed Won (registry gap note):
-            # 100% by construction, so no comparison and no status.
-            card.update(tag="Structural gap", footer=[
-                "Every SMB opportunity is created already Closed Won; win rate is not a meaningful read.",
-                "Commercial and Enterprise are the meaningful read."] + footer)
-            cards.append(card)
+            # Every SMB opportunity is created already Closed Won (registry gap note): the
+            # series is one value in every month, so the tile is a gap, not a 100% headline
+            # (conventions 4.10, constant series). The reason sits in the disclosure.
+            cards.append(dict(
+                base, value_display="Not computable", value_size="sm", tag="No variation in data",
+                footer=["SMB win rate is the same in every month."],
+                about=[("Reason", "Every SMB opportunity is created already Closed Won, so SMB win rate is 100% by "
+                                  "construction. Commercial and Enterprise are the meaningful read."),
+                       ("Basis", basis)]))
             continue
         variance, comparison, direction, is_ahead = _delta_texts(col_key, value, prior_value, value_fmt)
         card.update(variance_display=variance, comparison_display=comparison,
@@ -243,7 +241,7 @@ TREND_WINDOW_MONTHS = 24
 
 
 def segment_line_chart(df: pd.DataFrame, value_col: str, y_title: str, y_is_pct: bool = False,
-                        window: bool = False) -> go.Figure:
+                        window: bool = False, reference: float = None, reference_label: str = None) -> go.Figure:
     """Full company history by default. `window=True` (only NRR/GRR-shaped
     ratio metrics should pass this) restricts to the trailing
     TREND_WINDOW_MONTHS months instead: the company's earliest live months
@@ -263,54 +261,37 @@ def segment_line_chart(df: pd.DataFrame, value_col: str, y_title: str, y_is_pct:
     partial_x, partial_y, partial_c = [], [], []
     for seg in ordered_segments:
         sdf = df[df["segment"] == seg].sort_values("month")
+        color = theme.SEGMENT_COLOR[seg]
         fig.add_trace(go.Scatter(
-            x=sdf["month"], y=sdf[value_col], mode="lines+markers", name=seg,
-            line=dict(color=theme.SEGMENT_COLOR[seg], width=2.5), marker=dict(size=5),
+            x=sdf["month"], y=sdf[value_col], mode="lines", name=seg,
+            line=dict(color=color, width=2, shape="linear"),
         ))
-        if final_month:
-            last = sdf[sdf["month"].dt.strftime("%Y-%m") == str(final_month)[:7]] if hasattr(sdf["month"], "dt") else sdf.iloc[0:0]
-            for _, r in last.iterrows():
-                partial_x.append(r["month"]); partial_y.append(r[value_col]); partial_c.append(theme.SEGMENT_COLOR[seg])
+        # The newest complete month carries a filled end marker (8px with a surface ring).
+        complete = sdf
+        if final_month and hasattr(sdf["month"], "dt"):
+            is_partial = sdf["month"].dt.strftime("%Y-%m") == str(final_month)[:7]
+            complete = sdf[~is_partial]
+            for _, r in sdf[is_partial].iterrows():
+                partial_x.append(r["month"]); partial_y.append(r[value_col]); partial_c.append(color)
+        complete = complete.dropna(subset=[value_col])
+        if not complete.empty:
+            end = complete.iloc[-1]
+            fig.add_trace(go.Scatter(
+                x=[end["month"]], y=[end[value_col]], mode="markers", showlegend=False, hoverinfo="skip",
+                marker=dict(size=9, color=color, line=dict(width=2, color=theme.SURFACE)),
+            ))
     if partial_x:
         fig.add_trace(go.Scatter(
             x=partial_x, y=partial_y, mode="markers", name="Partial month",
             marker=dict(symbol="diamond-open", size=11, color=partial_c, line=dict(width=2)),
         ))
+    if reference is not None:
+        fig.add_hline(y=reference, line_color=theme.TEXT_SECONDARY, line_width=1,
+                      annotation_text=reference_label, annotation_position="top left",
+                      annotation_font=theme.PLOTLY_TEXT_SECONDARY)
     fig.update_layout(**theme.plotly_layout(height=320))
     theme.style_axes(fig)
     fig.update_yaxes(title_text=y_title, tickformat=".0%" if y_is_pct else None)
-    fig.update_xaxes(title_text="Month")
-    return fig
-
-
-def segment_bar_chart(latest_df: pd.DataFrame, value_col: str, x_title: str, value_fmt,
-                       tickprefix: str = None, tickformat: str = None,
-                       reference: float = None, reference_label: str = None) -> go.Figure:
-    """Horizontal bars, largest at the top on every page (Section 3.2: sorted by value).
-    The axis starts at zero (or at the most negative bar) and extends past the longest
-    bar so the outside label is never clipped; `reference` draws a labeled line (e.g.
-    100% for a retention rate). `tickprefix`/`tickformat` make the axis self-labeling,
-    matching the unit `value_fmt` applies to each bar's text label."""
-    d = latest_df[["segment", value_col]].dropna()
-    d = d[d["segment"].isin(ordered_segments)].sort_values(value_col, ascending=True)
-    vals = list(d[value_col])
-    fig = go.Figure(go.Bar(
-        x=vals, y=d["segment"], orientation="h",
-        marker_color=[theme.SEGMENT_COLOR[s] for s in d["segment"]],
-        text=[value_fmt(v) for v in vals], textposition="outside", cliponaxis=False,
-    ))
-    fig.update_layout(**theme.plotly_layout(height=190, showlegend=False))
-    theme.style_axes(fig)
-    if vals:
-        top = max(max(vals), reference or 0)
-        bottom = min(min(vals), 0)
-        span = (top - bottom) or 1
-        fig.update_xaxes(range=[bottom - (0.18 * span if bottom < 0 else 0), top + 0.2 * span])
-    if reference is not None:
-        fig.add_vline(x=reference, line_dash="dash", line_color=theme.NEUTRAL_GRAY,
-                      annotation_text=reference_label, annotation_position="top")
-    fig.update_xaxes(title_text=x_title, tickprefix=tickprefix, tickformat=tickformat)
-    fig.update_yaxes(title_text="")
     return fig
 
 
@@ -335,56 +316,43 @@ with tab_growth:
     _partial_caption()
     g = growth[growth["segment"].isin(segments)].copy()
     g_months = sorted(g["month"].unique())
-    latest = g[g["month"] == snapshot_month]
 
     metric_cards("Ending MRR (bridge total)", "ending_mrr", g, g_months, "growth", usd)
-    metric_cards("New logo MRR", "new_logo_mrr", g, g_months, "growth", usd, layer_note=LAYER_LABEL["new_logo_mrr"])
+    metric_cards("New logo consumption revenue (MRR)", "new_logo_mrr", g, g_months, "growth", usd, layer_note=LAYER_LABEL["new_logo_mrr"])
     metric_cards("Win rate", "win_rate", g, g_months, "growth", pct, layer_note=LAYER_LABEL["win_rate"])
     metric_cards("Avg initial commitment", "avg_initial_commitment", g, g_months, "growth", usd,
                  layer_note=LAYER_LABEL["avg_initial_commitment"])
 
-    st.markdown("**New logo MRR by segment — snapshot**")
-    st.plotly_chart(
-        segment_bar_chart(latest, "new_logo_mrr", "New logo MRR ($)", usd, tickprefix="$", tickformat="~s"),
-        width="stretch",
-    )
-
     st.markdown("**Ending MRR over time** (full history)")
-    st.plotly_chart(segment_line_chart(g, "ending_mrr", "Ending MRR ($)"), width="stretch")
+    st.plotly_chart(segment_line_chart(g, "ending_mrr", "Ending MRR ($)"), width="stretch",
+                    config={"displayModeBar": False})
 
 # ---------------------------------------------------------------------------
 with tab_efficiency:
     _pillar_heading("efficiency", "Efficiency by segment")
-    st.caption("Consumption payback, onboarding/CS efficiency, Magic Number and AM Efficiency.")
+    st.caption("Consumption payback, onboarding/CS efficiency, Magic number and AM efficiency.")
     _partial_caption()
     e = efficiency[efficiency["segment"].isin(segments)].copy()
     e_months = sorted(e["month"].unique())
-    latest = e[e["month"] == snapshot_month]
 
     metric_cards("Consumption payback (months)", "consumption_payback_months", e, e_months, "efficiency",
                  months, layer_note=LAYER_LABEL["consumption_payback_months"])
-    metric_cards("AM touches per 1M Actions delivered", "onboarding_cs_efficiency_ratio", e, e_months,
+    metric_cards("Onboarding/CS efficiency (AM touches per 1M Actions)", "onboarding_cs_efficiency_ratio", e, e_months,
                  "efficiency", lambda v: num(v, 2), layer_note=LAYER_LABEL["onboarding_cs_efficiency_ratio"],
                  scale=1_000_000)
-    metric_cards("Magic Number (monthly)", "magic_number", e, e_months, "efficiency", lambda v: num(v, 2),
+    metric_cards("Magic number (monthly)", "magic_number", e, e_months, "efficiency", lambda v: num(v, 2),
                  layer_note=LAYER_LABEL["magic_number"],
                  gap_for=lambda seg, row: "Not defined before 2023-02 (no prior-month S&M cost)"
                  if pd.isna(row["magic_number"]) else None)
-    metric_cards("AM Efficiency (monthly)", "am_efficiency", e, e_months, "efficiency", lambda v: num(v, 2),
+    metric_cards("AM efficiency (monthly)", "am_efficiency", e, e_months, "efficiency", lambda v: num(v, 2),
                  layer_note=LAYER_LABEL["am_efficiency"],
                  gap_for=lambda seg, row: (("Not defined for SMB (no AM)" if seg == "SMB" else "Not computable")
                                            if pd.isna(row["am_efficiency"]) else None))
 
-    st.markdown("**Consumption payback by segment — snapshot**")
-    st.plotly_chart(
-        segment_bar_chart(latest, "consumption_payback_months", "Consumption payback (months)",
-                           months),
-        width="stretch",
-    )
-
     st.markdown("**Consumption payback over time** (full history)")
     st.plotly_chart(
         segment_line_chart(e, "consumption_payback_months", "Months"), width="stretch",
+        config={"displayModeBar": False},
     )
 
 # ---------------------------------------------------------------------------
@@ -394,23 +362,17 @@ with tab_durability:
     _partial_caption()
     d = durability[durability["segment"].isin(segments)].copy()
     d_months = sorted(d["month"].unique())
-    latest = d[d["month"] == snapshot_month]
 
     metric_cards("NRR", "nrr", d, d_months, "durability", pct, layer_note=LAYER_LABEL["nrr"])
     metric_cards("GRR", "grr", d, d_months, "durability", pct, layer_note=LAYER_LABEL["grr"])
     metric_cards("Logo retention", "logo_retention_rate", d, d_months, "durability", pct,
                  layer_note=LAYER_LABEL["logo_retention_rate"])
 
-    st.markdown("**NRR by segment — snapshot**")
-    st.plotly_chart(
-        segment_bar_chart(latest, "nrr", "NRR (monthly rate)", pct, tickformat=".0%",
-                          reference=1.0, reference_label="100%"),
-        width="stretch",
-    )
-
     st.markdown(f"**NRR over time** (trailing {TREND_WINDOW_MONTHS} months)")
     st.plotly_chart(
-        segment_line_chart(d, "nrr", "NRR", y_is_pct=True, window=True), width="stretch",
+        segment_line_chart(d, "nrr", "NRR (monthly rate)", y_is_pct=True, window=True,
+                           reference=1.0, reference_label="100%"), width="stretch",
+        config={"displayModeBar": False},
     )
 # ---------------------------------------------------------------------------
 with tab_migration:
@@ -435,8 +397,10 @@ with tab_migration:
         st.markdown("**Trigger reason mix**")
         reason_counts = m["trigger_reason"].value_counts()
         total = reason_counts.sum()
-        reason_colors = {"usage_threshold": theme.GROWTH_NAVY, "firmographic_rescore": theme.GROWTH_ICE_BLUE}
-        reason_text_colors = {"usage_threshold": "#FFFFFF", "firmographic_rescore": theme.GROWTH_NAVY}
+        # Two reasons are a category, not a pillar and not a status: one violet hue in two
+        # lightness steps (tokens CATEGORY_VIOLET*), 22px thick with 4px rounded ends.
+        reason_colors = {"usage_threshold": theme.CATEGORY_VIOLET, "firmographic_rescore": theme.CATEGORY_VIOLET_LIGHT}
+        reason_text_colors = {"usage_threshold": "#FFFFFF", "firmographic_rescore": theme.INK_STRONG}
         fig = go.Figure()
         for reason in ["usage_threshold", "firmographic_rescore"]:
             n = int(reason_counts.get(reason, 0))
@@ -444,18 +408,24 @@ with tab_migration:
                 continue
             share = n / total
             fig.add_trace(go.Bar(
-                y=["Migrations"], x=[n], orientation="h",
+                y=["Migrations"], x=[n], orientation="h", width=BAR_PLOT_SHARE,
                 name=f"{labels.humanize(reason)} ({n}, {share:.0%})",
-                marker_color=reason_colors[reason],
+                marker=dict(color=reason_colors[reason], cornerradius=theme.RADIUS_MARK,
+                            line=dict(width=2, color=theme.SURFACE)),
                 text=f"{labels.humanize(reason)}: {n} ({share:.0%})",
                 textposition="inside", insidetextanchor="middle",
-                textfont=dict(color=reason_text_colors[reason]),
+                textfont=dict(color=reason_text_colors[reason], size=theme.FS_XS),
+                insidetextfont=dict(color=reason_text_colors[reason], size=theme.FS_XS),
             ))
-        fig.update_layout(barmode="stack", **theme.plotly_layout(height=170))
+        # Plot height 150 - 36 top - 64 bottom = 50px, so a 0.44 share is a 22px bar.
+        fig.update_layout(barmode="stack", **theme.plotly_layout(
+            height=150, margin=dict(l=10, r=10, t=36, b=64),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, traceorder="normal",
+                        font=theme.PLOTLY_FONT)))
         theme.style_axes(fig)
         fig.update_xaxes(title_text="Migration events")
-        fig.update_yaxes(title_text="")
-        st.plotly_chart(fig, width="stretch")
+        fig.update_yaxes(title_text="", showgrid=False)
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
         st.markdown("**Migration path**")
         by_path = (
@@ -465,7 +435,7 @@ with tab_migration:
         )
         by_path["share_of_migrations"] = by_path["migrations"] / by_path["migrations"].sum()
         by_path = by_path.sort_values("migrations", ascending=False)
-        st.dataframe(
+        theme.table(
             by_path.rename(columns={
                 "from_segment": "From", "to_segment": "To", "migrations": "Migrations",
                 "mrr_reclassified": "MRR reclassified", "share_of_migrations": "Share",
@@ -473,7 +443,7 @@ with tab_migration:
                 "MRR reclassified": lambda x: x["MRR reclassified"].map(usd),
                 "Share": lambda x: x["Share"].map(pct),
             }),
-            hide_index=True, width="stretch",
+            numeric_columns=["Migrations", "MRR reclassified", "Share"],
         )
 
 # ---------------------------------------------------------------------------
@@ -485,36 +455,36 @@ theme.notes_and_assumptions([
               "the underlying data holds, so no grain toggle is offered."),
     ("Scope", "The snapshot month defaults to the last complete month. The newest month in the data is a "
               "truncated final month and is marked partial; charts draw it with an open marker."),
-    ("Scope", "Win rate, Consumption payback, NRR, GRR and Logo retention are colored against last month "
-              "for the same segment (higher is favorable, except Consumption payback where lower is "
+    ("Scope", "Win rate, consumption payback, NRR, GRR and logo retention are colored against last month "
+              "for the same segment (higher is favorable, except consumption payback where lower is "
               "favorable). This is a trailing comparison, not a plan comparison."),
     ("Scope", "A move that rounds to zero is neutral. Rate moves are in percentage points (pp)."),
-    ("Scope", "Ending MRR, New logo MRR, Avg initial commitment and AM touches per 1M Actions show their "
+    ("Scope", "Ending MRR, new logo consumption revenue, average initial commitment and onboarding/CS efficiency show their "
               "month-over-month move in neutral gray. No plan is loaded at this grain for these figures."),
-    ("Scope", "NRR and GRR here are monthly rates for the snapshot month. The Digest shows NRR, GRR and Logo "
+    ("Scope", "NRR and GRR here are monthly rates for the snapshot month. The Digest shows NRR, GRR and logo "
               "retention as trailing-12-month compounded rates, so the two pages show different levels by "
               "design."),
     ("Scope", "Consumption payback uses CAC from marketing spend only, which excludes sales headcount cost, "
               "so its level is not comparable with a fully loaded benchmark. The month-over-month move on "
               "the same basis is unaffected."),
-    ("Scope", "Magic Number is net new ARR over the prior month's S&M cost. S&M cost is rep fully-loaded "
-              "cost including ramp plus marketing spend allocated by channel. AM Efficiency is monthly "
+    ("Scope", "Magic number is net new ARR over the prior month's S&M cost. S&M cost is rep fully-loaded "
+              "cost including ramp plus marketing spend allocated by channel. AM efficiency is monthly "
               "expansion MRR over AM cost."),
-    ("Scope", "Single-month Magic Number and AM Efficiency are seasonal and can be negative in a month of "
+    ("Scope", "Single-month magic number and AM efficiency are seasonal and can be negative in a month of "
               "net contraction. The Digest reads both as trailing-twelve-month ratios and compares them "
               "with plan under a level-comparability caveat."),
     ("Scope", "S&M cost excludes marketing-team headcount, which the raw data does not carry. Magic "
               "Number is a ceiling against the benchmark and its S&M denominator a floor."),
-    ("Data gap", "Magic Number is not defined before 2023-02, the first month with a prior-month S&M cost."),
-    ("Data gap", "SMB has no reps or AM: its Magic Number reflects program spend only and its AM "
+    ("Data gap", "Magic number is not defined before 2023-02, the first month with a prior-month S&M cost."),
+    ("Data gap", "SMB has no reps or AM: its Magic number reflects program spend only and its AM "
                  "Efficiency is not defined."),
     ("Data gap", labels.clean_registry_text(_WIN_RATE_GAP) and
         ("Win rate: " + labels.clean_registry_text(_WIN_RATE_GAP)) or
         "Win rate: every SMB opportunity is created already Closed Won, so SMB win rate is 100% by construction."),
     ("Scope", "The NRR trend shows the trailing 24 months. The earliest months have a near-zero "
               "starting-MRR denominator, and their ratio spikes would flatten the recent trend."),
-    ("Scope", "The NRR snapshot chart starts at zero and marks 100%; a rate above 100% means expansion "
-              "exceeded contraction and churn in the month."),
+    ("Scope", "The NRR trend marks 100%; a rate above 100% means expansion exceeded contraction and churn "
+              "in the month."),
     ("Scope", "Segment migration is shown with the Growth accent. Graduated revenue is part of the growth "
               "bridge and is excluded from the source segment's own churn and contraction."),
 ])

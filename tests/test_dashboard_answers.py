@@ -585,3 +585,28 @@ class TestQualifiedLabels:
 
     def test_pipeline_generated_carries_a_count_unit(self):
         assert A.format_for_key("pipeline_generated", 69) == "69 leads converted"
+
+
+# ---------------------------------------------------------------------------
+# Win rate: months before the first lost new-business deal read exactly 100%
+# ---------------------------------------------------------------------------
+class TestWinRateAllWonNote:
+    FIRST_LOST = {"Commercial": "2023-01", "Enterprise": "2023-01"}
+
+    def rows(self, **override):
+        base = [dict(period="2022-11-01", value=1.0, segment="Commercial"),
+                dict(period="2023-02-01", value=0.2, segment="Commercial"),
+                dict(period="2022-12-01", value=1.0, segment="Enterprise"),
+                dict(period="2022-12-01", value=1.0, segment="SMB")]
+        return base
+
+    def test_names_the_segments_and_the_first_month_with_a_lost_deal(self):
+        text = A.win_rate_all_won_note(self.FIRST_LOST, self.rows())
+        assert "Commercial before 2023-01" in text and "Enterprise before 2023-01" in text
+        assert "SMB" not in text and "won deals only" in text
+
+    def test_no_note_when_no_month_reads_100_percent_before_the_first_loss(self):
+        rows = [dict(period="2023-03-01", value=1.0, segment="Commercial"),
+                dict(period="2022-05-01", value=0.5, segment="Commercial")]
+        assert A.win_rate_all_won_note(self.FIRST_LOST, rows) == ""
+        assert A.win_rate_all_won_note({}, self.rows()) == ""

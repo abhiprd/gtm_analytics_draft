@@ -126,3 +126,35 @@ def load_pipeline_coverage_backtest() -> Optional[dict]:
         if summary:
             return summary
     return None
+
+
+@st.cache_data(ttl=300)
+def layer1_monthly_series(as_of_date: date) -> dict:
+    """{metric_key: {"YYYY-MM": value}} for the 11 Layer-1 metrics, from the variance
+    engine's own blended monthly series (`blend_layer1_actuals`, called in-process: the
+    same function the weekly readout's actuals come from). It feeds the verdict tiles'
+    sparklines only. Any failure (no database, an engine error) returns an empty dict,
+    and a tile without a series shows no sparkline."""
+    try:
+        import sys
+        if REPO_ROOT not in sys.path:
+            sys.path.insert(0, REPO_ROOT)
+        from analytics import variance_diagnostic as vd
+        frame = vd.blend_layer1_actuals(as_of_date)
+    except Exception:
+        return {}
+    from . import verdict
+    return verdict.monthly_series(frame)
+
+
+@st.cache_data(ttl=300)
+def first_lost_new_business_month() -> dict:
+    """{segment: "YYYY-MM"} of the first month with a lost new-business deal in
+    mart_deal_funnel. Before it, win rate is won / (won + lost) with no lost deal, so it reads
+    exactly 100%. Used for the Ask page's data note only; an unavailable mart returns {}."""
+    try:
+        df = query_df("select segment, min(month) as m from main_marts.mart_deal_funnel "
+                      "where new_business_lost_count > 0 group by segment")
+    except Exception:
+        return {}
+    return {r.segment: pd.Timestamp(r.m).strftime("%Y-%m") for r in df.itertuples()}

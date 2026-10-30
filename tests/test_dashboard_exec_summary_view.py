@@ -147,10 +147,10 @@ def test_missing_or_legacy_or_unknown_slots_are_blank(slot):
 
 def test_format_cite_uses_readout_labels_and_falls_back():
     labels = {"magic_number": "Magic number (blended)"}
-    assert v.format_cite("scorecard:magic_number", labels) == "Scorecard · Magic number (blended)"
-    assert v.format_cite("drilldown:new_logo", None) == "Drill-down · New logo"
+    assert v.format_cite("scorecard:magic_number", labels) == "Scorecard: Magic number (blended)"
+    assert v.format_cite("drilldown:new_logo", None) == "Drill-down: New logo"
     assert v.format_cite("watchlist") == "Watchlist"
-    assert v.format_cite("watchlist:ACC-1") == "Watchlist · Acc-1"
+    assert v.format_cite("watchlist:ACC-1") == "Watchlist: Acc-1"
 
 
 def test_safe_html_escapes_markup_and_dollar_math():
